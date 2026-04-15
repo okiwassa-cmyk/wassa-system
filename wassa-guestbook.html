@@ -1,0 +1,1639 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WASSA WASSA — Guest Book</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Shippori+Mincho:wght@400;500;600&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ocean:   #0D3B4A;
+  --ocean2:  #1A5568;
+  --ocean3:  #2B7A8E;
+  --seafoam: #A8D5DC;
+  --sand:    #F2EDE4;
+  --sand2:   #E8E0D0;
+  --sand3:   #D9CEBC;
+  --star:    #E8C87A;
+  --coral:   #C4614A;
+  --coral-lt:#FAF0ED;
+  --green:   #3A6B4E;
+  --green-lt:#EDF5F0;
+  --amber:   #B87D2A;
+  --amber-lt:#FBF5E8;
+  --text:    #1C2E35;
+  --text2:   #4A6570;
+  --text3:   #8AA0A8;
+  --white:   #FFFEFB;
+  --radius:  12px;
+  --shadow:  0 2px 16px rgba(13,59,74,.10);
+  --shadow2: 0 4px 32px rgba(13,59,74,.16);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{font-size:15px}
+body{font-family:'Noto Sans JP',sans-serif;background:var(--sand);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+/* ── HEADER ── */
+header{background:var(--ocean);padding:0 20px;height:58px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,.25)}
+.hdr-logo{display:flex;flex-direction:column;line-height:1}
+.hdr-logo span:first-child{font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--white);letter-spacing:.1em;font-weight:500}
+.hdr-logo span:last-child{font-size:9px;color:var(--seafoam);letter-spacing:.18em;text-transform:uppercase;opacity:.9;margin-top:1px}
+.hdr-right{display:flex;align-items:center;gap:12px}
+#hdr-today{font-size:11px;color:var(--seafoam);letter-spacing:.06em}
+.sync-btn{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:8px;color:var(--white);font-size:11px;padding:5px 12px;cursor:pointer;display:flex;align-items:center;gap:5px;transition:.2s;font-family:'Noto Sans JP',sans-serif}
+.sync-btn:hover{background:rgba(255,255,255,.2)}
+.sync-btn.spinning svg{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── NAV ── */
+nav{background:var(--white);border-bottom:1px solid var(--sand2);display:flex;overflow-x:auto;position:sticky;top:58px;z-index:190;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+nav::-webkit-scrollbar{display:none}
+.nav-btn{flex-shrink:0;padding:14px 18px;border:none;background:none;cursor:pointer;font-size:12px;font-family:'Noto Sans JP',sans-serif;color:var(--text2);border-bottom:2px solid transparent;transition:.2s;white-space:nowrap;display:flex;align-items:center;gap:5px;letter-spacing:.03em}
+.nav-btn.active{color:var(--ocean2);border-bottom-color:var(--ocean2);font-weight:500}
+.nav-btn:hover:not(.active){color:var(--text);background:var(--sand)}
+
+/* ── MAIN ── */
+main{max-width:980px;margin:0 auto;padding:20px 16px 80px}
+.sec{display:none}.sec.active{display:block}
+.page-title{font-family:'Cormorant Garamond',serif;font-size:28px;color:var(--ocean);letter-spacing:.06em;margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid var(--sand3);display:flex;align-items:baseline;gap:10px}
+.page-title small{font-family:'Noto Sans JP',sans-serif;font-size:12px;color:var(--text3);font-weight:300;letter-spacing:.05em}
+
+/* ── CARD ── */
+.card{background:var(--white);border-radius:var(--radius);padding:20px;margin-bottom:16px;box-shadow:var(--shadow)}
+.card-title{font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:7px}
+.card-title::before{content:'';width:3px;height:13px;background:var(--ocean3);border-radius:2px;display:inline-block;flex-shrink:0}
+
+/* ── FORM ── */
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px}
+.fgrid.col3{grid-template-columns:1fr 1fr 1fr}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fg.full{grid-column:1/-1}
+label{font-size:11px;font-weight:500;color:var(--text2);letter-spacing:.04em}
+.req{color:var(--coral)}
+input,select,textarea{padding:9px 12px;border:1.5px solid var(--sand2);border-radius:8px;font-size:13px;font-family:'Noto Sans JP',sans-serif;color:var(--text);background:var(--white);width:100%;transition:.15s}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--ocean3);background:#F5FAFB}
+textarea{resize:vertical;min-height:72px}
+.check-group{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.check-item{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2);cursor:pointer}
+.check-item input[type=checkbox]{width:14px;height:14px;accent-color:var(--ocean2)}
+.radio-group{display:flex;gap:12px;flex-wrap:wrap;margin-top:4px}
+.radio-item{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2);cursor:pointer}
+.radio-item input[type=radio]{accent-color:var(--ocean2)}
+
+/* ── BUTTON ── */
+.btn{padding:9px 18px;border:none;border-radius:8px;font-size:13px;font-family:'Noto Sans JP',sans-serif;cursor:pointer;font-weight:500;transition:.15s;display:inline-flex;align-items:center;gap:6px;letter-spacing:.03em}
+.btn-primary{background:var(--ocean2);color:var(--white)}.btn-primary:hover{background:var(--ocean)}
+.btn-secondary{background:var(--sand);color:var(--text2);border:1.5px solid var(--sand3)}.btn-secondary:hover{background:var(--sand2)}
+.btn-danger{background:var(--coral-lt);color:var(--coral);border:1.5px solid #EDCCC7}.btn-danger:hover{background:#F5E0DC}
+.btn-sm{padding:5px 12px;font-size:12px}
+.btn-ghost{background:none;color:var(--text2);border:1.5px solid var(--sand3)}.btn-ghost:hover{background:var(--sand)}
+.bgrp{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+
+/* ── BADGE ── */
+.badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:500;letter-spacing:.04em}
+.badge-confirmed{background:var(--green-lt);color:var(--green)}
+.badge-cancelled{background:var(--coral-lt);color:var(--coral)}
+.badge-checkin{background:var(--amber-lt);color:var(--amber)}
+.badge-checkout{background:var(--sand2);color:var(--text2)}
+
+/* ── TABLE ── */
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:10px 12px;background:var(--sand);color:var(--text2);font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;border-bottom:2px solid var(--sand2);white-space:nowrap}
+td{padding:12px 12px;border-bottom:1px solid var(--sand);vertical-align:middle}
+tr:hover td{background:#F8FAFB;cursor:pointer}
+.empty-row td{text-align:center;color:var(--text3);padding:40px;font-size:13px}
+
+/* ── DASHBOARD ── */
+.dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.stat-card{background:var(--white);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);border-left:3px solid var(--ocean3)}
+.stat-card.today{border-left-color:var(--star)}
+.stat-card.tomorrow{border-left-color:var(--ocean3)}
+.stat-card.alert{border-left-color:var(--coral)}
+.stat-label{font-size:10px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:6px}
+.stat-num{font-family:'Cormorant Garamond',serif;font-size:42px;color:var(--ocean);line-height:1;font-weight:500}
+.stat-sub{font-size:11px;color:var(--text2);margin-top:4px}
+
+/* ── CHECKIN LIST ── */
+.ci-card{background:var(--white);border-radius:var(--radius);padding:0;box-shadow:var(--shadow);overflow:hidden;margin-bottom:8px}
+.ci-header{background:var(--ocean);color:var(--white);padding:10px 16px;font-size:12px;letter-spacing:.06em;font-weight:500;display:flex;align-items:center;gap:8px}
+.ci-row{display:flex;align-items:center;padding:14px 16px;border-bottom:1px solid var(--sand);gap:12px;cursor:pointer;transition:.15s}
+.ci-row:last-child{border-bottom:none}
+.ci-row:hover{background:var(--sand)}
+.ci-room{width:34px;height:34px;border-radius:8px;background:var(--sand2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--ocean2);flex-shrink:0}
+.ci-room.dx{background:var(--ocean);color:var(--white)}
+.ci-info{flex:1;min-width:0}
+.ci-name{font-size:14px;font-weight:500;color:var(--text)}
+.ci-detail{font-size:11px;color:var(--text2);margin-top:2px}
+.ci-badges{display:flex;gap:5px;flex-wrap:wrap}
+.allergy-tag{background:var(--coral-lt);color:var(--coral);font-size:10px;padding:1px 7px;border-radius:10px;border:1px solid #EDCCC7}
+
+/* ── CALENDAR ── */
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.cal-nav h3{font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--ocean);font-weight:500}
+.cal-btn{background:none;border:1px solid var(--sand3);border-radius:8px;padding:6px 14px;cursor:pointer;color:var(--text2);font-size:15px;transition:.15s}
+.cal-btn:hover{background:var(--sand)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cal-dow{text-align:center;font-size:10px;color:var(--text3);padding:4px 0;font-weight:600;letter-spacing:.05em}
+.cal-day{border-radius:8px;min-height:50px;padding:4px;display:flex;flex-direction:column;gap:2px;cursor:pointer;transition:.15s;position:relative}
+.cal-day:hover{background:var(--sand2)}
+.cal-day.today{background:var(--ocean);border-radius:8px}
+.cal-day.today .dn{color:var(--white)!important}
+.cal-day.has-reservation{background:var(--sand)}
+.cal-day .dn{font-size:13px;font-weight:500;color:var(--text);text-align:center;line-height:1.4}
+.cal-day.other-month .dn{color:var(--text3)}
+.cal-dot{width:5px;height:5px;border-radius:50%;background:var(--ocean2);margin:0 auto}
+.cal-res-tag{font-size:9px;background:var(--ocean3);color:var(--white);border-radius:3px;padding:1px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+
+/* ── BILLING ── */
+.billing-row{display:grid;grid-template-columns:120px 1fr 60px 80px 100px 80px 36px;gap:6px;align-items:center;margin-bottom:8px}
+.billing-row input,
+.billing-row select{font-size:12px;padding:7px 8px}
+.billing-total{background:var(--ocean);color:var(--white);border-radius:10px;padding:16px 20px;display:grid;grid-template-columns:1fr auto;gap:6px 20px;align-items:center}
+.billing-total .tl{font-size:12px;color:rgba(255,255,255,.75);letter-spacing:.05em}
+.billing-total .tv{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:500;text-align:right}
+.billing-total .tv.big{font-size:30px;color:var(--star)}
+
+/* ── FOOD CARD ── */
+.food-day{background:var(--white);border-radius:var(--radius);margin-bottom:12px;box-shadow:var(--shadow);overflow:hidden}
+.food-day-header{background:var(--sand2);padding:10px 16px;font-size:12px;color:var(--ocean);font-weight:600;letter-spacing:.04em;display:flex;align-items:center;gap:8px}
+.food-day-body{padding:16px}
+.food-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(13,59,74,.55);z-index:500;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(3px)}
+.modal-overlay.open{display:flex}
+.modal{background:var(--white);border-radius:16px 16px 0 0;width:100%;max-width:700px;max-height:92vh;overflow-y:auto;padding:24px 20px 40px;box-shadow:0 -4px 40px rgba(13,59,74,.2);animation:slideUp .25s ease}
+@keyframes slideUp{from{transform:translateY(30px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid var(--sand2)}
+.modal-title{font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--ocean);font-weight:500;letter-spacing:.04em}
+.modal-close{background:var(--sand);border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:16px;color:var(--text2);display:flex;align-items:center;justify-content:center;transition:.15s}
+.modal-close:hover{background:var(--sand2)}
+.modal-tabs{display:flex;border-bottom:1px solid var(--sand2);margin:-4px -4px 18px;overflow-x:auto;scrollbar-width:none}
+.modal-tab{padding:10px 14px;font-size:12px;font-family:'Noto Sans JP',sans-serif;border:none;background:none;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;white-space:nowrap;flex-shrink:0;transition:.15s}
+.modal-tab.active{color:var(--ocean2);border-bottom-color:var(--ocean2);font-weight:500}
+.modal-pane{display:none}.modal-pane.active{display:block}
+
+/* ── SEARCH ── */
+.search-wrap{position:relative;margin-bottom:16px}
+.search-wrap input{padding-left:36px;background:var(--white)}
+.search-wrap svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text3)}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ocean);color:var(--white);padding:10px 20px;border-radius:24px;font-size:13px;opacity:0;transition:.3s;z-index:9999;pointer-events:none;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,.25)}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── LOADING ── */
+#loading{position:fixed;inset:0;background:var(--ocean);z-index:9000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity .4s}
+#loading.hide{opacity:0;pointer-events:none}
+.loading-logo{font-family:'Cormorant Garamond',serif;font-size:32px;color:var(--white);letter-spacing:.12em}
+.loading-sub{font-size:11px;color:var(--seafoam);letter-spacing:.18em;text-transform:uppercase}
+.loading-dots{display:flex;gap:6px}
+.loading-dots span{width:6px;height:6px;border-radius:50%;background:var(--seafoam);animation:pulse 1.2s ease infinite}
+.loading-dots span:nth-child(2){animation-delay:.2s}
+.loading-dots span:nth-child(3){animation-delay:.4s}
+@keyframes pulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}
+
+/* ── EXPERIENCE RECORD ── */
+.exp-section{margin-top:12px}
+.exp-title{font-size:11px;color:var(--text2);font-weight:600;letter-spacing:.06em;margin-bottom:8px;text-transform:uppercase}
+.exp-checks{display:flex;flex-wrap:wrap;gap:6px}
+.exp-check{display:flex;align-items:center;gap:4px;background:var(--sand);border:1px solid var(--sand3);border-radius:20px;padding:4px 10px;font-size:11px;cursor:pointer;transition:.15s}
+.exp-check input{display:none}
+.exp-check.checked{background:var(--ocean);border-color:var(--ocean);color:var(--white)}
+.exp-check:hover{border-color:var(--ocean3)}
+
+/* ── MENU MASTER ── */
+.menu-item{background:var(--white);border-radius:10px;padding:14px 16px;margin-bottom:8px;box-shadow:var(--shadow);display:flex;align-items:flex-start;gap:12px;cursor:pointer;transition:.15s}
+.menu-item:hover{box-shadow:var(--shadow2)}
+.menu-cat{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;letter-spacing:.05em}
+.menu-cat.breakfast{background:var(--amber-lt);color:var(--amber)}
+.menu-cat.dinner{background:var(--ocean);color:var(--white)}
+.menu-cat.kids{background:var(--green-lt);color:var(--green)}
+.menu-cat.other{background:var(--sand2);color:var(--text2)}
+.menu-body{flex:1;min-width:0}
+.menu-name{font-size:14px;font-weight:500;color:var(--text);margin-bottom:3px}
+.menu-detail{font-size:11px;color:var(--text2);line-height:1.6;white-space:pre-wrap}
+
+/* ── CUSTOMER LIST ── */
+.customer-row{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--sand);cursor:pointer;transition:.15s}
+.customer-row:hover{background:var(--sand)}
+.avatar{width:38px;height:38px;border-radius:50%;background:var(--ocean);color:var(--white);display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:16px;flex-shrink:0}
+.cust-info{flex:1;min-width:0}
+.cust-name{font-size:14px;font-weight:500;color:var(--text)}
+.cust-sub{font-size:11px;color:var(--text2);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cust-count{font-size:11px;color:var(--text3);text-align:right}
+
+/* ── RESPONSIVE ── */
+@media(max-width:640px){
+  .dash-grid{grid-template-columns:1fr 1fr}
+  .fgrid{grid-template-columns:1fr}
+  .fgrid.col3{grid-template-columns:1fr 1fr}
+  .food-grid{grid-template-columns:1fr}
+  .billing-row{grid-template-columns:1fr 1fr;gap:4px}
+  .billing-row .del-btn{grid-column:2;justify-self:end}
+  main{padding:14px 12px 80px}
+  .stat-num{font-size:34px}
+}
+
+/* ── SECTION ANIMATIONS ── */
+.sec.active .card,.sec.active .ci-card,.sec.active .stat-card{animation:fadeUp .3s ease both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.sec.active .card:nth-child(2){animation-delay:.05s}
+.sec.active .card:nth-child(3){animation-delay:.10s}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="loading-logo">WASSA WASSA</div>
+  <div class="loading-sub">Guest Book</div>
+  <div class="loading-dots"><span></span><span></span><span></span></div>
+</div>
+
+<div id="toast"></div>
+
+<!-- HEADER -->
+<header>
+  <div class="hdr-logo">
+    <span>WASSA WASSA</span>
+    <span>Guest Book</span>
+  </div>
+  <div class="hdr-right">
+    <span id="hdr-today"></span>
+    <button class="sync-btn" onclick="syncReservations()" id="sync-btn">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      同期
+    </button>
+  </div>
+</header>
+
+<!-- NAV -->
+<nav>
+  <button class="nav-btn active" onclick="showSec('dash',this)">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+    今日
+  </button>
+  <button class="nav-btn" onclick="showSec('reservations',this)">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    予約
+  </button>
+  <button class="nav-btn" onclick="showSec('calendar',this)">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    カレンダー
+  </button>
+  <button class="nav-btn" onclick="showSec('customers',this)">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    顧客
+  </button>
+  <button class="nav-btn" onclick="showSec('menu',this)">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7"/></svg>
+    メニュー
+  </button>
+  <button class="nav-btn" onclick="showSec('csv',this)">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    CSV
+  </button>
+</nav>
+
+<main>
+
+<!-- ═══ DASHBOARD ═══ -->
+<section class="sec active" id="sec-dash">
+  <div class="page-title">今日のWASSA WASSA <small id="dash-date"></small></div>
+
+  <div class="dash-grid">
+    <div class="stat-card today">
+      <div class="stat-label">本日チェックイン</div>
+      <div class="stat-num" id="stat-ci">—</div>
+      <div class="stat-sub" id="stat-ci-sub">組</div>
+    </div>
+    <div class="stat-card tomorrow">
+      <div class="stat-label">明日チェックイン</div>
+      <div class="stat-num" id="stat-tm">—</div>
+      <div class="stat-sub">組</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">現在宿泊中</div>
+      <div class="stat-num" id="stat-stay">—</div>
+      <div class="stat-sub">組</div>
+    </div>
+    <div class="stat-card alert">
+      <div class="stat-label">本日チェックアウト</div>
+      <div class="stat-num" id="stat-co">—</div>
+      <div class="stat-sub">組</div>
+    </div>
+  </div>
+
+  <div class="ci-card" id="dash-ci-card">
+    <div class="ci-header">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+      本日チェックイン
+    </div>
+    <div id="dash-ci-list"></div>
+  </div>
+
+  <div class="ci-card" id="dash-stay-card">
+    <div class="ci-header" style="background:var(--ocean2)">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      現在宿泊中
+    </div>
+    <div id="dash-stay-list"></div>
+  </div>
+</section>
+
+<!-- ═══ RESERVATIONS ═══ -->
+<section class="sec" id="sec-reservations">
+  <div class="page-title">予約一覧</div>
+
+  <div class="card" style="padding:14px 16px">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <div class="search-wrap" style="flex:1;min-width:200px;margin:0">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="res-search" placeholder="名前・予約番号で検索" oninput="filterReservations()">
+      </div>
+      <select id="res-filter" onchange="filterReservations()" style="width:auto;min-width:110px">
+        <option value="">すべて</option>
+        <option value="upcoming">今後の予約</option>
+        <option value="today">本日</option>
+        <option value="staying">宿泊中</option>
+        <option value="past">過去</option>
+        <option value="cancelled">キャンセル</option>
+      </select>
+      <button class="btn btn-primary btn-sm" onclick="openNewReservation()">＋ 新規登録</button>
+    </div>
+  </div>
+
+  <div class="card" style="padding:0">
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>チェックイン</th>
+            <th>お名前</th>
+            <th>部屋</th>
+            <th>人数</th>
+            <th>プラン</th>
+            <th>経路</th>
+            <th>状態</th>
+          </tr>
+        </thead>
+        <tbody id="res-tbody">
+          <tr class="empty-row"><td colspan="7">データを読み込み中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ CALENDAR ═══ -->
+<section class="sec" id="sec-calendar">
+  <div class="page-title">カレンダー</div>
+  <div class="card">
+    <div class="cal-nav">
+      <button class="cal-btn" onclick="calMove(-1)">‹</button>
+      <h3 id="cal-title"></h3>
+      <button class="cal-btn" onclick="calMove(1)">›</button>
+    </div>
+    <div class="cal-grid" id="cal-grid"></div>
+  </div>
+</section>
+
+<!-- ═══ CUSTOMERS ═══ -->
+<section class="sec" id="sec-customers">
+  <div class="page-title">顧客管理</div>
+  <div class="card" style="padding:14px 16px">
+    <div style="display:flex;gap:10px;align-items:center">
+      <div class="search-wrap" style="flex:1;margin:0">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="cust-search" placeholder="名前・電話・メールで検索" oninput="filterCustomers()">
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="openNewCustomer()">＋ 新規顧客</button>
+    </div>
+  </div>
+  <div class="card" style="padding:0">
+    <div id="cust-list"></div>
+  </div>
+</section>
+
+<!-- ═══ MENU ═══ -->
+<section class="sec" id="sec-menu">
+  <div class="page-title">メニュー管理</div>
+  <div class="card" style="padding:14px 16px">
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <select id="menu-cat-filter" onchange="filterMenus()" style="width:auto">
+        <option value="">すべて</option>
+        <option value="朝食">朝食</option>
+        <option value="ディナー">ディナー</option>
+        <option value="子供">子供</option>
+        <option value="その他">その他</option>
+      </select>
+      <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="openNewMenu()">＋ メニュー追加</button>
+    </div>
+  </div>
+  <div id="menu-list"></div>
+</section>
+
+<!-- ═══ CSV ═══ -->
+<section class="sec" id="sec-csv">
+  <div class="page-title">データダウンロード</div>
+  <div class="card">
+    <div class="card-title">CSVエクスポート</div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:20px;line-height:1.7">
+      定期的なバックアップをお勧めします。ファイルはExcelで開けます（BOM付きUTF-8）。
+    </p>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px;background:var(--sand);border-radius:10px">
+        <div>
+          <div style="font-size:14px;font-weight:500;color:var(--text)">予約データ</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px">チェックイン・チェックアウト・プラン・請求情報など</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="downloadCSV('reservations')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          ダウンロード
+        </button>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px;background:var(--sand);border-radius:10px">
+        <div>
+          <div style="font-size:14px;font-weight:500;color:var(--text)">顧客データ</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px">氏名・連絡先・アレルギー・パスポート情報など</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="downloadCSV('customers')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          ダウンロード
+        </button>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px;background:var(--sand);border-radius:10px">
+        <div>
+          <div style="font-size:14px;font-weight:500;color:var(--text)">チェックインシートデータ</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px">ゲストが入力した情報・署名記録</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="downloadCSV('checkins')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          ダウンロード
+        </button>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:4px">
+    <div class="card-title">バックアップの目安</div>
+    <p style="font-size:13px;color:var(--text2);line-height:1.8">
+      📅 <strong>月1回</strong> — 予約データ・顧客データ<br>
+      📋 <strong>チェックアウト後</strong> — チェックインシートデータ（パスポート情報含む）<br>
+      💾 保存先はGoogleドライブ推奨（自動バックアップが可能）
+    </p>
+  </div>
+</section>
+
+</main>
+
+<!-- ═══ RESERVATION MODAL ═══ -->
+<div class="modal-overlay" id="res-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="res-modal-title">予約詳細</div>
+      <button class="modal-close" onclick="closeModal('res-modal')">✕</button>
+    </div>
+    <div class="modal-tabs">
+      <button class="modal-tab active" onclick="switchModalTab(this,'pane-basic')">基本情報</button>
+      <button class="modal-tab" onclick="switchModalTab(this,'pane-billing')">請求</button>
+      <button class="modal-tab" onclick="switchModalTab(this,'pane-food')">食事</button>
+      <button class="modal-tab" onclick="switchModalTab(this,'pane-record')">宿泊記録</button>
+    </div>
+
+    <!-- TAB: BASIC -->
+    <div class="modal-pane active" id="pane-basic">
+      <input type="hidden" id="edit-id">
+      <div class="fgrid col3">
+        <div class="fg">
+          <label>予約番号1</label>
+          <input type="text" id="edit-resno1" placeholder="例: TY21313414">
+        </div>
+        <div class="fg">
+          <label>予約番号2</label>
+          <input type="text" id="edit-resno2">
+        </div>
+        <div class="fg">
+          <label>予約経路</label>
+          <select id="edit-source">
+            <option value="公式HP">公式HP</option>
+            <option value="楽天トラベル">楽天トラベル</option>
+            <option value="じゃらん">じゃらん</option>
+            <option value="Booking.com">Booking.com</option>
+            <option value="Agoda">Agoda</option>
+            <option value="Yahoo">Yahoo</option>
+            <option value="電話">電話</option>
+            <option value="その他">その他</option>
+          </select>
+        </div>
+      </div>
+      <div class="fgrid" style="margin-top:12px">
+        <div class="fg">
+          <label>代表者名 <span class="req">*</span></label>
+          <input type="text" id="edit-guestname" placeholder="山田 太郎">
+        </div>
+        <div class="fg">
+          <label>プラン名</label>
+          <input type="text" id="edit-planname" placeholder="1泊沖縄食材のディナーコース">
+        </div>
+      </div>
+      <div class="fgrid col3" style="margin-top:12px">
+        <div class="fg">
+          <label>チェックイン <span class="req">*</span></label>
+          <input type="date" id="edit-checkin">
+        </div>
+        <div class="fg">
+          <label>CI時間</label>
+          <select id="edit-citime">
+            <option value="16:00">16:00</option>
+            <option value="17:00">17:00</option>
+            <option value="18:00">18:00</option>
+            <option value="19:00">19:00</option>
+            <option value="20:00">20:00</option>
+            <option value="21:00">21:00</option>
+            <option value="22:00">22:00</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>チェックアウト <span class="req">*</span></label>
+          <input type="date" id="edit-checkout">
+        </div>
+      </div>
+      <div class="fgrid col3" style="margin-top:12px">
+        <div class="fg">
+          <label>大人</label>
+          <input type="number" id="edit-adults" value="2" min="0">
+        </div>
+        <div class="fg">
+          <label>小学生</label>
+          <input type="number" id="edit-children" value="0" min="0">
+        </div>
+        <div class="fg">
+          <label>幼児</label>
+          <input type="number" id="edit-infants" value="0" min="0">
+        </div>
+      </div>
+      <div class="fgrid col3" style="margin-top:12px">
+        <div class="fg">
+          <label>部屋</label>
+          <div class="radio-group">
+            <label class="radio-item"><input type="radio" name="edit-room" value="01"> 01</label>
+            <label class="radio-item"><input type="radio" name="edit-room" value="02"> 02</label>
+            <label class="radio-item"><input type="radio" name="edit-room" value="DX"> DX</label>
+          </div>
+        </div>
+        <div class="fg">
+          <label>状態</label>
+          <select id="edit-status">
+            <option value="confirmed">確定</option>
+            <option value="checkin">チェックイン済</option>
+            <option value="checkout">チェックアウト済</option>
+            <option value="cancelled">キャンセル</option>
+          </select>
+        </div>
+      </div>
+      <div class="fg full" style="margin-top:12px">
+        <label>同室者</label>
+        <input type="text" id="edit-companions" placeholder="山田 花子、山田 次郎">
+      </div>
+      <div class="fg full" style="margin-top:12px">
+        <label>連絡先（電話）</label>
+        <input type="tel" id="edit-phone">
+      </div>
+      <div class="fg full" style="margin-top:12px">
+        <label>メール</label>
+        <input type="email" id="edit-email">
+      </div>
+      <div class="fg full" style="margin-top:12px">
+        <label>特記事項</label>
+        <textarea id="edit-notes" rows="3"></textarea>
+      </div>
+    </div>
+
+    <!-- TAB: BILLING -->
+    <div class="modal-pane" id="pane-billing">
+      <div id="billing-rows"></div>
+      <button class="btn btn-ghost btn-sm" onclick="addBillingRow()" style="margin-top:8px">＋ 行を追加</button>
+      <div class="billing-total" style="margin-top:16px">
+        <span class="tl">小計</span><span class="tv" id="bill-subtotal">¥0</span>
+        <span class="tl">消費税（<select id="bill-tax-rate" onchange="recalcBilling()" style="background:transparent;border:none;color:rgba(255,255,255,.75);font-size:12px;padding:0;width:auto"><option value="0.10">10%</option><option value="0.08">8%</option></select>）</span><span class="tv" id="bill-tax">¥0</span>
+        <span class="tl" style="font-size:14px;font-weight:600">合計</span><span class="tv big" id="bill-total">¥0</span>
+        <span class="tl">支払方法</span>
+        <select id="bill-payment" style="background:transparent;border:1px solid rgba(255,255,255,.3);color:var(--white);border-radius:6px;font-size:12px;padding:4px 8px;width:auto">
+          <option value="現金">現金</option>
+          <option value="クレジット">クレジット</option>
+          <option value="QR">QR</option>
+          <option value="事後決済">事後決済</option>
+        </select>
+        <span class="tl">お預かり</span><span><input type="number" id="bill-receive" style="background:transparent;border:1px solid rgba(255,255,255,.3);color:var(--white);border-radius:6px;font-size:13px;padding:4px 8px;width:100px" oninput="recalcChange()" placeholder="0"></span>
+        <span class="tl">お釣り</span><span class="tv" id="bill-change">—</span>
+      </div>
+    </div>
+
+    <!-- TAB: FOOD -->
+    <div class="modal-pane" id="pane-food">
+      <div id="food-days"></div>
+      <button class="btn btn-ghost btn-sm" onclick="addFoodDay()" style="margin-top:8px">＋ 日付を追加</button>
+    </div>
+
+    <!-- TAB: RECORD -->
+    <div class="modal-pane" id="pane-record">
+      <div class="fgrid">
+        <div class="fg">
+          <label>星空</label>
+          <select id="rec-sky">
+            <option value="">—</option>
+            <option value="満天">満天</option>
+            <option value="きれい">きれい</option>
+            <option value="普通">普通</option>
+            <option value="曇り">曇り</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>天気</label>
+          <select id="rec-weather">
+            <option value="">—</option>
+            <option value="晴れ">晴れ</option>
+            <option value="曇り">曇り</option>
+            <option value="雨">雨</option>
+            <option value="台風">台風</option>
+          </select>
+        </div>
+      </div>
+      <div class="exp-section" style="margin-top:14px">
+        <div class="exp-title">宿での体験</div>
+        <div class="exp-checks" id="rec-yado">
+          <label class="exp-check" data-val="オカヤドカリ"><input type="checkbox"> 🦀 オカヤドカリ</label>
+          <label class="exp-check" data-val="ホタル"><input type="checkbox"> ✨ ホタル</label>
+          <label class="exp-check" data-val="オキナワオオコウモリ"><input type="checkbox"> 🦇 コウモリ</label>
+          <label class="exp-check" data-val="天の川"><input type="checkbox"> 🌌 天の川</label>
+          <label class="exp-check" data-val="流星"><input type="checkbox"> 🌠 流星</label>
+        </div>
+      </div>
+      <div class="exp-section" style="margin-top:12px">
+        <div class="exp-title">海での体験</div>
+        <div class="exp-checks" id="rec-sea">
+          <label class="exp-check" data-val="海水浴"><input type="checkbox"> 🏖️ 海水浴</label>
+          <label class="exp-check" data-val="シュノーケル"><input type="checkbox"> 🤿 シュノーケル</label>
+          <label class="exp-check" data-val="釣り"><input type="checkbox"> 🎣 釣り</label>
+          <label class="exp-check" data-val="潮干狩り"><input type="checkbox"> 🐚 潮干狩り</label>
+        </div>
+      </div>
+      <div class="fg full" style="margin-top:14px">
+        <label>宿泊メモ</label>
+        <textarea id="rec-memo" rows="4" placeholder="お客様の様子、特別な出来事など..."></textarea>
+      </div>
+    </div>
+
+    <div class="bgrp" style="margin-top:20px;border-top:1px solid var(--sand2);padding-top:16px">
+      <button class="btn btn-primary" onclick="saveReservation()">保存</button>
+      <button class="btn btn-secondary" onclick="closeModal('res-modal')">閉じる</button>
+      <button class="btn btn-sm" id="checkin-start-btn" onclick="openCheckinSheet()"
+        style="background:var(--green);color:var(--white);display:none">
+        📋 チェックイン開始
+      </button>
+      <button class="btn btn-danger btn-sm" id="del-res-btn" onclick="deleteReservation()" style="margin-left:auto">削除</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CUSTOMER MODAL ═══ -->
+<div class="modal-overlay" id="cust-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="cust-modal-title">顧客詳細</div>
+      <button class="modal-close" onclick="closeModal('cust-modal')">✕</button>
+    </div>
+    <input type="hidden" id="cust-edit-id">
+    <div class="fgrid">
+      <div class="fg">
+        <label>姓 <span class="req">*</span></label>
+        <input type="text" id="cust-sei" placeholder="山田">
+      </div>
+      <div class="fg">
+        <label>名</label>
+        <input type="text" id="cust-mei" placeholder="太郎">
+      </div>
+      <div class="fg">
+        <label>かな（姓）</label>
+        <input type="text" id="cust-sei-kana">
+      </div>
+      <div class="fg">
+        <label>かな（名）</label>
+        <input type="text" id="cust-mei-kana">
+      </div>
+    </div>
+    <div class="fgrid" style="margin-top:12px">
+      <div class="fg">
+        <label>性別</label>
+        <select id="cust-gender">
+          <option value="">—</option>
+          <option value="男性">男性</option>
+          <option value="女性">女性</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>生年月日</label>
+        <input type="date" id="cust-birth">
+      </div>
+    </div>
+    <div class="fgrid" style="margin-top:12px">
+      <div class="fg">
+        <label>モバイル</label>
+        <input type="tel" id="cust-mobile">
+      </div>
+      <div class="fg">
+        <label>自宅電話</label>
+        <input type="tel" id="cust-tel">
+      </div>
+    </div>
+    <div class="fgrid" style="margin-top:12px">
+      <div class="fg full">
+        <label>メール</label>
+        <input type="email" id="cust-email">
+      </div>
+      <div class="fg full">
+        <label>メール2</label>
+        <input type="email" id="cust-email2">
+      </div>
+    </div>
+    <div class="fg full" style="margin-top:12px">
+      <label>住所</label>
+      <input type="text" id="cust-address" placeholder="都道府県市区町村...">
+    </div>
+    <div class="fgrid" style="margin-top:12px">
+      <div class="fg">
+        <label>アレルギー</label>
+        <div class="radio-group">
+          <label class="radio-item"><input type="radio" name="cust-allergy" value="なし" checked> なし</label>
+          <label class="radio-item"><input type="radio" name="cust-allergy" value="あり"> あり</label>
+        </div>
+      </div>
+    </div>
+    <div class="fg full" style="margin-top:12px">
+      <label>苦手な食材</label>
+      <input type="text" id="cust-ng-food" placeholder="例: 貝類、パクチー">
+    </div>
+    <div class="fg full" style="margin-top:12px">
+      <label>メモ</label>
+      <textarea id="cust-memo" rows="3"></textarea>
+    </div>
+    <div class="bgrp" style="margin-top:20px;border-top:1px solid var(--sand2);padding-top:16px">
+      <button class="btn btn-primary" onclick="saveCustomer()">保存</button>
+      <button class="btn btn-secondary" onclick="closeModal('cust-modal')">閉じる</button>
+      <button class="btn btn-danger btn-sm" id="del-cust-btn" style="margin-left:auto" onclick="deleteCustomer()">削除</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MENU MODAL ═══ -->
+<div class="modal-overlay" id="menu-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="menu-modal-title">メニュー編集</div>
+      <button class="modal-close" onclick="closeModal('menu-modal')">✕</button>
+    </div>
+    <input type="hidden" id="menu-edit-id">
+    <div class="fgrid">
+      <div class="fg">
+        <label>カテゴリ</label>
+        <select id="menu-cat">
+          <option value="朝食">朝食</option>
+          <option value="ディナー">ディナー</option>
+          <option value="子供">子供</option>
+          <option value="その他">その他</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>メニュー名</label>
+        <input type="text" id="menu-name" placeholder="例: 朝食 十五穀ごはん">
+      </div>
+    </div>
+    <div class="fg full" style="margin-top:12px">
+      <label>詳細（料理内容）</label>
+      <textarea id="menu-detail" rows="5" placeholder="例:&#10;十五穀米　アーサ味噌汁　魚塩焼き&#10;もずく酢　島らっきょう&#10;ヨーグルト　フルーツ"></textarea>
+    </div>
+    <div class="bgrp" style="margin-top:20px;border-top:1px solid var(--sand2);padding-top:16px">
+      <button class="btn btn-primary" onclick="saveMenu()">保存</button>
+      <button class="btn btn-secondary" onclick="closeModal('menu-modal')">閉じる</button>
+      <button class="btn btn-danger btn-sm" id="del-menu-btn" style="margin-left:auto" onclick="deleteMenu()">削除</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  CONFIG  ← Supabaseキーをここに設定
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const SB_URL = 'https://mtsdhheqddrckksiqlim.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10c2RoaGVxZGRyY2trc2lxbGltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1OTc5NDgsImV4cCI6MjA4ODE3Mzk0OH0.c18ExSxNHBOani7CN4QAqaerhvpr5ZCYA0GGkUg0mlc';
+
+const SB_HEADERS = {
+  'Content-Type':'application/json',
+  'apikey': SB_KEY,
+  'Authorization': 'Bearer ' + SB_KEY,
+  'Prefer': 'return=representation'
+};
+
+// ── STATE ──
+let allReservations = [];
+let allCustomers    = [];
+let allMenus        = [];
+let billingRows     = [];
+let foodDays        = [];
+let calYear, calMonth;
+let currentEditId   = null;
+let editType        = null; // 'reservation'|'customer'|'menu'
+
+// ── INIT ──
+window.addEventListener('DOMContentLoaded', async () => {
+  setTodayDisplay();
+  calYear  = new Date().getFullYear();
+  calMonth = new Date().getMonth();
+  await loadAll();
+  // デバッグ：空データの構造確認
+  const emptyRecs = allReservations.filter(r => !r.guest_name);
+  if(emptyRecs.length > 0){
+    console.log('空レコードのキー一覧:', Object.keys(emptyRecs[0]));
+    console.log('空レコードサンプル:', emptyRecs[0]);
+  }
+  renderDashboard();
+  renderReservations();
+  renderCalendar();
+  renderCustomers();
+  renderMenus();
+  setTimeout(() => {
+    document.getElementById('loading').classList.add('hide');
+  }, 600);
+});
+
+function setTodayDisplay(){
+  const d = new Date();
+  const w = ['日','月','火','水','木','金','土'];
+  const str = `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（${w[d.getDay()]}）`;
+  document.getElementById('hdr-today').textContent = str;
+  document.getElementById('dash-date').textContent = str;
+}
+
+// ━━ SUPABASE HELPERS ━━
+async function sbGet(table, query=''){
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/${table}?${query}&order=id.desc`, {headers: SB_HEADERS});
+    if(!r.ok) throw new Error(await r.text());
+    return await r.json();
+  } catch(e){ console.error(e); return []; }
+}
+async function sbPost(table, data){
+  const r = await fetch(`${SB_URL}/rest/v1/${table}`, {method:'POST', headers: SB_HEADERS, body: JSON.stringify(data)});
+  if(!r.ok) throw new Error(await r.text());
+  return await r.json();
+}
+async function sbPatch(table, id, data){
+  const r = await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`, {method:'PATCH', headers: {...SB_HEADERS,'Prefer':'return=representation'}, body: JSON.stringify(data)});
+  if(!r.ok) throw new Error(await r.text());
+  return await r.json();
+}
+async function sbDelete(table, id){
+  const r = await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`, {method:'DELETE', headers: SB_HEADERS});
+  if(!r.ok) throw new Error(await r.text());
+}
+
+// ━━ LOAD ALL ━━
+async function loadAll(){
+  [allReservations, allCustomers, allMenus] = await Promise.all([
+    sbGet('reservations','select=*'),
+    sbGet('wassa_customers','select=*'),
+    sbGet('wassa_menus','select=*')
+  ]);
+}
+
+async function syncReservations(){
+  const btn = document.getElementById('sync-btn');
+  btn.classList.add('spinning');
+  await loadAll();
+  // デバッグ：空データの構造確認
+  const emptyRecs = allReservations.filter(r => !r.guest_name);
+  if(emptyRecs.length > 0){
+    console.log('空レコードのキー一覧:', Object.keys(emptyRecs[0]));
+    console.log('空レコードサンプル:', emptyRecs[0]);
+  }
+  renderDashboard();
+  renderReservations();
+  renderCalendar();
+  btn.classList.remove('spinning');
+  toast('同期しました');
+}
+
+// ━━ NAV ━━
+function showSec(id, btn){
+  document.querySelectorAll('.sec').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('sec-'+id).classList.add('active');
+  btn.classList.add('active');
+  if(id==='calendar') renderCalendar();
+}
+
+// ━━ DASHBOARD ━━
+function renderDashboard(){
+  const today = dateStr(new Date());
+  const tmr   = dateStr(new Date(Date.now()+86400000));
+
+  const ci    = allReservations.filter(r => r.check_in===today && r.status!=='cancelled');
+  const co    = allReservations.filter(r => r.check_out===today && r.status!=='cancelled');
+  const stay  = allReservations.filter(r => r.check_in < today && r.check_out > today && r.status!=='cancelled');
+  const tm    = allReservations.filter(r => r.check_in===tmr && r.status!=='cancelled');
+
+  document.getElementById('stat-ci').textContent  = ci.length;
+  document.getElementById('stat-co').textContent  = co.length;
+  document.getElementById('stat-stay').textContent = stay.length;
+  document.getElementById('stat-tm').textContent  = tm.length;
+
+  document.getElementById('dash-ci-list').innerHTML  = ciRows(ci) || emptyRow('本日のチェックインはありません');
+  document.getElementById('dash-stay-list').innerHTML = ciRows(stay) || emptyRow('現在の宿泊者はいません');
+}
+
+function ciRows(arr){
+  return arr.map(r => `
+    <div class="ci-row" onclick="openReservation(${r.id})">
+      <div class="ci-room ${roomClass(r.room_type)}">${shortRoom(r.room_type)}</div>
+      <div class="ci-info">
+        <div class="ci-name">${r.guest_name||'—'}</div>
+        <div class="ci-detail">大人${r.adults||0}名 ${r.children>0?'小学生'+r.children+'名 ':''} ${r.infants>0?'幼児'+r.infants+'名 ':''}／ ${r.plan_name||'プラン未設定'}</div>
+      </div>
+      <div class="ci-badges">
+        ${statusBadge(r.status)}
+        ${(r.notes||'').indexOf('アレルギー')>-1 || (r.notes||'').indexOf('アレ')>-1 ? '<span class="allergy-tag">⚠ アレルギー</span>' : ''}
+      </div>
+    </div>`).join('');
+}
+function emptyRow(msg){ return `<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">${msg}</div>`; }
+
+// ━━ RESERVATIONS ━━
+function renderReservations(){
+  filterReservations();
+}
+function filterReservations(){
+  const q = (document.getElementById('res-search').value||'').toLowerCase();
+  const f = document.getElementById('res-filter').value;
+  const today = dateStr(new Date());
+  let list = allReservations.filter(r => {
+    if(q && !(r.guest_name||'').toLowerCase().includes(q) && !(r.reservation_no||'').toLowerCase().includes(q)) return false;
+    if(f==='upcoming') return r.check_in >= today && r.status!=='cancelled';
+    if(f==='today')    return r.check_in===today;
+    if(f==='staying')  return r.check_in < today && r.check_out > today;
+    if(f==='past')     return r.check_out < today;
+    if(f==='cancelled') return r.status==='cancelled';
+    return true;
+  });
+  list.sort((a,b) => a.check_in < b.check_in ? 1 : -1);
+  const tb = document.getElementById('res-tbody');
+  if(!list.length){ tb.innerHTML='<tr class="empty-row"><td colspan="7">該当する予約はありません</td></tr>'; return; }
+  tb.innerHTML = list.map(r => `
+    <tr onclick="openReservation(${r.id})">
+      <td>${r.check_in||'—'}</td>
+      <td><strong>${r.guest_name||'—'}</strong></td>
+      <td>${shortRoom(r.room_type)}</td>
+      <td>${r.adults||0}名</td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.plan_name||'—'}</td>
+      <td>${r.source||'—'}</td>
+      <td>${statusBadge(r.status)}</td>
+    </tr>`).join('');
+}
+
+function shortRoom(room){
+  if(!room||room==='—') return '—';
+  if(room.includes('デラックス')||room==='DX') return 'DX';
+  if(room.includes('01')||room==='01') return '01';
+  if(room.includes('02')||room==='02') return '02';
+  if(room.includes('スーペリア')) return 'S';
+  return room.slice(0,4);
+}
+function roomClass(room){
+  if(!room) return '';
+  if(room.includes('デラックス')||room==='DX') return 'dx';
+  return '';
+}
+function statusBadge(s){
+  const m = {confirmed:'確定',checkin:'CI済',checkout:'CO済',cancelled:'キャンセル'};
+  const c = {confirmed:'confirmed',checkin:'checkin',checkout:'checkout',cancelled:'cancelled'};
+  return `<span class="badge badge-${c[s]||'confirmed'}">${m[s]||s||'確定'}</span>`;
+}
+
+// ━━ RESERVATION MODAL ━━
+function openNewReservation(){
+  currentEditId = null;
+  document.getElementById('res-modal-title').textContent = '新規予約登録';
+  document.getElementById('del-res-btn').style.display = 'none';
+  clearResForm();
+  openModal('res-modal');
+}
+function openReservation(id){
+  const r = allReservations.find(x => x.id===id);
+  if(!r) return;
+  currentEditId = id;
+  document.getElementById('res-modal-title').textContent = r.guest_name||'予約詳細';
+  document.getElementById('del-res-btn').style.display = '';
+  fillResForm(r);
+  openModal('res-modal');
+  // チェックイン開始ボタン制御
+  const ciBtn = document.getElementById('checkin-start-btn');
+  const showCi = r.status !== 'cancelled' && r.status !== 'checkout';
+  ciBtn.style.display = showCi ? '' : 'none';
+  ciBtn.innerHTML = r.status === 'checkin' ? '✅ CI済（再送信）' : '📋 チェックイン開始';
+  // reset to first tab
+  document.querySelectorAll('.modal-tab').forEach((t,i)=>t.classList.toggle('active',i===0));
+  document.querySelectorAll('.modal-pane').forEach((p,i)=>p.classList.toggle('active',i===0));
+}
+
+function openCheckinSheet(){
+  const r = allReservations.find(x => x.id===currentEditId);
+  if(!r) return;
+  const params = new URLSearchParams({
+    id:       r.id,
+    name:     r.guest_name||'',
+    checkin:  r.check_in||'',
+    checkout: r.check_out||'',
+    adults:   r.adults||0,
+    children: r.children||0,
+    infants:  r.infants||0,
+    plan:     r.plan_name||'',
+    phone:    r.phone||'',
+    email:    r.email||'',
+    address:  r.address||'',
+    notes:    r.notes||''
+  });
+  window.open('wassa-checkin.html?' + params.toString(), '_blank');
+  closeModal('res-modal');
+}
+
+async function downloadCSV(type){
+  let rows, filename;
+  if(type==='reservations'){
+    const headers = ['ID','予約番号','氏名','チェックイン','チェックアウト','大人','小学生','幼児','部屋','プラン','経路','電話','メール','住所','状態','備考'];
+    const data = allReservations.map(r => [
+      r.id, r.reservation_no||'', r.guest_name||'',
+      r.check_in||'', r.check_out||'',
+      r.adults||0, r.children||0, r.infants||0,
+      r.room_type||'', r.plan_name||'', r.source||'',
+      r.phone||'', r.email||'', r.address||'',
+      r.status||'', (r.notes||'').replace(/\n/g,' ')
+    ]);
+    rows = [headers, ...data];
+    filename = 'wassa_reservations_' + dateStr(new Date()) + '.csv';
+  } else if(type==='checkins'){
+    const checkins = await sbGet('wassa_checkins','select=*');
+    const headers = ['ID','予約ID','姓','名','生年月日','性別','モバイル','メール','住所','アレルギー','苦手食材','国籍','パスポート番号','同室者','チェックイン日時'];
+    const data = checkins.map(c => [
+      c.id, c.reservation_id||'', c.sei||'', c.mei||'', c.birth_date||'', c.gender||'',
+      c.mobile||'', c.email||'', c.address||'',
+      c.allergy||'', c.ng_food||'',
+      c.nationality||'', c.passport_no||'',
+      c.companions||'', c.checked_in_at||''
+    ]);
+    rows = [headers, ...data];
+    filename = 'wassa_checkins_' + dateStr(new Date()) + '.csv';
+  } else if(type==='customers'){
+    const headers = ['ID','姓','名','せい','めい','性別','生年月日','モバイル','電話','メール','住所','アレルギー','苦手食材','国籍','パスポート番号','メモ'];
+    const data = allCustomers.map(c => [
+      c.id, c.sei||'', c.mei||'', c.sei_kana||'', c.mei_kana||'',
+      c.gender||'', c.birth_date||'', c.mobile||'', c.tel||'',
+      c.email||'', c.address||'',
+      c.allergy||'', c.ng_food||'',
+      c.nationality||'', c.passport_no||'',
+      (c.memo||'').replace(/\n/g,' ')
+    ]);
+    rows = [headers, ...data];
+    filename = 'wassa_customers_' + dateStr(new Date()) + '.csv';
+  }
+  const csv = rows.map(r => r.map(v => '"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const bom = '\uFEFF';
+  const blob = new Blob([bom+csv], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  toast('CSVダウンロード完了');
+}
+function clearResForm(){
+  ['edit-id','edit-resno1','edit-resno2','edit-planname','edit-guestname','edit-phone','edit-email','edit-notes','edit-companions'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value = '';
+  });
+  document.getElementById('edit-source').value = '公式HP';
+  document.getElementById('edit-adults').value = '2';
+  document.getElementById('edit-children').value = '0';
+  document.getElementById('edit-infants').value = '0';
+  document.getElementById('edit-status').value = 'confirmed';
+  document.getElementById('edit-checkin').value = dateStr(new Date());
+  document.getElementById('edit-checkout').value = dateStr(new Date(Date.now()+86400000));
+  document.getElementById('edit-citime').value = '16:00';
+  document.querySelectorAll('input[name="edit-room"]').forEach(r => r.checked = r.value==='01');
+  billingRows = [];
+  foodDays = [];
+  renderBillingRows();
+  renderFoodDays();
+  resetRecordForm();
+}
+function fillResForm(r){
+  const set = (id, val) => { const el=document.getElementById(id); if(el) el.value=val||''; };
+  set('edit-id', r.id);
+  set('edit-resno1', r.reservation_no);
+  set('edit-resno2', r.reservation_no2||'');
+  set('edit-source', r.source||'公式HP');
+  set('edit-guestname', r.guest_name);
+  set('edit-planname', r.plan_name);
+  set('edit-checkin', r.check_in);
+  set('edit-checkout', r.check_out);
+  set('edit-citime', r.check_in_time||'16:00');
+  set('edit-adults', r.adults||2);
+  set('edit-children', r.children||0);
+  set('edit-infants', r.infants||0);
+  set('edit-status', r.status||'confirmed');
+  set('edit-companions', r.companions||'');
+  set('edit-phone', r.phone||'');
+  set('edit-email', r.email||'');
+  set('edit-notes', r.notes||'');
+  // room
+  const roomVal = r.room_type||'01';
+  document.querySelectorAll('input[name="edit-room"]').forEach(rb => rb.checked = rb.value===roomVal);
+  // billing
+  billingRows = r.billing ? (typeof r.billing==='string'?JSON.parse(r.billing):r.billing) : [];
+  renderBillingRows();
+  // food
+  foodDays = r.food_days ? (typeof r.food_days==='string'?JSON.parse(r.food_days):r.food_days) : [];
+  renderFoodDays();
+  // record
+  const rec = r.stay_record ? (typeof r.stay_record==='string'?JSON.parse(r.stay_record):r.stay_record) : {};
+  document.getElementById('rec-sky').value = rec.sky||'';
+  document.getElementById('rec-weather').value = rec.weather||'';
+  document.getElementById('rec-memo').value = rec.memo||'';
+  document.querySelectorAll('#rec-yado .exp-check, #rec-sea .exp-check').forEach(el => {
+    const val = el.dataset.val;
+    const checked = (rec.experiences||[]).includes(val);
+    el.classList.toggle('checked', checked);
+    el.querySelector('input').checked = checked;
+  });
+}
+
+async function saveReservation(){
+  const gname = document.getElementById('edit-guestname').value.trim();
+  if(!gname){ toast('お名前を入力してください'); return; }
+  const room = document.querySelector('input[name="edit-room"]:checked')?.value;
+  // billing collect
+  const billingData = collectBilling();
+  // food collect
+  const foodData = collectFood();
+  // record collect
+  const recData = collectRecord();
+
+  const payload = {
+    reservation_no: document.getElementById('edit-resno1').value,
+    reservation_no2: document.getElementById('edit-resno2').value,
+    source: document.getElementById('edit-source').value,
+    guest_name: gname,
+    plan_name: document.getElementById('edit-planname').value,
+    check_in: document.getElementById('edit-checkin').value,
+    check_out: document.getElementById('edit-checkout').value,
+    check_in_time: document.getElementById('edit-citime').value,
+    adults: parseInt(document.getElementById('edit-adults').value)||0,
+    children: parseInt(document.getElementById('edit-children').value)||0,
+    infants: parseInt(document.getElementById('edit-infants').value)||0,
+    room_type: room,
+    status: document.getElementById('edit-status').value,
+    companions: document.getElementById('edit-companions').value,
+    phone: document.getElementById('edit-phone').value,
+    email: document.getElementById('edit-email').value,
+    notes: document.getElementById('edit-notes').value,
+    billing: JSON.stringify(billingData),
+    food_days: JSON.stringify(foodData),
+    stay_record: JSON.stringify(recData)
+  };
+
+  try {
+    if(currentEditId){
+      await sbPatch('reservations', currentEditId, payload);
+      const idx = allReservations.findIndex(r => r.id===currentEditId);
+      if(idx>-1) allReservations[idx] = {...allReservations[idx], ...payload, id:currentEditId};
+    } else {
+      const res = await sbPost('reservations', payload);
+      if(res && res[0]) allReservations.unshift(res[0]);
+    }
+    renderDashboard();
+    renderReservations();
+    renderCalendar();
+    closeModal('res-modal');
+    toast('保存しました');
+  } catch(e){ toast('エラー: '+e.message); }
+}
+
+async function deleteReservation(){
+  if(!confirm('この予約を削除しますか？')) return;
+  try {
+    await sbDelete('reservations', currentEditId);
+    allReservations = allReservations.filter(r => r.id!==currentEditId);
+    renderDashboard(); renderReservations(); renderCalendar();
+    closeModal('res-modal');
+    toast('削除しました');
+  } catch(e){ toast('エラー: '+e.message); }
+}
+
+// ━━ BILLING ━━
+function renderBillingRows(){
+  const container = document.getElementById('billing-rows');
+  if(!billingRows.length) billingRows.push({cat:'宿泊料金',item:'',qty:1,discount:0,price:0,payment:'事後決済'});
+  container.innerHTML = billingRows.map((row,i) => `
+    <div class="billing-row" style="background:${i%2?'var(--sand)':'var(--white)'};padding:6px 8px;border-radius:8px;margin-bottom:4px">
+      <select onchange="billUpdate(${i},'cat',this.value)" style="font-size:12px;padding:6px 8px">
+        ${['宿泊料金','ディナー','朝食','アルコール','ワイン','レンタル','その他'].map(c=>`<option ${row.cat===c?'selected':''}>${c}</option>`).join('')}
+      </select>
+      <input type="text" placeholder="内容" value="${row.item||''}" oninput="billUpdate(${i},'item',this.value)" style="font-size:12px;padding:6px 8px">
+      <input type="number" placeholder="数" value="${row.qty||1}" oninput="billUpdate(${i},'qty',this.value)" style="font-size:12px;padding:6px 6px;text-align:center">
+      <input type="number" placeholder="割引" value="${row.discount||''}" oninput="billUpdate(${i},'discount',this.value)" style="font-size:12px;padding:6px 8px">
+      <input type="number" placeholder="金額" value="${row.price||''}" oninput="billUpdate(${i},'price',this.value)" style="font-size:12px;padding:6px 8px">
+      <select onchange="billUpdate(${i},'payment',this.value)" style="font-size:12px;padding:6px 8px">
+        ${['事後決済','現金','クレジット','QR'].map(p=>`<option ${row.payment===p?'selected':''}>${p}</option>`).join('')}
+      </select>
+      <button class="del-btn" onclick="removeBillingRow(${i})" style="background:var(--coral-lt);border:none;border-radius:6px;color:var(--coral);cursor:pointer;padding:4px 7px;font-size:13px">✕</button>
+    </div>`).join('');
+  recalcBilling();
+}
+function billUpdate(i, key, val){ billingRows[i][key]=val; recalcBilling(); }
+function addBillingRow(){ billingRows.push({cat:'その他',item:'',qty:1,discount:0,price:0,payment:'事後決済'}); renderBillingRows(); }
+function removeBillingRow(i){ billingRows.splice(i,1); renderBillingRows(); }
+function recalcBilling(){
+  const taxRate = parseFloat(document.getElementById('bill-tax-rate').value)||0.10;
+  const subtotal = billingRows.reduce((s,r)=>{
+    const disc = parseFloat(r.discount)||0;
+    const price = parseFloat(r.price)||0;
+    const qty = parseFloat(r.qty)||1;
+    return s + (price * qty - disc);
+  },0);
+  const tax = Math.floor(subtotal * taxRate / (1+taxRate));
+  const total = subtotal;
+  document.getElementById('bill-subtotal').textContent = '¥'+fmt(Math.floor(subtotal - tax));
+  document.getElementById('bill-tax').textContent = '¥'+fmt(tax);
+  document.getElementById('bill-total').textContent = '¥'+fmt(subtotal);
+  recalcChange();
+}
+function recalcChange(){
+  const total = billingRows.reduce((s,r)=>{
+    return s + ((parseFloat(r.price)||0)*(parseFloat(r.qty)||1) - (parseFloat(r.discount)||0));
+  },0);
+  const recv = parseFloat(document.getElementById('bill-receive').value)||0;
+  document.getElementById('bill-change').textContent = recv ? '¥'+fmt(recv-total) : '—';
+}
+function collectBilling(){
+  return {
+    rows: billingRows,
+    tax_rate: parseFloat(document.getElementById('bill-tax-rate').value)||0.10,
+    payment: document.getElementById('bill-payment').value,
+    receive: document.getElementById('bill-receive').value,
+    total: billingRows.reduce((s,r)=>s+((parseFloat(r.price)||0)*(parseFloat(r.qty)||1)-(parseFloat(r.discount)||0)),0)
+  };
+}
+
+// ━━ FOOD ━━
+function renderFoodDays(){
+  const container = document.getElementById('food-days');
+  container.innerHTML = foodDays.map((day,i) => `
+    <div class="food-day">
+      <div class="food-day-header">
+        <input type="date" value="${day.date||''}" oninput="foodUpdate(${i},'date',this.value)"
+          style="background:none;border:none;color:var(--ocean);font-weight:600;font-size:13px;font-family:inherit;padding:0;cursor:pointer">
+        <button onclick="removeFoodDay(${i})" style="background:none;border:none;color:var(--text3);cursor:pointer;margin-left:auto;font-size:13px">✕</button>
+      </div>
+      <div class="food-day-body">
+        <div class="food-grid">
+          <div class="fg">
+            <label>大人メニュー</label>
+            <select onchange="foodUpdate(${i},'meal_id',this.value)">
+              <option value="">— 選択 —</option>
+              ${allMenus.filter(m=>m.category!=='子供').map(m=>`<option value="${m.id}" ${day.meal_id==m.id?'selected':''}>${m.name}</option>`).join('')}
+            </select>
+            <textarea placeholder="メニュー詳細・備考" rows="3" style="margin-top:6px;font-size:12px" oninput="foodUpdate(${i},'meal_detail',this.value)">${day.meal_detail||''}</textarea>
+          </div>
+          <div class="fg">
+            <label>子供メニュー</label>
+            <select onchange="foodUpdate(${i},'kids_meal_id',this.value)">
+              <option value="">— なし —</option>
+              ${allMenus.filter(m=>m.category==='子供').map(m=>`<option value="${m.id}" ${day.kids_meal_id==m.id?'selected':''}>${m.name}</option>`).join('')}
+            </select>
+            <textarea placeholder="子供メニュー詳細" rows="3" style="margin-top:6px;font-size:12px" oninput="foodUpdate(${i},'kids_detail',this.value)">${day.kids_detail||''}</textarea>
+          </div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+function foodUpdate(i, key, val){ foodDays[i][key]=val; }
+function addFoodDay(){
+  const lastDate = foodDays.length ? foodDays[foodDays.length-1].date : document.getElementById('edit-checkin').value;
+  const next = lastDate ? dateStr(new Date(new Date(lastDate).getTime()+86400000)) : dateStr(new Date());
+  foodDays.push({date:next, meal_id:'', meal_detail:'', kids_meal_id:'', kids_detail:''});
+  renderFoodDays();
+}
+function removeFoodDay(i){ foodDays.splice(i,1); renderFoodDays(); }
+function collectFood(){ return foodDays; }
+
+// ━━ RECORD ━━
+function collectRecord(){
+  const experiences = [];
+  document.querySelectorAll('#rec-yado .exp-check, #rec-sea .exp-check').forEach(el => {
+    if(el.classList.contains('checked')) experiences.push(el.dataset.val);
+  });
+  return {
+    sky: document.getElementById('rec-sky').value,
+    weather: document.getElementById('rec-weather').value,
+    memo: document.getElementById('rec-memo').value,
+    experiences
+  };
+}
+function resetRecordForm(){
+  document.getElementById('rec-sky').value = '';
+  document.getElementById('rec-weather').value = '';
+  document.getElementById('rec-memo').value = '';
+  document.querySelectorAll('#rec-yado .exp-check, #rec-sea .exp-check').forEach(el => {
+    el.classList.remove('checked');
+    el.querySelector('input').checked = false;
+  });
+}
+document.querySelectorAll('.exp-check').forEach(el => {
+  el.addEventListener('click', () => {
+    el.classList.toggle('checked');
+    el.querySelector('input').checked = el.classList.contains('checked');
+  });
+});
+
+// ━━ CALENDAR ━━
+function renderCalendar(){
+  const title = `${calYear}年 ${calMonth+1}月`;
+  document.getElementById('cal-title').textContent = title;
+  const grid = document.getElementById('cal-grid');
+  const dows = ['日','月','火','水','木','金','土'];
+  let html = dows.map(d=>`<div class="cal-dow">${d}</div>`).join('');
+  const first = new Date(calYear, calMonth, 1).getDay();
+  const last  = new Date(calYear, calMonth+1, 0).getDate();
+  const today = dateStr(new Date());
+  for(let i=0; i<first; i++) html += `<div class="cal-day other-month"><span class="dn"></span></div>`;
+  for(let d=1; d<=last; d++){
+    const ds = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dayRes = allReservations.filter(r => r.check_in===ds && r.status!=='cancelled');
+    const isToday = ds===today;
+    html += `<div class="cal-day ${isToday?'today':''} ${dayRes.length?'has-reservation':''}" onclick="calDayClick('${ds}')">
+      <span class="dn">${d}</span>
+      ${dayRes.slice(0,2).map(r=>`<div class="cal-res-tag">${r.guest_name||'?'}</div>`).join('')}
+    </div>`;
+  }
+  grid.innerHTML = html;
+}
+function calMove(dir){ calMonth += dir; if(calMonth>11){calMonth=0;calYear++;}if(calMonth<0){calMonth=11;calYear--;} renderCalendar(); }
+function calDayClick(ds){
+  const dayRes = allReservations.filter(r => r.check_in===ds || (r.check_in<=ds && r.check_out>ds));
+  if(dayRes.length===1){ openReservation(dayRes[0].id); return; }
+  if(dayRes.length>1){
+    const choice = dayRes.map((r,i)=>`${i+1}: ${r.guest_name||'?'} (${r.room_type||'?'})`).join('\n');
+    const sel = prompt(`${ds} の予約を選んでください:\n${choice}\n番号を入力:`);
+    if(sel && dayRes[parseInt(sel)-1]) openReservation(dayRes[parseInt(sel)-1].id);
+  }
+}
+
+// ━━ CUSTOMERS ━━
+function renderCustomers(){
+  filterCustomers();
+}
+function filterCustomers(){
+  const q = (document.getElementById('cust-search').value||'').toLowerCase();
+  let list = allCustomers.filter(c => {
+    if(!q) return true;
+    return (c.sei||'').toLowerCase().includes(q) ||
+           (c.mei||'').toLowerCase().includes(q) ||
+           (c.mobile||'').includes(q) ||
+           (c.email||'').toLowerCase().includes(q);
+  });
+  const container = document.getElementById('cust-list');
+  if(!list.length){ container.innerHTML = emptyRow('顧客が見つかりません'); return; }
+  container.innerHTML = list.map(c => {
+    const name = (c.sei||'')+(c.mei?'　'+c.mei:'');
+    const kana = (c.sei_kana||'')+(c.mei_kana?' '+c.mei_kana:'');
+    const initial = (c.sei||'?')[0];
+    const allergy = c.allergy==='あり' || c.ng_food;
+    return `<div class="customer-row" onclick="openCustomer(${c.id})">
+      <div class="avatar">${initial}</div>
+      <div class="cust-info">
+        <div class="cust-name">${name} ${allergy?'<span class="allergy-tag">⚠ 食アレ</span>':''}</div>
+        <div class="cust-sub">${kana ? kana+'　' : ''}${c.mobile||c.email||'連絡先未登録'}</div>
+      </div>
+      <div class="cust-count" style="font-size:11px;color:var(--text3)">
+        ${allReservations.filter(r=>r.guest_name&&(r.guest_name.includes(c.sei||'XXXXXX'))).length}回
+      </div>
+    </div>`;
+  }).join('');
+}
+function openNewCustomer(){
+  currentEditId = null;
+  document.getElementById('cust-modal-title').textContent = '新規顧客登録';
+  document.getElementById('del-cust-btn').style.display = 'none';
+  ['cust-sei','cust-mei','cust-sei-kana','cust-mei-kana','cust-mobile','cust-tel','cust-email','cust-email2','cust-address','cust-ng-food','cust-memo'].forEach(id => {
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  document.getElementById('cust-gender').value = '';
+  document.getElementById('cust-birth').value = '';
+  document.querySelector('input[name="cust-allergy"][value="なし"]').checked = true;
+  openModal('cust-modal');
+}
+function openCustomer(id){
+  const c = allCustomers.find(x=>x.id===id);
+  if(!c) return;
+  currentEditId = id;
+  document.getElementById('cust-modal-title').textContent = (c.sei||'')+(c.mei?'　'+c.mei:'');
+  document.getElementById('del-cust-btn').style.display = '';
+  const set = (eid,val) => { const el=document.getElementById(eid); if(el) el.value=val||''; };
+  set('cust-edit-id', c.id);
+  set('cust-sei', c.sei); set('cust-mei', c.mei);
+  set('cust-sei-kana', c.sei_kana); set('cust-mei-kana', c.mei_kana);
+  document.getElementById('cust-gender').value = c.gender||'';
+  set('cust-birth', c.birth_date);
+  set('cust-mobile', c.mobile); set('cust-tel', c.tel);
+  set('cust-email', c.email); set('cust-email2', c.email2);
+  set('cust-address', c.address);
+  set('cust-ng-food', c.ng_food); set('cust-memo', c.memo);
+  const allergyVal = c.allergy||'なし';
+  document.querySelector(`input[name="cust-allergy"][value="${allergyVal}"]`).checked = true;
+  openModal('cust-modal');
+}
+async function saveCustomer(){
+  const sei = document.getElementById('cust-sei').value.trim();
+  if(!sei){ toast('姓を入力してください'); return; }
+  const payload = {
+    sei, mei: document.getElementById('cust-mei').value,
+    sei_kana: document.getElementById('cust-sei-kana').value,
+    mei_kana: document.getElementById('cust-mei-kana').value,
+    gender: document.getElementById('cust-gender').value,
+    birth_date: document.getElementById('cust-birth').value||null,
+    mobile: document.getElementById('cust-mobile').value,
+    tel: document.getElementById('cust-tel').value,
+    email: document.getElementById('cust-email').value,
+    email2: document.getElementById('cust-email2').value,
+    address: document.getElementById('cust-address').value,
+    allergy: document.querySelector('input[name="cust-allergy"]:checked').value,
+    ng_food: document.getElementById('cust-ng-food').value,
+    memo: document.getElementById('cust-memo').value
+  };
+  try {
+    if(currentEditId){
+      await sbPatch('wassa_customers', currentEditId, payload);
+      const idx = allCustomers.findIndex(c=>c.id===currentEditId);
+      if(idx>-1) allCustomers[idx] = {...allCustomers[idx],...payload,id:currentEditId};
+    } else {
+      const res = await sbPost('wassa_customers', payload);
+      if(res && res[0]) allCustomers.unshift(res[0]);
+    }
+    renderCustomers();
+    closeModal('cust-modal');
+    toast('保存しました');
+  } catch(e){ toast('エラー: '+e.message); }
+}
+async function deleteCustomer(){
+  if(!confirm('この顧客を削除しますか？')) return;
+  try {
+    await sbDelete('wassa_customers', currentEditId);
+    allCustomers = allCustomers.filter(c=>c.id!==currentEditId);
+    renderCustomers();
+    closeModal('cust-modal');
+    toast('削除しました');
+  } catch(e){ toast('エラー: '+e.message); }
+}
+
+// ━━ MENUS ━━
+function renderMenus(){
+  filterMenus();
+}
+function filterMenus(){
+  const f = document.getElementById('menu-cat-filter').value;
+  let list = allMenus.filter(m => !f || m.category===f);
+  list.sort((a,b)=>(a.category||'').localeCompare(b.category||''));
+  const container = document.getElementById('menu-list');
+  if(!list.length){ container.innerHTML = `<div class="card">${emptyRow('メニューがありません')}</div>`; return; }
+  container.innerHTML = list.map(m => `
+    <div class="menu-item" onclick="openMenu(${m.id})">
+      <div>
+        <span class="menu-cat ${catClass(m.category)}">${m.category||'その他'}</span>
+      </div>
+      <div class="menu-body">
+        <div class="menu-name">${m.name||'—'}</div>
+        <div class="menu-detail">${m.detail||''}</div>
+      </div>
+    </div>`).join('');
+}
+function catClass(c){ return {朝食:'breakfast',ディナー:'dinner',子供:'kids'}[c]||'other'; }
+function openNewMenu(){
+  currentEditId = null;
+  document.getElementById('menu-modal-title').textContent = 'メニュー追加';
+  document.getElementById('del-menu-btn').style.display = 'none';
+  document.getElementById('menu-edit-id').value = '';
+  document.getElementById('menu-cat').value = '朝食';
+  document.getElementById('menu-name').value = '';
+  document.getElementById('menu-detail').value = '';
+  openModal('menu-modal');
+}
+function openMenu(id){
+  const m = allMenus.find(x=>x.id===id);
+  if(!m) return;
+  currentEditId = id;
+  document.getElementById('menu-modal-title').textContent = 'メニュー編集';
+  document.getElementById('del-menu-btn').style.display = '';
+  document.getElementById('menu-edit-id').value = m.id;
+  document.getElementById('menu-cat').value = m.category||'朝食';
+  document.getElementById('menu-name').value = m.name||'';
+  document.getElementById('menu-detail').value = m.detail||'';
+  openModal('menu-modal');
+}
+async function saveMenu(){
+  const name = document.getElementById('menu-name').value.trim();
+  if(!name){ toast('メニュー名を入力してください'); return; }
+  const payload = {
+    category: document.getElementById('menu-cat').value,
+    name,
+    detail: document.getElementById('menu-detail').value
+  };
+  try {
+    if(currentEditId){
+      await sbPatch('wassa_menus', currentEditId, payload);
+      const idx = allMenus.findIndex(m=>m.id===currentEditId);
+      if(idx>-1) allMenus[idx] = {...allMenus[idx],...payload,id:currentEditId};
+    } else {
+      const res = await sbPost('wassa_menus', payload);
+      if(res && res[0]) allMenus.unshift(res[0]);
+    }
+    renderMenus();
+    closeModal('menu-modal');
+    toast('保存しました');
+  } catch(e){ toast('エラー: '+e.message); }
+}
+async function deleteMenu(){
+  if(!confirm('このメニューを削除しますか？')) return;
+  try {
+    await sbDelete('wassa_menus', currentEditId);
+    allMenus = allMenus.filter(m=>m.id!==currentEditId);
+    renderMenus();
+    closeModal('menu-modal');
+    toast('削除しました');
+  } catch(e){ toast('エラー: '+e.message); }
+}
+
+// ━━ MODAL HELPERS ━━
+function openModal(id){ document.getElementById(id).classList.add('open'); document.body.style.overflow='hidden'; }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); document.body.style.overflow=''; }
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if(e.target===o) closeModal(o.id); });
+});
+function switchModalTab(btn, paneId){
+  btn.closest('.modal').querySelectorAll('.modal-tab').forEach(t=>t.classList.remove('active'));
+  btn.closest('.modal').querySelectorAll('.modal-pane').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(paneId).classList.add('active');
+}
+
+// ━━ UTILS ━━
+function dateStr(d){ return d.toISOString().split('T')[0]; }
+function fmt(n){ return Number(n).toLocaleString('ja-JP'); }
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2500);
+}
+</script>
+
+<!-- ══ SUPABASE SETUP NOTE ══
+  このアプリを使う前に、Supabase で以下のテーブルを作成してください：
+
+  1. reservations (既存) に以下カラムを追加:
+     reservation_no2 TEXT
+     companions TEXT
+     billing JSONB
+     food_days JSONB
+     stay_record JSONB
+
+  2. wassa_customers (新規作成):
+     id BIGSERIAL PRIMARY KEY
+     sei TEXT, mei TEXT
+     sei_kana TEXT, mei_kana TEXT
+     gender TEXT, birth_date DATE
+     mobile TEXT, tel TEXT
+     email TEXT, email2 TEXT
+     address TEXT
+     allergy TEXT DEFAULT 'なし'
+     ng_food TEXT, memo TEXT
+     created_at TIMESTAMPTZ DEFAULT NOW()
+
+  3. wassa_menus (新規作成):
+     id BIGSERIAL PRIMARY KEY
+     category TEXT
+     name TEXT
+     detail TEXT
+     created_at TIMESTAMPTZ DEFAULT NOW()
+
+  Row Level Security は anon キーでの読み書きを許可してください。
+-->
+</body>
+</html>
