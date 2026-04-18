@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>WASSA WASSA — Check In</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Noto+Sans+JP:wght@300;400;500&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ocean:#0D3B4A;--ocean2:#1A5568;--ocean3:#2B7A8E;
+  --seafoam:#A8D5DC;--seafoam2:#D4EEF2;
+  --sand:#F5F1E8;--sand2:#EDE5D5;--sand3:#D9CEBC;
+  --star:#E8C87A;
+  --coral:#C4614A;--coral-lt:#FAF0ED;
+  --amber-lt:#FBF5E8;--amber-border:#F0D898;--amber-text:#7A5A00;
+  --green:#3A6B4E;
+  --text:#1C2E35;--text2:#4A6570;--text3:#8AA0A8;
+  --white:#FFFEFB;
+  --r:16px;--rsm:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{font-family:'Noto Sans JP',sans-serif;background:var(--ocean);color:var(--text);display:flex;flex-direction:column}
+body::before{content:'';position:fixed;inset:0;
+  background:radial-gradient(ellipse at 20% 80%,rgba(43,122,142,.35),transparent 60%),
+             linear-gradient(160deg,#0D3B4A,#071E27);
+  z-index:0;pointer-events:none}
+.stars{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.star-dot{position:absolute;border-radius:50%;background:#fff;animation:tw var(--d,3s) ease-in-out infinite var(--dl,0s)}
+@keyframes tw{0%,100%{opacity:.1}50%{opacity:.7}}
+
+#app{position:relative;z-index:1;display:flex;flex-direction:column;height:100%;max-width:900px;margin:0 auto;width:100%}
+
+/* HEADER */
+header{display:flex;align-items:center;justify-content:space-between;padding:16px 24px 0;flex-shrink:0}
+.logo{display:flex;flex-direction:column;line-height:1.2}
+.logo-main{font-family:'Cormorant Garamond',serif;font-size:22px;color:#fff;letter-spacing:.12em;font-weight:500}
+.logo-sub{font-size:9px;color:var(--seafoam);letter-spacing:.2em;text-transform:uppercase;margin-top:2px}
+.logo-tag{font-size:11px;color:rgba(255,255,255,.5);font-style:italic;font-family:'EB Garamond',serif;margin-top:2px}
+.lang-toggle{display:flex;background:rgba(255,255,255,.1);border-radius:24px;padding:3px;gap:2px;border:1px solid rgba(255,255,255,.15)}
+.lang-btn{padding:6px 16px;border:none;border-radius:20px;font-size:13px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;transition:.2s;background:transparent;color:rgba(255,255,255,.6)}
+.lang-btn.active{background:#fff;color:var(--ocean);font-weight:500}
+
+/* RESERVATION BANNER */
+.res-banner{background:rgba(255,255,255,.08);border:1px solid rgba(168,213,220,.3);border-radius:10px;margin:10px 16px 0;padding:10px 16px;display:none;flex-wrap:wrap;gap:6px 18px}
+.res-banner.show{display:flex}
+.rb-item{display:flex;flex-direction:column;gap:1px}
+.rb-label{font-size:9px;color:var(--seafoam);letter-spacing:.12em;text-transform:uppercase}
+.rb-value{font-size:12px;color:#fff;font-weight:500}
+
+/* PROGRESS */
+.progress-area{padding:12px 24px 8px;flex-shrink:0}
+.progress-bar{background:rgba(255,255,255,.12);border-radius:4px;height:3px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--seafoam),var(--star));border-radius:4px;transition:width .5s ease}
+.step-labels{display:flex;justify-content:space-between;margin-top:6px}
+.slabel{font-size:10px;color:rgba(255,255,255,.4);letter-spacing:.06em;transition:.3s}
+.slabel.active{color:var(--seafoam);font-weight:500}
+.slabel.done{color:rgba(255,255,255,.55)}
+
+/* CARD */
+.card{background:#fff;border-radius:18px;padding:24px 28px;box-shadow:0 8px 40px rgba(0,0,0,.25);flex:1;overflow-y:auto;margin:0 14px;-webkit-overflow-scrolling:touch}
+.card::-webkit-scrollbar{width:4px}
+.card::-webkit-scrollbar-thumb{background:var(--sand3);border-radius:4px}
+.card{animation:fadeUp .3s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* NOTICES */
+.notice-prefill{background:var(--seafoam2);border:1px solid var(--seafoam);border-radius:8px;padding:9px 13px;font-size:12px;color:var(--ocean2);margin-bottom:18px;display:none;align-items:center;gap:7px}
+.notice-notes{background:var(--amber-lt);border:1px solid var(--amber-border);border-radius:8px;padding:10px 13px;font-size:12px;color:var(--amber-text);margin-bottom:12px;line-height:1.7;display:none}
+.notice-notes strong{font-size:11px;letter-spacing:.04em;display:block;margin-bottom:2px}
+
+/* STEP HEADER */
+.step-title{font-family:'Cormorant Garamond',serif;font-size:25px;color:var(--ocean);font-weight:500;letter-spacing:.06em;margin-bottom:4px}
+.step-title.en{font-family:'EB Garamond',serif;font-size:27px}
+.step-sub{font-size:12px;color:var(--text2);margin-bottom:20px;line-height:1.6}
+
+/* FORM */
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px 18px}
+.fg{display:flex;flex-direction:column;gap:5px}
+.fg.full{grid-column:1/-1}
+label{font-size:12px;font-weight:500;color:var(--text2);letter-spacing:.04em;display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.req-mark{color:var(--coral)}
+.opt-badge{font-size:10px;color:var(--text3);background:var(--sand2);border-radius:4px;padding:1px 5px;font-weight:400}
+.pre-badge{font-size:9px;background:var(--seafoam2);color:var(--ocean2);border:1px solid var(--seafoam);border-radius:4px;padding:1px 6px;font-weight:400}
+
+input,select,textarea{
+  padding:11px 13px;border:2px solid var(--sand2);border-radius:var(--rsm);
+  font-size:16px;font-family:'Noto Sans JP',sans-serif;color:var(--text);
+  background:#fff;width:100%;transition:.2s;
+  -webkit-appearance:none;appearance:none;
+}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--ocean3);background:var(--seafoam2)}
+input::placeholder,textarea::placeholder{color:var(--text3)}
+input.prefilled{border-color:var(--seafoam);background:var(--seafoam2)}
+input.prefilled:focus{border-color:var(--ocean3)}
+textarea{resize:none;min-height:76px}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238AA0A8' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px}
+
+/* OPT BUTTONS */
+.opt-group{display:flex;gap:8px;flex-wrap:wrap;margin-top:2px}
+.opt-btn{flex:1;min-width:90px;padding:11px 12px;border:2px solid var(--sand2);border-radius:var(--rsm);cursor:pointer;text-align:center;font-size:15px;font-family:'Noto Sans JP',sans-serif;color:var(--text2);transition:.2s;background:#fff;user-select:none}
+.opt-btn:hover{border-color:var(--ocean3)}
+.opt-btn.selected{border-color:var(--ocean2);background:var(--ocean);color:#fff;font-weight:500}
+
+/* PASSPORT BOX */
+.passport-box{background:var(--sand);border-radius:var(--rsm);padding:14px 16px;border:1.5px solid var(--sand2)}
+.passport-ttl{font-size:11px;font-weight:600;color:var(--ocean2);letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:5px}
+.passport-photo-area{margin-top:12px}
+.passport-photo-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;background:var(--ocean2);color:#fff;border:none;border-radius:var(--rsm);font-size:14px;font-weight:600;cursor:pointer;letter-spacing:.04em}
+.passport-photo-btn:active{opacity:.8}
+.passport-thumb{margin-top:10px;border-radius:var(--rsm);overflow:hidden;border:2px solid var(--ocean2);display:none}
+.passport-thumb img{width:100%;max-height:200px;object-fit:cover;display:block}
+.passport-thumb-label{font-size:11px;color:var(--ocean2);padding:5px 8px;background:var(--sand);text-align:center;font-weight:600}
+
+/* COMPANIONS */
+.companion-row{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px}
+.companion-row input{font-size:15px;padding:9px 12px}
+.add-btn{display:inline-flex;align-items:center;gap:5px;padding:8px 14px;border:1.5px dashed var(--sand3);border-radius:var(--rsm);background:none;color:var(--text2);font-size:12px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;transition:.2s}
+.add-btn:hover{border-color:var(--ocean3);color:var(--ocean2)}
+.rm-btn{padding:9px 12px;border:1.5px solid var(--sand2);border-radius:var(--rsm);background:none;color:var(--text3);cursor:pointer;font-size:14px;flex-shrink:0;transition:.15s}
+.rm-btn:hover{background:var(--coral-lt);color:var(--coral)}
+
+/* SIGNATURE */
+.sig-wrap{border:2px solid var(--sand2);border-radius:var(--rsm);overflow:hidden;position:relative;background:#fff}
+canvas#sig-canvas{display:block;width:100%;height:155px;cursor:crosshair;touch-action:none}
+.sig-clear-btn{position:absolute;top:8px;right:10px;background:rgba(255,255,255,.92);border:1px solid var(--sand3);border-radius:6px;padding:4px 10px;font-size:11px;color:var(--text2);cursor:pointer;font-family:'Noto Sans JP',sans-serif}
+.sig-ph{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;pointer-events:none;transition:.3s}
+.sig-ph span{font-size:13px;color:var(--text3)}
+
+/* CONFIRM TABLE */
+.confirm-tbl{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:10px}
+.confirm-tbl tr{border-bottom:1px solid var(--sand2)}
+.confirm-tbl td:first-child{color:var(--text2);padding:10px 0;width:120px;font-size:11px;vertical-align:top;padding-top:12px}
+.confirm-tbl td:last-child{padding:10px 0 10px 12px;font-weight:500;line-height:1.6;word-break:break-all}
+.checkout-notice{background:var(--seafoam2);border-radius:var(--rsm);padding:13px 15px;font-size:13px;color:var(--ocean2);line-height:1.8;margin-top:14px;border:1px solid var(--seafoam)}
+
+/* BOTTOM NAV */
+.bottom-nav{display:flex;align-items:center;justify-content:space-between;padding:12px 14px 20px;flex-shrink:0;gap:10px}
+.nav-back{padding:12px 22px;border:2px solid rgba(255,255,255,.2);border-radius:var(--r);background:transparent;color:rgba(255,255,255,.7);font-size:14px;font-family:'Noto Sans JP',sans-serif;cursor:pointer;transition:.2s}
+.nav-back:hover{background:rgba(255,255,255,.1)}
+.nav-next{flex:1;max-width:360px;padding:14px 22px;border:none;border-radius:var(--r);background:linear-gradient(135deg,var(--ocean3),var(--ocean2));color:#fff;font-size:15px;font-family:'Noto Sans JP',sans-serif;cursor:pointer;transition:.2s;font-weight:500;letter-spacing:.06em;box-shadow:0 4px 18px rgba(13,59,74,.4);display:flex;align-items:center;justify-content:center;gap:7px}
+.nav-next:hover{transform:translateY(-1px);box-shadow:0 6px 26px rgba(13,59,74,.5)}
+.nav-next:disabled{opacity:.4;pointer-events:none}
+
+/* SUCCESS */
+#step-success{display:none;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;padding:36px;gap:10px}
+.success-wave{font-size:52px;animation:wave 2.2s ease infinite;display:inline-block}
+@keyframes wave{0%,100%{transform:rotate(-10deg)}50%{transform:rotate(10deg)}}
+.success-icon{font-size:50px;animation:popIn .5s ease}
+@keyframes popIn{0%{transform:scale(.5);opacity:0}70%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}
+.success-logo{width:200px;filter:invert(1);animation:logoSway 3s ease-in-out infinite;transform-origin:bottom center;margin:16px 0}
+@keyframes logoSway{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
+.success-close{margin-top:20px;padding:12px 40px;background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.4);border-radius:30px;font-size:14px;cursor:pointer;letter-spacing:.08em}
+.success-title{font-family:'Cormorant Garamond',serif;font-size:34px;color:#fff;letter-spacing:.1em}
+.success-sub{font-size:13px;color:var(--seafoam);line-height:1.9;letter-spacing:.04em}
+
+/* VALIDATION */
+input.error{border-color:var(--coral);background:var(--coral-lt)}
+.err-msg{font-size:11px;color:var(--coral);min-height:14px;margin-top:2px}
+
+/* RESPONSIVE */
+@media(max-width:600px){
+  .card{padding:18px 16px;margin:0 8px}
+  .fgrid{grid-template-columns:1fr}
+  .fg.full{grid-column:1}
+  header{padding:12px 12px 0}
+  .progress-area{padding:10px 12px 6px}
+  .step-labels{display:none}
+  .companion-row{grid-template-columns:1fr auto}
+  .companion-row .kana-col{display:none}
+  .res-banner{margin:8px 8px 0}
+}
+</style>
+</head>
+<body>
+<div class="stars" id="stars"></div>
+
+<div id="app">
+
+<header>
+  <div class="logo">
+    <div class="logo-main">WASSA WASSA</div>
+    <div class="logo-sub">海と星空の小さな宿</div>
+    <div class="logo-tag" id="hdr-tag">ようこそ！チェックインのお手続きをお願いします</div>
+  </div>
+  <div class="lang-toggle">
+    <button class="lang-btn active" onclick="setLang('ja')">日本語</button>
+    <button class="lang-btn" onclick="setLang('en')">English</button>
+  </div>
+</header>
+
+<!-- 予約情報バナー（ゲストブックから渡された情報を表示） -->
+<div class="res-banner" id="res-banner">
+  <div class="rb-item"><span class="rb-label" id="rbl-name">お名前</span><span class="rb-value" id="rb-name">—</span></div>
+  <div class="rb-item"><span class="rb-label" id="rbl-ci">チェックイン</span><span class="rb-value" id="rb-ci">—</span></div>
+  <div class="rb-item"><span class="rb-label" id="rbl-co">チェックアウト</span><span class="rb-value" id="rb-co">—</span></div>
+  <div class="rb-item"><span class="rb-label" id="rbl-plan">プラン</span><span class="rb-value" id="rb-plan">—</span></div>
+  <div class="rb-item"><span class="rb-label" id="rbl-pax">人数</span><span class="rb-value" id="rb-pax">—</span></div>
+</div>
+
+<div class="progress-area">
+  <div class="progress-bar"><div class="progress-fill" id="prog-fill" style="width:25%"></div></div>
+  <div class="step-labels">
+    <span class="slabel active" id="sl-1">基本情報</span>
+    <span class="slabel" id="sl-2">連絡先</span>
+    <span class="slabel" id="sl-3">同室者・署名</span>
+    <span class="slabel" id="sl-4">確認</span>
+  </div>
+</div>
+
+<!-- ═══ STEP 1: 基本情報 ═══ -->
+<div class="card" id="step-1">
+  <div class="step-title" id="s1-title">基本情報</div>
+  <div class="step-sub" id="s1-sub">予約代表者の情報をご入力ください。</div>
+  <div class="notice-prefill" id="notice-1">
+    ✨ <span id="notice-1-txt">予約時の情報が自動入力されています。内容をご確認ください。</span>
+  </div>
+  <div class="fgrid">
+    <div class="fg">
+      <label id="lb-sei">姓（苗字）<span class="req-mark">*</span></label>
+      <input type="text" id="sei" placeholder="例: 山田" autocomplete="off">
+      <span class="err-msg" id="err-sei"></span>
+    </div>
+    <div class="fg">
+      <label id="lb-mei">名（名前）<span class="req-mark">*</span></label>
+      <input type="text" id="mei" placeholder="例: 太郎" autocomplete="off">
+      <span class="err-msg" id="err-mei"></span>
+    </div>
+    <div class="fg" id="fg-kana-s">
+      <label>せい（かな）</label>
+      <input type="text" id="sei-kana" placeholder="やまだ" inputmode="hiragana">
+    </div>
+    <div class="fg" id="fg-kana-m">
+      <label>めい（かな）</label>
+      <input type="text" id="mei-kana" placeholder="たろう" inputmode="hiragana">
+    </div>
+    <div class="fg">
+      <label id="lb-birth">生年月日<span class="req-mark">*</span></label>
+      <input type="date" id="birth" autocomplete="off">
+      <span class="err-msg" id="err-birth"></span>
+    </div>
+    <div class="fg">
+      <label id="lb-gender">性別</label>
+      <div class="opt-group">
+        <label class="opt-btn" onclick="selOpt('gender','男性',this)"><span id="lbl-male">男性</span></label>
+        <label class="opt-btn" onclick="selOpt('gender','女性',this)"><span id="lbl-female">女性</span></label>
+      </div>
+    </div>
+
+    <!-- パスポート欄（英語時のみ表示） -->
+    <div class="fg full" id="passport-area" style="display:none">
+      <div class="passport-box">
+        <div class="passport-ttl">🛂 Passport Information</div>
+        <div class="fgrid">
+          <div class="fg">
+            <label>Nationality <span class="req-mark">*</span></label>
+            <input type="text" id="nationality" placeholder="e.g. American, French">
+            <span class="err-msg" id="err-nat"></span>
+          </div>
+          <div class="fg">
+            <label>Passport Number <span class="req-mark">*</span></label>
+            <input type="text" id="passport-no" placeholder="e.g. AB1234567" autocomplete="off">
+            <span class="err-msg" id="err-pass"></span>
+          </div>
+          <div class="fg">
+            <label>Expiry Date</label>
+            <input type="date" id="passport-expiry">
+          </div>
+          <div class="fg">
+            <label>Country of Residence</label>
+            <input type="text" id="country-res" placeholder="e.g. United States">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ STEP 2: 連絡先 ═══ -->
+<div class="card" id="step-2" style="display:none">
+  <div class="step-title" id="s2-title">連絡先・住所</div>
+  <div class="step-sub" id="s2-sub">緊急連絡先としてご登録いただきます。</div>
+  <div class="notice-prefill" id="notice-2">
+    ✨ <span id="notice-2-txt">予約時の情報が自動入力されています。</span>
+  </div>
+  <!-- 予約時の備考・要望（アレルギー情報が含まれている場合） -->
+  <div class="notice-notes" id="notice-notes">
+    <strong id="lbl-notes-title">📋 予約時のご要望・備考</strong>
+    <span id="notes-content"></span>
+  </div>
+  <div class="fgrid">
+    <div class="fg full">
+      <label id="lb-mobile">携帯電話番号<span class="req-mark">*</span></label>
+      <input type="tel" id="mobile" placeholder="090-0000-0000" inputmode="tel" autocomplete="off">
+      <span class="err-msg" id="err-mobile"></span>
+    </div>
+    <div class="fg full">
+      <label id="lb-email">
+        メールアドレス
+        <span class="req-mark" id="email-req">*</span>
+        <span class="opt-badge" id="email-opt" style="display:none" id="lbl-email-opt">任意</span>
+        <span class="pre-badge" id="email-pre" style="display:none">予約時取得済</span>
+      </label>
+      <input type="email" id="email" placeholder="example@mail.com" inputmode="email" autocomplete="off">
+      <span class="err-msg" id="err-email"></span>
+    </div>
+    <div class="fg">
+      <label id="lb-zip">郵便番号</label>
+      <input type="text" id="zip" placeholder="000-0000" inputmode="numeric" oninput="autoZip(this.value)">
+      <span class="err-msg" id="err-zip"></span>
+    </div>
+    <div class="fg">
+      <label id="lb-pref">都道府県<span class="req-mark">*</span></label>
+      <input type="text" id="pref" placeholder="例: 東京都" autocomplete="off">
+    </div>
+    <div class="fg full">
+      <label id="lb-city">市区町村<span class="req-mark">*</span></label>
+      <input type="text" id="city" placeholder="例: 渋谷区" autocomplete="off">
+      <span class="err-msg" id="err-city"></span>
+    </div>
+    <div class="fg full">
+      <label id="lb-addr">住所（番地・マンション名など）</label>
+      <input type="text" id="addr" placeholder="1-2-3 ○○マンション101" autocomplete="off">
+    </div>
+    <!-- アレルギー -->
+    <div class="fg full" style="margin-top:4px">
+      <label id="lb-allergy">アレルギー・苦手な食材</label>
+      <div class="opt-group" style="margin-bottom:8px">
+        <label class="opt-btn" onclick="selOpt('allergy','なし',this)"><span id="lbl-anone">なし</span></label>
+        <label class="opt-btn" onclick="selOpt('allergy','あり',this)"><span id="lbl-ayes">あり</span></label>
+      </div>
+      <textarea id="ng-food" placeholder="例: 貝類、小麦、パクチー、乳製品..." style="display:none"></textarea>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ STEP 3: 同室者・署名 ═══ -->
+<div class="card" id="step-3" style="display:none">
+  <div class="step-title" id="s3-title">同室者・署名</div>
+  <div class="step-sub" id="s3-sub">ご一緒にお泊まりのお客様と署名をお願いします。</div>
+
+  <div style="margin-bottom:20px">
+    <label style="font-size:13px;font-weight:600;color:var(--ocean2);letter-spacing:.05em;display:block;margin-bottom:10px" id="lbl-comp">同室者のお名前（任意）</label>
+    <div id="companion-list"></div>
+    <button class="add-btn" onclick="addComp()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <span id="lbl-addcomp">同室者を追加</span>
+    </button>
+  </div>
+
+  <div>
+    <label style="font-size:13px;font-weight:600;color:var(--ocean2);letter-spacing:.05em;display:block;margin-bottom:8px" id="lbl-sig">
+      署名<span class="req-mark">*</span>
+    </label>
+    <div class="sig-wrap">
+      <canvas id="sig-canvas"></canvas>
+      <div class="sig-ph" id="sig-ph">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        <span id="lbl-sig-hint">ここにサインしてください</span>
+      </div>
+      <button class="sig-clear-btn" onclick="clearSig()" id="lbl-sig-clear">クリア</button>
+    </div>
+    <span class="err-msg" id="err-sig"></span>
+  </div>
+</div>
+
+<!-- ═══ STEP 4: 確認 ═══ -->
+<div class="card" id="step-4" style="display:none">
+  <div class="step-title" id="s4-title">内容確認</div>
+  <div class="step-sub" id="s4-sub">入力内容をご確認の上、チェックインボタンを押してください。</div>
+  <table class="confirm-tbl" id="confirm-tbl"></table>
+  <div class="checkout-notice">
+    チェックアウト時間は <strong>10:00</strong> です。<br>
+    お部屋を出られる前にフロントまでお声がけください。<br>
+    <span style="color:var(--ocean3);font-size:12px">Check-out time is 10:00 AM. Please let us know before leaving.</span>
+  </div>
+</div>
+
+<!-- SUCCESS -->
+<div id="step-success">
+  <img src="https://okiwassa-cmyk.github.io/wassa-system/logo.png" alt="WASSA WASSA" class="success-logo">
+  <div class="success-title" id="s-title">チェックイン完了</div>
+  <div class="success-sub" id="s-sub">ようこそ WASSA WASSA へ！<br>素敵なご滞在をお楽しみください。<br><br><em>Welcome! We hope you enjoy your stay.</em></div>
+  <!-- 英語モード時のみ表示：スタッフがパスポート撮影 -->
+  <div id="passport-staff-area" style="display:none;flex-direction:column;align-items:center;gap:10px;margin-top:16px;width:100%">
+    <div style="font-size:12px;color:rgba(255,255,255,.7);letter-spacing:.05em">— Staff only —</div>
+    <input type="file" id="passport-staff-input" accept="image/*" capture="environment" style="display:none" onchange="onStaffPassportPhoto(this)">
+    <button type="button" class="passport-photo-btn" style="max-width:320px" onclick="document.getElementById('passport-staff-input').click()">
+      📷 Scan Passport
+    </button>
+    <div id="passport-staff-uploading" style="display:none;color:rgba(255,255,255,.8);font-size:13px">Uploading...</div>
+  </div>
+  <button class="success-close" id="success-close-btn" onclick="window.close()">✕ 閉じる / Close</button>
+</div>
+
+<div class="bottom-nav" id="bottom-nav">
+  <button class="nav-back" id="nav-back" onclick="goBack()" style="visibility:hidden">
+    <span id="lbl-back">← 戻る</span>
+  </button>
+  <button class="nav-next" id="nav-next" onclick="goNext()">
+    <span id="lbl-next">次へ</span>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+  </button>
+</div>
+
+</div><!-- /app -->
+
+<script>
+// ━━ CONFIG ━━
+const SB_URL = 'https://mtsdhheqddrckksiqlim.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10c2RoaGVxZGRyY2trc2lxbGltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1OTc5NDgsImV4cCI6MjA4ODE3Mzk0OH0.c18ExSxNHBOani7CN4QAqaerhvpr5ZCYA0GGkUg0mlc';
+const HDR = {'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=representation'};
+
+// ━━ STATE ━━
+let lang = 'ja';
+let step = 1;
+let companions = [];
+let sigHasData = false;
+let selectedGender = '';
+let selectedAllergy = '';
+let reservationId = null;
+let emailIsOptional = false; // 予約時取得済みならtrue
+var passportPhotoFile = null;
+var passportPhotoUrl = null;
+var lastCheckinId = null;
+
+function onPassportPhoto(input) {
+  var file = input.files[0];
+  if (!file) return;
+  passportPhotoFile = file;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('passport-thumb-img').src = e.target.result;
+    document.getElementById('passport-thumb').style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function uploadPassportPhoto() {
+  if (!passportPhotoFile) return null;
+  var ext = passportPhotoFile.name.split('.').pop() || 'jpg';
+  var path = 'checkin/' + (reservationId||'unknown') + '_' + Date.now() + '.' + ext;
+  var res = await fetch(SB_URL + '/storage/v1/object/passport-photos/' + path, {
+    method: 'POST',
+    headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': passportPhotoFile.type },
+    body: passportPhotoFile
+  });
+  if (!res.ok) { console.warn('photo upload failed'); return null; }
+  return SB_URL + '/storage/v1/object/public/passport-photos/' + path;
+}
+
+// ━━ STARS ━━
+(()=>{
+  const c = document.getElementById('stars');
+  for(let i=0;i<55;i++){
+    const s = document.createElement('div');
+    s.className = 'star-dot';
+    const sz = Math.random()*2+1;
+    s.style.cssText = `width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${Math.random()*100}%;--d:${2+Math.random()*4}s;--dl:-${Math.random()*5}s`;
+    c.appendChild(s);
+  }
+})();
+
+// ━━ URL PARAMS → 予約データ自動入力 ━━
+function loadFromParams(){
+  const p = new URLSearchParams(location.search);
+  reservationId = p.get('id');
+
+  // 言語設定（IDがなくても実行）
+  var langParam = p.get('lang')||'ja';
+  setLang(langParam);
+
+  if(!reservationId) return;
+
+  // 予約バナー表示
+  const banner = document.getElementById('res-banner');
+  banner.classList.add('show');
+  document.getElementById('rb-name').textContent  = p.get('name')  || '—';
+  document.getElementById('rb-ci').textContent    = p.get('checkin')|| '—';
+  document.getElementById('rb-co').textContent    = p.get('checkout')|| '—';
+  document.getElementById('rb-plan').textContent  = p.get('plan')   || '—';
+  const a=p.get('adults')||0, ch=p.get('children')||0, inf=p.get('infants')||0;
+  let pax = `大人${a}名`;
+  if(ch>0) pax += ` 小学生${ch}名`;
+  if(inf>0) pax += ` 幼児${inf}名`;
+  document.getElementById('rb-pax').textContent = pax;
+
+  let anyPrefill = false;
+
+  // 氏名（スペースで分割）
+  const name = (p.get('name')||'').trim();
+  if(name){
+    const parts = name.split(/[\s　]+/);
+    if(parts.length >= 2){
+      setVal('sei', parts[0]);
+      setVal('mei', parts.slice(1).join(' '));
+    } else {
+      setVal('sei', name);
+    }
+    markPre('sei'); markPre('mei');
+    anyPrefill = true;
+  }
+
+  // 電話
+  const phone = p.get('phone')||'';
+  if(phone){ setVal('mobile', phone); markPre('mobile'); anyPrefill = true; }
+
+  // メール（取得済みなら任意に変更）
+  const email = p.get('email')||'';
+  if(email){
+    setVal('email', email); markPre('email');
+    emailIsOptional = true;
+    document.getElementById('email-req').style.display  = 'none';
+    document.getElementById('email-opt').style.display  = 'none';
+    document.getElementById('email-pre').style.display  = '';
+    anyPrefill = true;
+  } else {
+    // メールなし → 任意表示はしない、引き続き必須
+    document.getElementById('email-req').style.display  = '';
+    document.getElementById('email-opt').style.display  = 'none';
+    document.getElementById('email-pre').style.display  = 'none';
+  }
+
+  // 郵便番号
+  const zip = p.get('zip')||'';
+  if(zip){ setVal('zip', zip); markPre('zip'); anyPrefill = true; }
+
+  // 住所（都道府県・市区町村・番地に分解）
+  const address = p.get('address')||'';
+  if(address){
+    setVal('addr', address);
+    markPre('addr');
+    // 都道府県抽出
+    const prefM = address.match(/^(東京都|北海道|(?:.+?[都道府県]))/);
+    if(prefM){
+      setVal('pref', prefM[1]); markPre('pref');
+      const rest = address.slice(prefM[1].length);
+      const cityM = rest.match(/^([^市区町村]*[市区町村]+)/);
+      if(cityM){ setVal('city', cityM[1]); markPre('city'); }
+    }
+    anyPrefill = true;
+  }
+
+  // 備考（アレルギー情報が含まれる可能性を告知）
+  const notes = p.get('notes')||'';
+  if(notes){
+    document.getElementById('notice-notes').style.display = 'block';
+    document.getElementById('notes-content').textContent = notes;
+    anyPrefill = true;
+  }
+
+  // かな
+  const seiKana = p.get('sei_kana')||'';
+  const meiKana = p.get('mei_kana')||'';
+  if(seiKana){ setVal('sei-kana', seiKana); markPre('sei-kana'); anyPrefill = true; }
+  if(meiKana){ setVal('mei-kana', meiKana); markPre('mei-kana'); anyPrefill = true; }
+
+  // 生年月日
+  const birth = p.get('birth')||'';
+  if(birth){ setVal('birth', birth); markPre('birth'); anyPrefill = true; }
+
+  // 性別
+  const gender = p.get('gender')||'';
+  if(gender){
+    selectedGender = gender;
+    document.querySelectorAll('.opt-btn').forEach(function(btn){
+      var span = btn.querySelector('span');
+      if(span && (span.textContent === gender || span.id === 'lbl-male' && gender==='男性' || span.id === 'lbl-female' && gender==='女性')){
+        btn.classList.add('selected');
+      }
+    });
+    anyPrefill = true;
+  }
+
+  // アレルギー
+  var allergy = p.get('allergy')||'';
+  var ngFood  = p.get('ng_food')||'';
+  if(allergy){
+    selectedAllergy = allergy;
+    document.querySelectorAll('.opt-btn').forEach(function(btn){
+      var span = btn.querySelector('span');
+      if(span && span.textContent === allergy) btn.classList.add('selected');
+    });
+    if(allergy==='あり'){
+      document.getElementById('ng-food').style.display='block';
+      if(ngFood){ setVal('ng-food', ngFood); markPre('ng-food'); }
+    }
+    anyPrefill = true;
+  }
+
+  // 自動入力があれば告知バナー表示
+  if(anyPrefill){
+    document.getElementById('notice-1').style.display = 'flex';
+    document.getElementById('notice-2').style.display = 'flex';
+  }
+}
+
+function setVal(id, val){ const el=document.getElementById(id); if(el) el.value=val; }
+function markPre(id){ const el=document.getElementById(id); if(el) el.classList.add('prefilled'); }
+
+// ━━ LANG ━━
+const T = {
+  ja:{
+    tag:'ようこそ！チェックインのお手続きをお願いします',
+    s1:'基本情報', s1s:'予約代表者の情報をご入力ください。',
+    s2:'連絡先・住所', s2s:'緊急連絡先としてご登録いただきます。',
+    s3:'同室者・署名', s3s:'ご一緒にお泊まりのお客様と署名をお願いします。',
+    s4:'内容確認', s4s:'入力内容をご確認の上、チェックインボタンを押してください。',
+    next:'次へ', back:'← 戻る', ci:'CHECK IN',
+    male:'男性', female:'女性',
+    anone:'なし', ayes:'あり',
+    comp:'同室者のお名前（任意）', addcomp:'同室者を追加',
+    sig:'署名', sighint:'ここにサインしてください', sigclear:'クリア',
+    fSei:'姓（苗字）', fMei:'名（名前）', fBirth:'生年月日', fMobile:'携帯電話番号', fZip:'郵便番号', fPref:'都道府県', fCity:'市区町村', fAddr:'住所（番地・マンション名など）',
+    cname:'お名前', ckana:'かな',
+    stitle:'チェックイン完了', ssub:'ようこそ WASSA WASSA へ！\n素敵なご滞在をお楽しみください。',
+    sl:['基本情報','連絡先','同室者・署名','確認'],
+    rname:'お名前',rci:'チェックイン',rco:'チェックアウト',rplan:'プラン',rpax:'人数',
+    notice:'予約時の情報が自動入力されています。内容をご確認ください。',
+    noteTitle:'📋 予約時のご要望・備考',
+    cf:{name:'お名前',kana:'かな',birth:'生年月日',gender:'性別',
+        mobile:'携帯電話',email:'メール',addr:'住所',
+        allergy:'アレルギー',ng:'苦手食材',comp:'同室者',
+        nat:'国籍',pass:'パスポート番号'},
+  },
+  en:{
+    tag:'Welcome! Please complete your check-in.',
+    s1:'Basic Information', s1s:'Please enter the reservation holder\'s information.',
+    s2:'Contact & Address', s2s:'We need your contact details for emergency purposes.',
+    s3:'Companions & Signature', s3s:'Please add companions and sign below.',
+    s4:'Confirmation', s4s:'Please review and press CHECK IN.',
+    next:'Next', back:'← Back', ci:'CHECK IN',
+    male:'Male', female:'Female',
+    anone:'None', ayes:'Yes',
+    comp:'Companions (optional)', addcomp:'Add Companion',
+    sig:'Signature', sighint:'Please sign here', sigclear:'Clear',
+    fSei:'Last Name', fMei:'First Name', fBirth:'Date of Birth', fMobile:'Mobile Phone', fZip:'Postal Code', fPref:'State / Province', fCity:'City', fAddr:'Street Address',
+    cname:'Name', ckana:'Name (phonetic)',
+    stitle:'Check-in Complete', ssub:'Welcome to WASSA WASSA!\nWe hope you enjoy your stay.',
+    sl:['Basic Info','Contact','Companions','Confirm'],
+    rname:'Name',rci:'Check-in',rco:'Check-out',rplan:'Plan',rpax:'Guests',
+    noticeEn:'Your reservation details have been pre-filled. Please review.',
+    noteTitle:'📋 Notes from Reservation',
+    cf:{name:'Name',kana:'Phonetic',birth:'Date of Birth',gender:'Gender',
+        mobile:'Mobile',email:'Email',addr:'Address',
+        allergy:'Allergies',ng:'Food Restrictions',comp:'Companions',
+        nat:'Nationality',pass:'Passport No.'},
+  }
+};
+
+function setLang(l){
+  lang = l;
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active',b.textContent.trim()===(l==='ja'?'日本語':'English')));
+  const t = T[l];
+  document.getElementById('hdr-tag').textContent = t.tag;
+  document.getElementById('s1-title').textContent = t.s1;
+  document.getElementById('s1-sub').textContent   = t.s1s;
+  document.getElementById('s2-title').textContent = t.s2;
+  document.getElementById('s2-sub').textContent   = t.s2s;
+  document.getElementById('s3-title').textContent = t.s3;
+  document.getElementById('s3-sub').textContent   = t.s3s;
+  document.getElementById('s4-title').textContent = t.s4;
+  document.getElementById('s4-sub').textContent   = t.s4s;
+  document.getElementById('lbl-next').textContent = step===4 ? t.ci : t.next;
+  document.getElementById('lbl-back').textContent = t.back;
+  document.getElementById('lbl-male').textContent = t.male;
+  document.getElementById('lbl-female').textContent = t.female;
+  document.getElementById('lbl-anone').textContent = t.anone;
+  document.getElementById('lbl-ayes').textContent  = t.ayes;
+  document.getElementById('lbl-comp').textContent  = t.comp;
+  document.getElementById('lbl-addcomp').textContent = t.addcomp;
+  document.getElementById('lbl-sig').innerHTML = t.sig+'<span class="req-mark">*</span>';
+  document.getElementById('lbl-sig-hint').textContent  = t.sighint;
+  document.getElementById('lbl-sig-clear').textContent = t.sigclear;
+  document.getElementById('notice-1-txt').textContent  = l==='ja' ? t.noticeEn||t.noticeJa||t.notice : t.noticeEn||t.notice;
+  document.getElementById('notice-2-txt').textContent  = l==='ja' ? t.notice : (t.noticeEn||t.notice);
+  document.getElementById('lbl-notes-title').textContent = t.noteTitle;
+  document.getElementById('rbl-name').textContent = t.rname;
+  document.getElementById('rbl-ci').textContent   = t.rci;
+  document.getElementById('rbl-co').textContent   = t.rco;
+  document.getElementById('rbl-plan').textContent = t.rplan;
+  document.getElementById('rbl-pax').textContent  = t.rpax;
+  document.getElementById('s-title').textContent  = t.stitle;
+  document.getElementById('s-sub').innerHTML = t.ssub.replace(/\n/g,'<br>');
+  document.querySelectorAll('.slabel').forEach((el,i)=>el.textContent=t.sl[i]);
+  // かな欄・パスポート欄の表示切替
+  document.getElementById('fg-kana-s').style.display    = l==='ja'?'':'none';
+  document.getElementById('fg-kana-m').style.display    = l==='ja'?'':'none';
+  document.getElementById('passport-area').style.display = l==='en'?'':'none';
+  // フィールドラベル切り替え
+  document.getElementById('lb-sei').innerHTML   = t.fSei  + '<span class="req-mark">*</span>';
+  document.getElementById('lb-mei').innerHTML   = t.fMei  + '<span class="req-mark">*</span>';
+  document.getElementById('lb-birth').innerHTML = t.fBirth+ '<span class="req-mark">*</span>';
+  document.getElementById('lb-mobile').innerHTML= t.fMobile+'<span class="req-mark">*</span>';
+  document.getElementById('lb-zip').textContent = t.fZip;
+  document.getElementById('lb-pref').innerHTML  = t.fPref + '<span class="req-mark">*</span>';
+  document.getElementById('lb-city').innerHTML  = t.fCity + '<span class="req-mark">*</span>';
+  document.getElementById('lb-addr').textContent= t.fAddr;
+  // step titleフォント
+  document.querySelectorAll('.step-title').forEach(el=>el.classList.toggle('en',l==='en'));
+  renderCompanions();
+  if(step===4) renderConfirm();
+}
+
+// ━━ OPT BUTTONS ━━
+function selOpt(group, val, el){
+  if(group==='gender') selectedGender = val;
+  if(group==='allergy'){
+    selectedAllergy = val;
+    document.getElementById('ng-food').style.display = val==='あり' ? 'block' : 'none';
+  }
+  el.closest('.opt-group').querySelectorAll('.opt-btn').forEach(b=>b.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+// ━━ COMPANIONS ━━
+function renderCompanions(){
+  const t = T[lang];
+  document.getElementById('companion-list').innerHTML = companions.map((c,i)=>`
+    <div class="companion-row">
+      <div class="fg">
+        <label style="font-size:11px">${t.cname}</label>
+        <input type="text" value="${escHtml(c.name||'')}"
+          placeholder="${lang==='ja'?'山田 花子':'Jane Smith'}"
+          oninput="companions[${i}].name=this.value"
+          style="font-size:15px;padding:9px 12px">
+      </div>
+      <div class="fg kana-col" style="display:${lang==='ja'?'flex':'none'};flex-direction:column;gap:5px">
+        <label style="font-size:11px">${t.ckana}</label>
+        <input type="text" value="${escHtml(c.kana||'')}"
+          placeholder="やまだ はなこ"
+          oninput="companions[${i}].kana=this.value"
+          style="font-size:15px;padding:9px 12px">
+      </div>
+      <button class="rm-btn" onclick="removeComp(${i})">✕</button>
+    </div>`).join('');
+}
+function addComp(){ companions.push({name:'',kana:''}); renderCompanions(); }
+function removeComp(i){ companions.splice(i,1); renderCompanions(); }
+function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+
+// ━━ SIGNATURE ━━
+(()=>{
+  const canvas = document.getElementById('sig-canvas');
+  const ctx    = canvas.getContext('2d');
+  function resize(){
+    const rect = canvas.parentElement.getBoundingClientRect();
+    const dpr  = window.devicePixelRatio||1;
+    canvas.width  = rect.width * dpr;
+    canvas.height = 155 * dpr;
+    canvas.style.height = '155px';
+    ctx.scale(dpr, dpr);
+    ctx.strokeStyle = '#1C2E35';
+    ctx.lineWidth   = 2.5;
+    ctx.lineCap     = 'round';
+    ctx.lineJoin    = 'round';
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  let drawing = false;
+  const pos = e => {
+    const r = canvas.getBoundingClientRect();
+    if(e.touches) return {x:e.touches[0].clientX-r.left, y:e.touches[0].clientY-r.top};
+    return {x:e.clientX-r.left, y:e.clientY-r.top};
+  };
+  canvas.addEventListener('pointerdown', e=>{ drawing=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); document.getElementById('sig-ph').style.opacity='0'; e.preventDefault(); });
+  canvas.addEventListener('pointermove', e=>{ if(!drawing) return; const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(p.x,p.y); sigHasData=true; e.preventDefault(); });
+  canvas.addEventListener('pointerup',    ()=>{ drawing=false; ctx.beginPath(); });
+  canvas.addEventListener('pointerleave', ()=>{ drawing=false; ctx.beginPath(); });
+})();
+function clearSig(){
+  const c = document.getElementById('sig-canvas');
+  c.getContext('2d').clearRect(0,0,c.width,c.height);
+  sigHasData = false;
+  document.getElementById('sig-ph').style.opacity = '1';
+}
+
+// ━━ NAVIGATION ━━
+function goNext(){
+  if(!validate(step)) return;
+  if(step===4){ submit(); return; }
+  step++;
+  updateUI();
+  if(step===4) renderConfirm();
+}
+function goBack(){ if(step===1) return; step--; updateUI(); }
+function updateUI(){
+  for(let i=1;i<=4;i++){
+    const el=document.getElementById('step-'+i);
+    if(el) el.style.display = i===step ? 'block' : 'none';
+  }
+  document.getElementById('prog-fill').style.width = (step/4*100)+'%';
+  document.querySelectorAll('.slabel').forEach((el,i)=>{
+    el.classList.toggle('active', i===step-1);
+    el.classList.toggle('done',   i<step-1);
+  });
+  document.getElementById('nav-back').style.visibility = step===1 ? 'hidden' : 'visible';
+  const t = T[lang];
+  document.getElementById('lbl-next').textContent = step===4 ? t.ci : t.next;
+  document.getElementById('nav-next').style.background = step===4
+    ? 'linear-gradient(135deg,#1A7D3A,#15612C)'
+    : 'linear-gradient(135deg,var(--ocean3),var(--ocean2))';
+  const card = document.getElementById('step-'+step);
+  if(card) card.scrollTop = 0;
+}
+
+// ━━ VALIDATION ━━
+function validate(s){
+  let ok = true;
+  const err = (id, msg) => {
+    const el = document.getElementById(id); if(el) el.textContent = msg;
+    const inp = document.getElementById(id.replace('err-','')); if(inp) inp.classList.add('error');
+    ok = false;
+  };
+  const clr = id => {
+    const el = document.getElementById(id); if(el) el.textContent = '';
+    const inp = document.getElementById(id.replace('err-','')); if(inp) inp.classList.remove('error');
+  };
+  if(s===1){
+    clr('err-sei'); clr('err-mei'); clr('err-birth');
+    if(!g('sei'))   err('err-sei',  lang==='ja'?'姓を入力してください':'Please enter your last name');
+    if(!g('mei'))   err('err-mei',  lang==='ja'?'名を入力してください':'Please enter your first name');
+    if(!g('birth')) err('err-birth',lang==='ja'?'生年月日を入力してください':'Please enter your date of birth');
+    if(lang==='en'){
+      clr('err-nat'); clr('err-pass');
+      if(!g('nationality')) err('err-nat', 'Please enter your nationality');
+      if(!g('passport-no')) err('err-pass','Please enter your passport number');
+    }
+  }
+  if(s===2){
+    clr('err-mobile'); clr('err-email'); clr('err-zip'); clr('err-city');
+    if(!g('mobile')) err('err-mobile', lang==='ja'?'電話番号を入力してください':'Please enter your phone number');
+    const em = g('email');
+    if(!emailIsOptional && !em) err('err-email', lang==='ja'?'メールアドレスを入力してください':'Please enter your email');
+    if(em && !em.includes('@'))  err('err-email', lang==='ja'?'正しいメールアドレスを入力してください':'Invalid email');
+    if(!g('city')) err('err-city', lang==='ja'?'市区町村を入力してください':'Please enter city');
+  }
+  if(s===3){
+    document.getElementById('err-sig').textContent = '';
+    if(!sigHasData){ document.getElementById('err-sig').textContent = lang==='ja'?'署名をお願いします':'Please sign above'; ok=false; }
+  }
+  return ok;
+}
+
+// ━━ CONFIRM ━━
+function renderConfirm(){
+  const t = T[lang];
+  const cf = t.cf;
+  const fullName = lang==='ja' ? g('sei')+' '+g('mei') : g('mei')+' '+g('sei');
+  const fullKana = g('sei-kana')+' '+g('mei-kana');
+  const address  = [g('zip'), g('pref'), g('city'), g('addr')].filter(Boolean).join(' ');
+  const allergyTxt = selectedAllergy==='あり' ? (g('ng-food')||'あり') : (selectedAllergy||lang==='ja'?'なし':'None');
+  const compTxt  = companions.filter(c=>c.name).map(c=>c.name+(c.kana?' ('+c.kana+')':'')).join('、') || '—';
+  const rows = [
+    [cf.name,  fullName],
+    lang==='ja' ? [cf.kana, fullKana] : null,
+    [cf.birth,  g('birth')],
+    [cf.gender, selectedGender||'—'],
+    lang==='en' ? [cf.nat,  g('nationality')] : null,
+    lang==='en' ? [cf.pass, g('passport-no')] : null,
+    [cf.mobile, g('mobile')],
+    [cf.email,  g('email')||'—'],
+    [cf.addr,   address||'—'],
+    [cf.allergy, allergyTxt],
+    allergyTxt!=='なし'&&allergyTxt!=='None'&&g('ng-food') ? [cf.ng, g('ng-food')] : null,
+    [cf.comp,   compTxt],
+  ].filter(Boolean);
+  document.getElementById('confirm-tbl').innerHTML = rows.map(([k,v])=>`
+    <tr><td>${k}</td><td>${v||'—'}</td></tr>`).join('');
+}
+
+// ━━ SUBMIT ━━
+async function submit(){
+  const sigData = document.getElementById('sig-canvas').toDataURL('image/png');
+  const address = [g('pref'), g('city'), g('addr')].filter(Boolean).join(' ');
+
+  const payload = {
+    reservation_id:    reservationId ? parseInt(reservationId) : null,
+    sei:               g('sei'),
+    mei:               g('mei'),
+    sei_kana:          g('sei-kana'),
+    mei_kana:          g('mei-kana'),
+    gender:            selectedGender,
+    birth_date:        g('birth') || null,
+    mobile:            g('mobile'),
+    email:             g('email'),
+    zip:               g('zip'),
+    address:           address,
+    allergy:           selectedAllergy==='あり' ? 'あり' : 'なし',
+    ng_food:           selectedAllergy==='あり' ? g('ng-food') : '',
+    nationality:       g('nationality'),
+    passport_no:       g('passport-no'),
+    passport_expiry:   g('passport-expiry') || null,
+    country_residence: g('country-res'),
+    passport_photo_url: passportPhotoUrl || null,
+    companions:        JSON.stringify(companions.filter(c=>c.name)),
+    signature:         sigData,
+    checkin_lang:      lang,
+    checked_in_at:     new Date().toISOString()
+  };
+
+  const btn = document.getElementById('nav-next');
+  btn.disabled = true;
+  btn.innerHTML = '<span>' + (lang==='ja'?'送信中...':'Submitting...') + '</span>';
+
+  try{
+    // wassa_checkins テーブルに保存
+    await fetch(`${SB_URL}/rest/v1/wassa_checkins`, {
+      method:'POST', headers:HDR, body:JSON.stringify(payload)
+    });
+    // reservations テーブルの status を checkin に更新
+    if(reservationId){
+      await fetch(`${SB_URL}/rest/v1/reservations?id=eq.${reservationId}`, {
+        method:'PATCH', headers:HDR,
+        body: JSON.stringify({
+          status:  'checkin',
+          phone:   g('mobile')  || undefined,
+          email:   g('email')   || undefined,
+          address: address      || undefined
+        })
+      });
+    }
+    var saved = await (await fetch(SB_URL+'/rest/v1/wassa_checkins?order=id.desc&limit=1',{headers:HDR})).json();
+    if(saved&&saved[0]) lastCheckinId = saved[0].id;
+    showSuccess();
+  } catch(e){
+    console.warn('Supabase error:', e.message);
+    showSuccess();
+  }
+}
+
+function showSuccess(){
+  for(var i=1;i<=4;i++){var el=document.getElementById('step-'+i);if(el)el.style.display='none';}
+  document.getElementById('bottom-nav').style.display = 'none';
+  document.getElementById('step-success').style.display = 'flex';
+  // 英語モード時はパスポート撮影エリアを表示
+  if(lang==='en'){
+    document.getElementById('passport-staff-area').style.display = 'flex';
+  }
+  setTimeout(resetAll, 90000);
+}
+
+async function onStaffPassportPhoto(input) {
+  var file = input.files[0];
+  if (!file) return;
+  document.getElementById('passport-staff-uploading').style.display = 'block';
+  document.getElementById('passport-staff-area').querySelector('button').style.display = 'none';
+  // Storageにアップロード
+  var ext = file.name.split('.').pop() || 'jpg';
+  var path = 'checkin/' + (reservationId||'unknown') + '_' + Date.now() + '.' + ext;
+  try {
+    var res = await fetch(SB_URL + '/storage/v1/object/passport-photos/' + path, {
+      method: 'POST',
+      headers: {'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': file.type},
+      body: file
+    });
+    if (res.ok && lastCheckinId) {
+      var photoUrl = SB_URL + '/storage/v1/object/passport-photos/' + path;
+      await fetch(SB_URL + '/rest/v1/wassa_checkins?id=eq.' + lastCheckinId, {
+        method: 'PATCH', headers: HDR,
+        body: JSON.stringify({passport_photo_url: photoUrl})
+      });
+    }
+  } catch(e){ console.warn('photo upload error:', e); }
+  // 撮影完了 → 自動で閉じる
+  window.close();
+}
+
+function resetAll(){
+  step=1; companions=[]; sigHasData=false;
+  selectedGender=''; selectedAllergy=''; emailIsOptional=false;
+  passportPhotoFile=null; passportPhotoUrl=null;
+  document.getElementById('passport-thumb').style.display='none';
+  document.getElementById('passport-photo-input').value='';
+  document.querySelectorAll('input,textarea').forEach(el=>{ el.value=''; el.classList.remove('prefilled','error'); });
+  document.querySelectorAll('.opt-btn').forEach(el=>el.classList.remove('selected'));
+  document.getElementById('ng-food').style.display = 'none';
+  document.getElementById('notice-notes').style.display = 'none';
+  document.getElementById('res-banner').classList.remove('show');
+  document.getElementById('email-req').style.display = '';
+  document.getElementById('email-opt').style.display = 'none';
+  document.getElementById('email-pre').style.display = 'none';
+  clearSig();
+  document.getElementById('step-success').style.display = 'none';
+  document.getElementById('bottom-nav').style.display   = 'flex';
+  document.getElementById('step-1').style.display       = 'block';
+  reservationId = null;
+  renderCompanions();
+  updateUI();
+  setLang(lang);
+}
+
+// ━━ UTILS ━━
+const g = id => (document.getElementById(id)?.value||'').trim();
+async function autoZip(zip){
+  if(zip.replace(/-/g,'').length!==7 || lang!=='ja') return;
+  try{
+    const r = await fetch(`https://zipcloud.ibsnet.co.jp/api/search?zipcode=${zip.replace(/-/g,'')}`);
+    const d = await r.json();
+    if(d.results){
+      document.getElementById('pref').value = d.results[0].address1;
+      document.getElementById('city').value = d.results[0].address2 + d.results[0].address3;
+    }
+  } catch(e){}
+}
+
+// ━━ INIT ━━
+loadFromParams();
+renderCompanions();
+</script>
+</body>
+</html>
