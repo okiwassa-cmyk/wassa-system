@@ -1322,22 +1322,6 @@ function emptyRow(msg){return`<div style="padding:20px;text-align:center;color:v
 function renderReservations(){filterReservations();}
 // 顧客の宿泊回数インデックス（buildKanaIndex時に同時構築）
 var stayCountIndex = {}; // customer_id → 宿泊回数（正確）
-// ひらがな⇔カタカナ変換
-function toKatakana(str){ return str.replace(/[\u3041-\u3096]/g,function(c){return String.fromCharCode(c.charCodeAt(0)+0x60);}); }
-function toHiragana(str){ return str.replace(/[\u30A1-\u30F6]/g,function(c){return String.fromCharCode(c.charCodeAt(0)-0x60);}); }
-
-// 顧客が検索クエリにマッチするか（漢字・かな・ひらがな・カタカナすべて対応）
-function matchCustName(c, q){
-  if(!q) return true;
-  var norm = q.replace(/[\s\u3000]/g,'').toLowerCase();
-  var normK = toKatakana(norm);
-  var normH = toHiragana(norm);
-  var name  = ((c.sei||'')+(c.mei||'')).replace(/[\s\u3000]/g,'').toLowerCase();
-  var kana  = ((c.sei_kana||'')+(c.mei_kana||'')).replace(/[\s\u3000]/g,'').toLowerCase();
-  var kanaK = toKatakana(kana);
-  return name.includes(norm) || kana.includes(norm) || kana.includes(normH) || kanaK.includes(normK);
-}
-
 function buildKanaIndex(){
   kanaIndex = {};
   allCustomers.forEach(function(c){
@@ -1361,11 +1345,12 @@ function debounceCustFilter(){
 }
 
 function filterCustomers(){
-  const q=(document.getElementById('cust-search').value||'').replace(/[\s\u3000]/g,'').toLowerCase();
+  const q=(document.getElementById('cust-search').value||'').toLowerCase().replace(/\s/g,'').replace(/　/g,'');
   let list=allCustomers.filter(c=>{
     if(!q)return true;
-    if(matchCustName(c,q)) return true;
-    return (c.mobile||'').includes(q)||(c.email||'').toLowerCase().includes(q);
+    const full=((c.sei||'')+(c.mei||'')).toLowerCase().replace(/\s/g,'').replace(/　/g,'');
+    const kana=((c.sei_kana||'')+(c.mei_kana||'')).toLowerCase().replace(/\s/g,'').replace(/　/g,'');
+    return full.includes(q)||kana.includes(q)||(c.mobile||'').includes(q)||(c.email||'').toLowerCase().includes(q);
   });
   const container=document.getElementById('cust-list');
   if(!list.length){container.innerHTML=emptyRow('顧客が見つかりません');return;}
@@ -1380,18 +1365,23 @@ function debounceFilter(){
 }
 
 function filterReservations(){
-  const q=(document.getElementById('res-search').value||'').replace(/[\s\u3000]/g,'').toLowerCase();
+  const q=(document.getElementById('res-search').value||'').toLowerCase().replace(/[\s\u3000]/g,'');
   const f=document.getElementById('res-filter').value;
   const today=dateStr(new Date());
   let list=allReservations.filter(function(r){
     if(q){
       const rName=(r.guest_name||'').toLowerCase().replace(/[\s\u3000]/g,'');
       const rNo=(r.reservation_no||'').toLowerCase();
-      if(rName.includes(q)||rNo.includes(q)) { /* OK */ }
-      else {
-        // 顧客マスタのかな・漢字で照合
-        var cust=allCustomers.find(function(c){return c.id===r.customer_id;});
-        if(!cust||!matchCustName(cust,q)) return false;
+      var nameMatch = rName.includes(q) || rNo.includes(q);
+      if(!nameMatch){
+        // かなインデックスで逆引き
+        var kanaMatch = false;
+        for(var kana in kanaIndex){
+          if(kana.includes(q) && rName.includes(kanaIndex[kana])){
+            kanaMatch = true; break;
+          }
+        }
+        if(!kanaMatch) return false;
       }
     }
     if(f==='upcoming') return r.check_in>=today&&r.status!=='cancelled';
@@ -2094,7 +2084,6 @@ async function linkFamilyGroup(id1, id2){
   var c1 = allCustomers.find(function(x){return x.id===id1;});
   var c2 = allCustomers.find(function(x){return x.id===id2;});
   if(!c1||!c2) return;
-  // 既存のfamily_idを優先、なければ小さいIDを使用
   var fid = c1.family_id || c2.family_id || Math.min(id1, id2);
   try{
     await sbPatch('wassa_customers', id1, {family_id: fid});
@@ -2108,6 +2097,38 @@ async function linkFamilyGroup(id1, id2){
     toast('✅ 家族グループに追加しました');
   }catch(e){toast('エラー: '+e.message);}
 }
+
+// 家族グループから1人だけ解除
+async function unlinkFamilyMember(memberId){
+  if(!confirm('この顧客を家族グループから解除しますか？')) return;
+  try{
+    await sbPatch('wassa_customers', memberId, {family_id: null});
+    var idx = allCustomers.findIndex(function(x){return x.id===memberId;});
+    if(idx>-1) allCustomers[idx].family_id = null;
+    renderCustomers();
+    renderCustFamily();
+    toast('✅ 家族グループから解除しました');
+  }catch(e){toast('エラー: '+e.message);}
+}
+
+// 家族グループ全員を解除
+async function unlinkFamilyAll(){
+  var c = allCustomers.find(function(x){return x.id===currentEditId;});
+  if(!c||!c.family_id) return;
+  var members = allCustomers.filter(function(x){return x.family_id===c.family_id;});
+  if(!confirm('家族グループ全員（'+members.length+'名）の紐づけを解除しますか？')) return;
+  try{
+    for(var i=0;i<members.length;i++){
+      await sbPatch('wassa_customers', members[i].id, {family_id: null});
+      var idx = allCustomers.findIndex(function(x){return x.id===members[i].id;});
+      if(idx>-1) allCustomers[idx].family_id = null;
+    }
+    renderCustomers();
+    renderCustFamily();
+    toast('✅ グループ全員の紐づけを解除しました');
+  }catch(e){toast('エラー: '+e.message);}
+}
+
 async function saveCustomer(){
   var sei=document.getElementById('cust-sei').value.trim();
   if(!sei){toast('姓を入力してください');return;}
@@ -2355,13 +2376,13 @@ async function searchFoodHistoryNew(){
   var targetResvIds = null; // nullは全件、配列は対象IDのみ
 
   if (nameQ) {
-    var nameNorm = nameQ.replace(/[\s\u3000]/g,'').toLowerCase();
+    var nameNorm = nameQ.replace(/\s/g,'').toLowerCase();
     var matched = (allReservations || []).filter(function(r) {
-      var gn = (r.guest_name || '').replace(/[\s\u3000]/g,'').toLowerCase();
+      var gn = (r.guest_name || '').replace(/\s/g,'').toLowerCase();
       var cust = (allCustomers || []).find(function(c){ return c.id === r.customer_id; });
-      if(gn.includes(nameNorm)) return true;
-      if(cust && matchCustName(cust, nameNorm)) return true;
-      return false;
+      var cn = cust ? ((cust.sei||'')+(cust.mei||'')).replace(/\s/g,'').toLowerCase() : '';
+      var kn = cust ? ((cust.sei_kana||'')+(cust.mei_kana||'')).replace(/\s/g,'').toLowerCase() : '';
+      return gn.includes(nameNorm) || cn.includes(nameNorm) || kn.includes(nameNorm);
     });
     if (matched.length === 0) {
       content.innerHTML = '<div class="card" style="text-align:center;padding:30px;color:var(--text3);font-size:13px">「' + nameQ + '」に一致する予約が見つかりませんでした</div>';
@@ -3652,21 +3673,26 @@ function renderCustFamily(){
   // 家族グループ
   var members=c.family_id?allCustomers.filter(function(x){return x.family_id===c.family_id&&x.id!==c.id;}):[]; 
   if(members.length>0){
-    html+='<div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--sand2)">👨‍👩‍👧 家族グループ（family_id: '+c.family_id+'）</div>';
+    html+='<div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--sand2)">👨‍👩‍👧 家族グループ</div>';
     html+=members.map(function(m){
       var mName=(m.sei||'')+(m.mei?'　'+m.mei:'');
       var mKana=(m.sei_kana||'')+(m.mei_kana?' '+m.mei_kana:'');
       var cnt=allReservations.filter(function(r){return r.customer_id===m.id&&r.status!=='cancelled';}).length;
-      return '<div onclick="closeModal(\'cust-modal\');openCustomer('+m.id+')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--sand);cursor:pointer;transition:.15s" onmouseover="this.style.background=\'var(--sand)\'" onmouseout="this.style.background=\'\'">'
-        +'<div class="avatar" style="width:32px;height:32px;font-size:13px">'+(m.sei||'?')[0]+'</div>'
-        +'<div style="flex:1">'
+      return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--sand)">'
+        +'<div class="avatar" style="width:32px;height:32px;font-size:13px;cursor:pointer" onclick="closeModal(\'cust-modal\');openCustomer('+m.id+')">'+(m.sei||'?')[0]+'</div>'
+        +'<div style="flex:1;cursor:pointer" onclick="closeModal(\'cust-modal\');openCustomer('+m.id+')">'
         +'<div style="font-size:13px;font-weight:500;color:var(--text)">'+mName+'</div>'
         +(mKana?'<div style="font-size:11px;color:var(--text3)">'+mKana+'</div>':'')
         +(m.mobile||m.email?'<div style="font-size:11px;color:var(--text3)">'+(m.mobile||m.email)+'</div>':'')
         +'</div>'
-        +'<div style="font-size:11px;color:var(--text3)">'+cnt+'回</div>'
+        +'<div style="font-size:11px;color:var(--text3);margin-right:8px">'+cnt+'回</div>'
+        +'<button onclick="unlinkFamilyMember('+m.id+')" style="background:none;border:1px solid var(--coral);border-radius:4px;color:var(--coral);font-size:11px;padding:2px 8px;cursor:pointer;white-space:nowrap">解除</button>'
         +'</div>';
     }).join('');
+    // グループ全員解除ボタン
+    html+='<div style="margin-top:8px;padding:8px 12px">'
+      +'<button onclick="unlinkFamilyAll()" style="background:none;border:1px solid var(--coral);border-radius:6px;color:var(--coral);font-size:12px;padding:4px 12px;cursor:pointer">🔓 グループ全員を解除</button>'
+      +'</div>';
   } else {
     html+='<div style="padding:20px 0;color:var(--text3);font-size:13px">家族グループに登録されていません</div>';
   }
