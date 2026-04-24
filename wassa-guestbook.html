@@ -318,7 +318,8 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
   .quote-footer{background:transparent!important;color:#999!important;border-top:1px solid #ddd!important}
   #quote-print-overlay{display:block!important;position:static!important;width:100%!important;height:auto!important;overflow:visible!important;background:#fff!important}
   body.printing-quote>*:not(#quote-print-overlay){display:none!important}
-  @page{margin:8mm;size:A4}
+  @page{margin:0;size:A4}
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
 }
 </style>
 </head>
@@ -820,7 +821,7 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
             </select>
           </div>
         </div>
-        <div class="fg"><label>チェックアウト <span class="req">*</span></label><input type="date" id="edit-checkout" style="width:100%;max-width:100%;box-sizing:border-box;min-width:0"></div>
+        <div class="fg"><label>チェックアウト <span class="req">*</span></label><input type="date" id="edit-checkout" style="width:100%;box-sizing:border-box;min-width:0;font-size:14px"></div>
       </div>
       <div class="fgrid col3" style="margin-top:12px">
         <div class="fg"><label>大人</label><input type="number" id="edit-adults" value="2" min="0" step="1"></div>
@@ -838,11 +839,11 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
       </div>
       <div class="fgrid" style="margin-top:12px">
         <div class="fg"><label>部屋</label>
-          <div class="radio-group" style="display:flex;gap:14px;margin-top:8px;flex-wrap:wrap;align-items:center">
-            <label class="radio-item" style="white-space:nowrap;min-width:44px"><input type="radio" name="edit-room" value="01"> S1</label>
-            <label class="radio-item" style="white-space:nowrap;min-width:44px"><input type="radio" name="edit-room" value="02"> S2</label>
-            <label class="radio-item" style="white-space:nowrap;min-width:44px"><input type="radio" name="edit-room" value="DX"> DX</label>
-          </div>
+          <select id="edit-room-select" style="width:100%">
+            <option value="01">S1（スーペリア01）</option>
+            <option value="02">S2（スーペリア02）</option>
+            <option value="DX">DX（デラックス）</option>
+          </select>
         </div>
         <div class="fg"><label>状態</label>
           <select id="edit-status">
@@ -1024,10 +1025,10 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
     <div style="font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.05em;margin:14px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--sand2)">🍽 食事・メモ</div>
     <div class="fgrid">
       <div class="fg"><label>アレルギー</label>
-        <div class="radio-group" style="display:flex;gap:14px;align-items:center;margin-top:8px;flex-wrap:wrap">
-          <label class="radio-item" style="display:flex;align-items:center;gap:6px;min-width:54px"><input type="radio" name="cust-allergy" value="なし" checked> なし</label>
-          <label class="radio-item" style="display:flex;align-items:center;gap:6px;min-width:54px"><input type="radio" name="cust-allergy" value="あり"> あり</label>
-        </div>
+        <select id="cust-allergy-select" style="width:100%">
+          <option value="なし">なし</option>
+          <option value="あり">あり</option>
+        </select>
       </div>
     </div>
     <div class="fg full" style="margin-top:8px"><label>苦手な食材</label><input type="text" id="cust-ng-food" placeholder="例: 貝類、パクチー"></div>
@@ -1064,6 +1065,30 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
     <!-- 家族情報ペイン -->
     <div class="modal-pane" id="pane-cust-family">
       <div id="cust-family-content"></div>
+      <!-- 既存顧客を家族に追加（検索） -->
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--sand2)">
+        <div style="font-size:12px;font-weight:600;color:var(--ocean2);margin-bottom:8px">🔍 既存顧客を家族グループに追加</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input type="text" id="fam-search-input" placeholder="名前・かなで検索" style="flex:1;font-size:13px" oninput="searchFamilyCandidate()" autocomplete="off">
+          <button class="btn btn-ghost btn-sm" onclick="clearFamilySearch()">クリア</button>
+        </div>
+        <div id="fam-search-results" style="margin-top:6px;max-height:160px;overflow-y:auto"></div>
+      </div>
+      <!-- 新規顧客として家族追加 -->
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--sand2)">
+        <div style="font-size:12px;font-weight:600;color:var(--ocean2);margin-bottom:8px">➕ 新規メンバーを追加</div>
+        <div class="fgrid" style="gap:8px">
+          <div class="fg"><label style="font-size:11px">姓 <span class="req">*</span></label><input type="text" id="fam-new-sei" placeholder="山田"></div>
+          <div class="fg"><label style="font-size:11px">名</label><input type="text" id="fam-new-mei" placeholder="花子"></div>
+        </div>
+        <div class="fgrid" style="gap:8px;margin-top:6px">
+          <div class="fg"><label style="font-size:11px">せい（かな）</label><input type="text" id="fam-new-sei-kana" placeholder="やまだ"></div>
+          <div class="fg"><label style="font-size:11px">めい（かな）</label><input type="text" id="fam-new-mei-kana" placeholder="はなこ"></div>
+        </div>
+        <div style="margin-top:8px">
+          <button class="btn btn-primary btn-sm" onclick="addNewFamilyMember()">顧客マスタに追加して家族登録</button>
+        </div>
+      </div>
     </div>
 
     <!-- 予約履歴ペイン -->
@@ -1754,7 +1779,7 @@ function clearResForm(){
   document.getElementById('edit-children').value='0';document.getElementById('edit-infants').value='0';document.getElementById('edit-inf-meal-bed').value='0';document.getElementById('edit-inf-meal-only').value='0';document.getElementById('edit-inf-bed-only').value='0';document.getElementById('edit-inf-none').value='0';
   document.getElementById('edit-status').value='confirmed';document.getElementById('edit-checkin').value=dateStr(new Date());
   document.getElementById('edit-checkout').value=dateStr(new Date(Date.now()+86400000));document.getElementById('edit-citime').value='16:00';
-  document.querySelectorAll('input[name="edit-room"]').forEach(r=>r.checked=r.value==='01');
+  var _rs2=document.getElementById('edit-room-select');if(_rs2)_rs2.value='01';
   billingRows=[];foodDays=[];renderBillingRows();renderFoodDays();resetRecordForm();
 }
 function fillResForm(r){
@@ -1809,7 +1834,7 @@ function fillResForm(r){
   var edDisc = document.getElementById('edit-discount');     if(edDisc) edDisc.value = r.discount||0;
   var edLoc  = document.getElementById('edit-local-charge'); if(edLoc) edLoc.value  = r.local_charge||0;
   var edTotalAmt = document.getElementById('edit-total-amt'); if(edTotalAmt) edTotalAmt.value = r.total_amount||'';
-  var _rt=r.room_type||'';var roomVal=_rt.indexOf('02')!==-1?'02':_rt.indexOf('デラックス')!==-1||_rt==='DX'?'DX':'01';document.querySelectorAll('input[name="edit-room"]').forEach(rb=>rb.checked=rb.value===roomVal);
+  var _rt=r.room_type||'';var roomVal=_rt.indexOf('02')!==-1?'02':_rt.indexOf('デラックス')!==-1||_rt==='DX'?'DX':'01';var _rs=document.getElementById('edit-room-select');if(_rs)_rs.value=roomVal;
   var _b=r.billing?(typeof r.billing==='string'?JSON.parse(r.billing):r.billing):[];
   billingRows=Array.isArray(_b)?_b:(_b.rows&&Array.isArray(_b.rows)?_b.rows:[]);
   renderBillingRows();
@@ -1889,7 +1914,7 @@ async function findOrCreateCustomer(name, phone, email){
 
 async function saveReservation(){
   const gname=document.getElementById('edit-guestname').value.trim();if(!gname){toast('お名前を入力してください');return;}
-  const room=document.querySelector('input[name="edit-room"]:checked')?.value;
+  const room=document.getElementById('edit-room-select')?.value;
   const payload={reservation_no:document.getElementById('edit-resno1').value,reservation_no2:document.getElementById('edit-resno2').value,source:document.getElementById('edit-source').value,guest_name:gname,plan_name:document.getElementById('edit-planname').value,check_in:document.getElementById('edit-checkin').value,check_out:document.getElementById('edit-checkout').value,check_in_time:document.getElementById('edit-citime').value,adults:document.getElementById('edit-adults').value||'0',children:document.getElementById('edit-children').value||'0',infants:document.getElementById('edit-infants').value||'0',inf_meal_bed:parseInt(document.getElementById('edit-inf-meal-bed').value)||0,inf_meal_only:parseInt(document.getElementById('edit-inf-meal-only').value)||0,inf_bed_only:parseInt(document.getElementById('edit-inf-bed-only').value)||0,inf_none:parseInt(document.getElementById('edit-inf-none').value)||0,room_type:room,status:document.getElementById('edit-status').value,payment:document.getElementById('edit-payment')?document.getElementById('edit-payment').value:'',companions:collectCompanions(),phone:document.getElementById('edit-phone').value,email:document.getElementById('edit-email').value,notes:document.getElementById('edit-notes').value,
     guest_name_kana:document.getElementById('edit-kana')?document.getElementById('edit-kana').value:'',
     booker_name:document.getElementById('edit-booker')?document.getElementById('edit-booker').value:'',
@@ -2061,16 +2086,16 @@ async function loadFoodRecords(resvId) {
         infoHtml += '<div style="font-size:12px;color:var(--text2)">'+ngFood+'</div></div>';
       }
       // 予約者名（代表者と異なる場合）
-      if (r.booker_name && r.booker_name !== (r.guest_name||'')) {
+      if (resv.booker_name && resv.booker_name !== (resv.guest_name||'')) {
         infoHtml += '<div><div style="font-size:10px;color:var(--text3);font-weight:600;margin-bottom:2px">予約者名</div>';
-        infoHtml += '<div style="font-size:12px;color:var(--text2)">'+r.booker_name+'</div></div>';
+        infoHtml += '<div style="font-size:12px;color:var(--text2)">'+resv.booker_name+'</div></div>';
       }
       // 割引・現地請求
-      if (parseInt(r.discount)>0 || parseInt(r.local_charge)>0) {
+      if (parseInt(resv.discount)>0 || parseInt(resv.local_charge)>0) {
         infoHtml += '<div><div style="font-size:10px;color:var(--text3);font-weight:600;margin-bottom:2px">金額詳細</div>';
         var amtDetail = [];
-        if(parseInt(r.discount)>0)     amtDetail.push('割引 -¥'+parseInt(r.discount).toLocaleString());
-        if(parseInt(r.local_charge)>0) amtDetail.push('現地請求 ¥'+parseInt(r.local_charge).toLocaleString());
+        if(parseInt(resv.discount)>0)     amtDetail.push('割引 -¥'+parseInt(resv.discount).toLocaleString());
+        if(parseInt(resv.local_charge)>0) amtDetail.push('現地請求 ¥'+parseInt(resv.local_charge).toLocaleString());
         infoHtml += '<div style="font-size:12px;color:var(--text2)">'+amtDetail.join('　')+'</div></div>';
       }
       // 特記事項
@@ -2149,7 +2174,7 @@ function renderFoodRecords() {
         html += '<div><div style="font-size:10px;font-weight:600;color:var(--text3);margin-bottom:3px">大人食事内容</div>';
         html += '<button onclick="openMenuPicker('+idx+',\'meal_detail\')" style="margin-bottom:4px;background:none;border:1px solid var(--ocean2);border-radius:4px;padding:2px 8px;font-size:11px;color:var(--ocean2);cursor:pointer">📋 メニューから選択</button>';
         html += '<textarea class="fr-ta" style="font-size:12px;width:100%;box-sizing:border-box;resize:vertical;min-height:80px" oninput="frUpdate('+idx+',\'meal_detail\',this.value);autoResize(this)">'+(r.meal_detail||'')+'</textarea></div>';
-        html += '<div><div style="display:flex;align-items:center;gap:6px;margin-bottom:3px"><span style="font-size:10px;font-weight:600;color:var(--green)">子供食事内容</span><button onclick="frUpdate('+idx+',\'kids_meal_detail\',\'\');renderFoodRecords()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:11px;padding:0;line-height:1" title="子供食事を削除">✕</button></div>';
+        html += '<div><div style="display:flex;align-items:center;gap:8px;margin-bottom:3px"><span style="font-size:10px;font-weight:600;color:var(--green)">子供食事内容</span><button onclick="frUpdate('+idx+',\'kids_meal_detail\',\'\');renderFoodRecords()" style="background:none;border:1px solid var(--coral);border-radius:4px;cursor:pointer;color:var(--coral);font-size:11px;padding:1px 8px;line-height:1.4" title="子供食事を削除">削除</button></div>';
         html += '<button onclick="openMenuPicker('+idx+',\'kids_meal_detail\')" style="margin-bottom:4px;background:none;border:1px solid var(--green);border-radius:4px;padding:2px 8px;font-size:11px;color:var(--green);cursor:pointer">📋 メニューから選択</button>';
         html += '<textarea class="fr-ta" style="font-size:12px;width:100%;box-sizing:border-box;resize:vertical;min-height:60px" oninput="frUpdate('+idx+',\'kids_meal_detail\',this.value);autoResize(this)">'+(r.kids_meal_detail||'')+'</textarea></div>';
         html += '</div>';
@@ -2226,6 +2251,88 @@ function applyMenuPicker(menuId) {
   // textareaに反映
   renderFoodRecords();
   closeModal('menu-picker-modal');
+}
+
+
+// ━━ 家族情報タブ：検索・追加 ━━
+function switchToFamilyAddTab(){
+  var btn = document.querySelector('#cust-modal [data-pane="cust-family"]');
+  if(btn) { btn.click(); }
+  setTimeout(function(){
+    var inp = document.getElementById('fam-search-input');
+    if(inp) inp.focus();
+  }, 200);
+}
+function searchFamilyCandidate(){
+  var q = (document.getElementById('fam-search-input')||{}).value||'';
+  var res = document.getElementById('fam-search-results');
+  if(!res) return;
+  if(q.length < 1){ res.innerHTML=''; return; }
+  var qn = q.replace(/[\s\u3000]/g,'').toLowerCase();
+  var hits = allCustomers.filter(function(x){
+    if(x.id===currentEditId) return false;
+    var c = allCustomers.find(function(y){return y.id===currentEditId;});
+    if(c && c.family_id && x.family_id===c.family_id) return false; // 既に家族
+    var n = ((x.sei||'')+(x.mei||'')).replace(/[\s\u3000]/g,'').toLowerCase();
+    var k = ((x.sei_kana||'')+(x.mei_kana||'')).replace(/[\s\u3000]/g,'').toLowerCase();
+    return n.includes(qn)||k.includes(qn);
+  }).slice(0,8);
+  if(!hits.length){ res.innerHTML='<div style="font-size:12px;color:var(--text3);padding:8px">該当する顧客が見つかりません</div>'; return; }
+  res.innerHTML = hits.map(function(x){
+    var name=(x.sei||'')+(x.mei?'　'+x.mei:'');
+    var kana=(x.sei_kana||'')+(x.mei_kana?' '+x.mei_kana:'');
+    var cnt=allReservations.filter(function(r){return r.customer_id===x.id&&r.status!=='cancelled';}).length;
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid var(--sand);cursor:pointer" onclick="confirmFamilyLink('+x.id+')">'
+      +'<div class="avatar" style="width:28px;height:28px;font-size:12px">'+(x.sei||'?')[0]+'</div>'
+      +'<div style="flex:1"><div style="font-size:13px;font-weight:500">'+name+'</div>'
+      +(kana?'<div style="font-size:11px;color:var(--text3)">'+kana+'</div>':'')+'</div>'
+      +'<div style="font-size:11px;color:var(--text3)">'+cnt+'回</div>'
+      +'<button class="btn btn-primary btn-sm" style="font-size:11px" onclick="event.stopPropagation();confirmFamilyLink('+x.id+')">追加</button>'
+      +'</div>';
+  }).join('');
+}
+function clearFamilySearch(){
+  var inp = document.getElementById('fam-search-input');
+  var res = document.getElementById('fam-search-results');
+  if(inp) inp.value='';
+  if(res) res.innerHTML='';
+}
+function confirmFamilyLink(targetId){
+  var c = allCustomers.find(function(x){return x.id===currentEditId;});
+  var t = allCustomers.find(function(x){return x.id===targetId;});
+  if(!c||!t) return;
+  var name1=(c.sei||'')+(c.mei?'　'+c.mei:'');
+  var name2=(t.sei||'')+(t.mei?'　'+t.mei:'');
+  if(!confirm(name1+'と'+name2+'を家族グループに追加しますか？')) return;
+  linkFamilyGroup(currentEditId, targetId);
+  clearFamilySearch();
+}
+async function addNewFamilyMember(){
+  var c = allCustomers.find(function(x){return x.id===currentEditId;});
+  if(!c) return;
+  var sei = (document.getElementById('fam-new-sei')||{}).value||'';
+  var mei = (document.getElementById('fam-new-mei')||{}).value||'';
+  var seiK = (document.getElementById('fam-new-sei-kana')||{}).value||'';
+  var meiK = (document.getElementById('fam-new-mei-kana')||{}).value||'';
+  if(!sei){ toast('姓を入力してください'); return; }
+  var famId = c.family_id || c.id;
+  if(!c.family_id){
+    await sbPatch('wassa_customers', c.id, {family_id:famId});
+    var ci=allCustomers.findIndex(function(x){return x.id===c.id;});
+    if(ci>-1) allCustomers[ci].family_id=famId;
+    c.family_id=famId;
+  }
+  try{
+    var res = await sbPost('wassa_customers', {sei:sei,mei:mei,sei_kana:seiK,mei_kana:meiK,family_id:famId});
+    if(res&&res[0]){
+      allCustomers.push(res[0]);
+      ['fam-new-sei','fam-new-mei','fam-new-sei-kana','fam-new-mei-kana'].forEach(function(id){
+        var el=document.getElementById(id); if(el) el.value='';
+      });
+      renderCustFamily();
+      toast('✅ 家族メンバーを追加しました');
+    }
+  }catch(e){ toast('エラー: '+e.message); }
 }
 
 async function autoSaveFoodRecords(){
@@ -2493,7 +2600,7 @@ function openNewReservationWithDate(ds){
 
 // ━━ CUSTOMERS ━━
 function renderCustomers(){filterCustomers();}
-function openNewCustomer(){currentEditId=null;document.getElementById('cust-modal-title').textContent='新規顧客登録';document.getElementById('del-cust-btn').style.display='none';['cust-sei','cust-mei','cust-sei-kana','cust-mei-kana','cust-mobile','cust-tel','cust-email','cust-email2','cust-zip','cust-pref','cust-city','cust-address','cust-ng-food','cust-memo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});document.getElementById('cust-gender').value='';document.getElementById('cust-birth').value='';document.querySelector('input[name="cust-allergy"][value="なし"]').checked=true;openModal('cust-modal');}
+function openNewCustomer(){currentEditId=null;document.getElementById('cust-modal-title').textContent='新規顧客登録';document.getElementById('del-cust-btn').style.display='none';['cust-sei','cust-mei','cust-sei-kana','cust-mei-kana','cust-mobile','cust-tel','cust-email','cust-email2','cust-zip','cust-pref','cust-city','cust-address','cust-ng-food','cust-memo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});document.getElementById('cust-gender').value='';document.getElementById('cust-birth').value='';var _as2=document.getElementById('cust-allergy-select');if(_as2)_as2.value='なし';openModal('cust-modal');}
 function openCustomer(id, defaultTab){
   var c=allCustomers.find(function(x){return x.id===id;});if(!c)return;
   currentEditId=id;
@@ -2516,7 +2623,7 @@ function openCustomer(id, defaultTab){
   document.getElementById('cust-address').value='';
   set('cust-ng-food',c.ng_food);set('cust-memo',c.memo);
   var allergyVal=c.allergy||'なし';
-  document.querySelector('input[name="cust-allergy"][value="'+allergyVal+'"]').checked=true;
+  var _as=document.getElementById('cust-allergy-select');if(_as)_as.value=allergyVal;
   // 家族パネル表示
   renderFamilyPanel(c);
   // デフォルトで基本情報タブを表示
@@ -2671,7 +2778,7 @@ async function saveCustomer(){
   var prefMatch=addrLine1.match(/^(北海道|東京都|京都府|大阪府|.{2,3}県)/);
   var extractedPref=prefMatch?prefMatch[1]:'';
   var extractedCity=extractedPref?addrLine1.slice(extractedPref.length):addrLine1;
-  var payload={sei:sei,mei:document.getElementById('cust-mei').value,sei_kana:document.getElementById('cust-sei-kana').value,mei_kana:document.getElementById('cust-mei-kana').value,gender:document.getElementById('cust-gender').value,birth_date:document.getElementById('cust-birth').value||null,mobile:document.getElementById('cust-mobile').value,tel:document.getElementById('cust-tel').value,email:document.getElementById('cust-email').value,email2:document.getElementById('cust-email2').value,zip:document.getElementById('cust-zip').value,pref:extractedPref,city:extractedCity,address:addrLine2,allergy:document.querySelector('input[name="cust-allergy"]:checked').value,ng_food:document.getElementById('cust-ng-food').value,memo:document.getElementById('cust-memo').value};
+  var payload={sei:sei,mei:document.getElementById('cust-mei').value,sei_kana:document.getElementById('cust-sei-kana').value,mei_kana:document.getElementById('cust-mei-kana').value,gender:document.getElementById('cust-gender').value,birth_date:document.getElementById('cust-birth').value||null,mobile:document.getElementById('cust-mobile').value,tel:document.getElementById('cust-tel').value,email:document.getElementById('cust-email').value,email2:document.getElementById('cust-email2').value,zip:document.getElementById('cust-zip').value,pref:extractedPref,city:extractedCity,address:addrLine2,allergy:(document.getElementById('cust-allergy-select')||{}).value||'なし',ng_food:document.getElementById('cust-ng-food').value,memo:document.getElementById('cust-memo').value};
   try{
     if(currentEditId){
       await sbPatch('wassa_customers',currentEditId,payload);
@@ -4534,7 +4641,7 @@ function renderCustFamily(){
   }
   // 家族リンクボタン
   html+='<div style="margin-top:12px">';
-  html+='<button class="btn btn-ghost btn-sm" onclick="showFamilyLinkModal()">＋ 家族メンバーを追加・変更</button>';
+  html+='<button class="btn btn-ghost btn-sm" onclick="switchToFamilyAddTab()">＋ 家族メンバーを追加・変更</button>';
   html+='</div>';
   // 同住所の顧客
   var addr=(c.pref||'')+(c.city||'');
