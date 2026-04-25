@@ -1972,16 +1972,11 @@ function fillResForm(r){
   // 貸切・グループ情報セット
   var buyoutEl = document.getElementById('edit-buyout');
   if(buyoutEl) buyoutEl.checked = r.is_full_buyout||false;
-  // buyout-label: グループ内の室数で「N室貸切」表示
+  // buyout-label: グループ設定または is_full_buyout があれば「貸切」と表示
   var buyoutLabel = document.getElementById('buyout-label');
   if(buyoutLabel){
-    if(r.group_id){
-      var groupCount = allReservations.filter(function(x){ return x.group_id===r.group_id; }).length;
-      buyoutLabel.textContent = groupCount+'室貸切';
-      buyoutLabel.style.color='var(--coral)';
-      buyoutLabel.style.fontWeight='600';
-    } else if(r.is_full_buyout){
-      buyoutLabel.textContent='全室貸切';
+    if(r.group_id || r.is_full_buyout){
+      buyoutLabel.textContent = '貸切';
       buyoutLabel.style.color='var(--coral)';
       buyoutLabel.style.fontWeight='600';
     } else {
@@ -4630,32 +4625,33 @@ function buildQuoteMulti(estimates){
     return {rows:rows, grand:grand};
   }
 
-  // 室ごとに見積書を生成して連結
+  // 室ごとに見積書を生成して連結（各室に全室合計を追記）
   var allHtml = '';
   var allGrand = 0;
+  var builtList = [];
+  for(var ei=0;ei<estimates.length;ei++){
+    var built2 = buildRowsForEst(estimates[ei]);
+    allGrand += built2.grand;
+    builtList.push(built2);
+  }
   for(var ei=0;ei<estimates.length;ei++){
     var est = estimates[ei];
-    var built = buildRowsForEst(est);
-    allGrand += built.grand;
-    // 部屋名ヘッダーを追加（複数室のとき）
+    var built = builtList[ei];
     var roomHeader = estimates.length>1
-      ? '<div style="font-size:13px;font-weight:700;color:var(--ocean2);padding:6px 0 10px;border-bottom:1px dashed var(--sand2);margin-bottom:10px">【'+(est.room_type||est.roomName)+'】'+est.paxDesc+'　'+est.mealLabel+'</div>'
+      ? '<div style="font-size:13px;font-weight:700;color:var(--ocean2);padding:6px 0 10px;border-bottom:1px dashed var(--sand2);margin-bottom:10px">《'+(est.room_type||est.roomName)+'》'+est.paxDesc+'　'+est.mealLabel+'</div>'
       : '';
+    var totalSuffix = '';
+    if(estimates.length>1){
+      totalSuffix = '<div style="margin-top:16px;padding:10px 14px;background:var(--coral-lt);border-radius:8px;display:flex;justify-content:space-between;align-items:center">'
+        +'<span style="font-size:12px;font-weight:600;color:var(--coral)">全'+estimates.length+'室合計（税込）</span>'
+        +'<span style="font-size:15px;font-weight:700;color:var(--coral)">'+fmtPrice(allGrand)+'</span>'
+        +'</div>';
+    }
     allHtml += (ei>0 ? '<div style="page-break-before:always;border-top:3px solid var(--sand2);margin-top:32px;padding-top:32px"></div>' : '');
-    allHtml += buildQuoteHtmlCore(guest, today, validStr, built.rows, built.grand, roomHeader);
+    allHtml += buildQuoteHtmlCore(guest, today, validStr, built.rows, built.grand, roomHeader, totalSuffix);
   }
-
-  // 複数室：全室合計を最後に追加
-  if(estimates.length>1){
-    allHtml += '<div style="margin-top:24px;padding:14px 20px;background:var(--coral-lt);border-radius:10px;display:flex;justify-content:space-between;align-items:center">'
-      +'<span style="font-size:15px;font-weight:700;color:var(--coral)">全室合計金額（税込）</span>'
-      +'<span style="font-size:18px;font-weight:700;color:var(--coral)">'+fmtPrice(allGrand)+'</span>'
-      +'</div>';
-  }
-
   document.getElementById('quote-content').innerHTML = allHtml;
 }
-
 function buildQuote(){
   const e=lastEstimate;if(!e)return;
   const guest=document.getElementById('q-guest')?.value||'';
@@ -4719,21 +4715,47 @@ async function saveQuoteToDb(){
   const validUntil=new Date();validUntil.setDate(validUntil.getDate()+validity);
   const email=document.getElementById('q-email')?.value||'';
 
-  // 全室分（貸切含む）のestimatesを使う
   var ests = (lastEstimates&&lastEstimates.length) ? lastEstimates : [lastEstimate];
 
-  // 全室分のbillingを結合
+  // 全室分のbillingを結合（室タグ付き）
   var billingFromEstimate = [];
   var grandTotal = 0;
   var roomNames = [];
+  // room_details: 室ごとの人数・食事・合計を保存
+  var roomDetails = [];
   for(var ei=0; ei<ests.length; ei++){
     var e = ests[ei];
-    grandTotal += e.grand||0;
-    roomNames.push(e.room_type||e.roomName||'');
+    var estGrand = 0;
+    var tR=0,tB=0,tD=0;
+    e.rows.forEach(function(rr){tR+=rr.nightRoom;var m=getMealAmtForRow(rr);tB+=m.bf;tD+=m.din;});
+    estGrand = tR+tB+tD;
+    e.grand = estGrand;
+    grandTotal += estGrand;
+    var rName = e.room_type||e.roomName||'';
+    roomNames.push(rName);
+    // 幼児4区分をmeal（食事プラン）と組み合わせて正しくマッピング
+    var hasBfEst = (e.meal==='both'||e.meal==='breakfast');
+    var inf_meal_bed_val  = hasBfEst ? (e.infFuton||0)   : 0; // 布団あり・食事あり
+    var inf_bed_only_val  = hasBfEst ? 0 : (e.infFuton||0);   // 布団あり・食事なし
+    var inf_meal_only_val = hasBfEst ? (e.infNoFuton||0) : 0; // 布団なし・食事あり
+    var inf_none_val      = hasBfEst ? 0 : (e.infNoFuton||0); // 布団なし・食事なし
+    roomDetails.push({
+      room_type: rName,
+      roomKey: e.roomKey||'',
+      adults: e.adult||0,
+      children: e.child||0,
+      infants: e.totalInf||0,
+      inf_meal_bed:  inf_meal_bed_val,
+      inf_meal_only: inf_meal_only_val,
+      inf_bed_only:  inf_bed_only_val,
+      inf_none:      inf_none_val,
+      inf_dlx: e.infDlx||0,
+      meal: e.meal||'',
+      grand: estGrand
+    });
     for(var ri=0; ri<e.rows.length; ri++){
       var r = e.rows[ri];
-      // 複数室の場合は室名をitemに付加
-      var roomTag = ests.length>1 ? '【'+(e.room_type||e.roomName||'')+'】' : '';
+      var roomTag = ests.length>1 ? '【'+rName+'】' : '';
       var bfNextDate2=(function(ds){var d=new Date(ds);d.setDate(d.getDate()+1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');})(r.date||r.label);
       billingFromEstimate.push({cat:'宿泊料金', date:r.date||r.label, item:roomTag+'大人宿泊料金', qty:r.ak, price:r.baseUnit, discount:0});
       if(e.child&&r.childRoom) billingFromEstimate.push({cat:'宿泊料金', date:r.date||r.label, item:roomTag+'小学生宿泊料金', qty:e.child, price:r.childUnit, discount:0});
@@ -4752,20 +4774,21 @@ async function saveQuoteToDb(){
 
   var e0 = ests[0];
   var isBuyout = ests.length > 1;
-  var roomTypeStr = roomNames.join('\n'); // 複数室は改行区切り
+  var roomTypeStr = roomNames.join('\n');
 
   var payload={
     guest_name:guest||'未入力',
     check_in:e0.cin, check_out:e0.cout,
     room_type:roomTypeStr, room:e0.room,
-    adults:String(e0.adult), children:String(e0.child||0), infants:String(e0.infant||0),
+    adults:String(e0.adult), children:String(e0.child||0), infants:String(e0.totalInf||0),
     meal:e0.meal,
     total_amount:String(grandTotal),
     valid_until:dateStr(validUntil),
     status:'作成済み',
-    notes: isBuyout ? '全室貸切 '+e0.paxDesc : e0.paxDesc,
+    notes: isBuyout ? '貸切' : e0.paxDesc,
     email:email,
-    billing:billingFromEstimate.length>0 ? billingFromEstimate : null
+    billing:billingFromEstimate.length>0 ? billingFromEstimate : null,
+    room_details: roomDetails.length>0 ? roomDetails : null
   };
   try{
     const res=await sbPost('quotes',payload);
@@ -4800,9 +4823,11 @@ async function sendQuoteEmailFromList(quoteId){
   if(!q){toast('見積もりが見つかりません');return;}
   const email = document.getElementById('qd-email')?.value || q.email || '';
   if(!email){toast('メールアドレスを入力してください');return;}
-  if(!confirm(q.guest_name+'様（'+email+'）\nに見積もりメールを再送付してよろしいですか？')){return;}
-  const quoteHtml = document.getElementById('qd-preview-content')?.innerHTML || buildQuoteHtmlFromData(q);
-  await _doSendQuoteEmail(email, q.guest_name||'お客様', quoteHtml, quoteId);
+  // 複数室（貸切）の場合は室数をメッセージに表示
+  var roomTypes = (q.room_type||'').split('\n').map(function(s){return s.trim();}).filter(Boolean);
+  var roomCount = roomTypes.length > 1 ? roomTypes.length+'室分の' : '';
+  if(!confirm(q.guest_name+'様（'+email+'）\nに'+roomCount+'見積もりメールを送付してよろしいですか？')){return;}
+  await _doSendQuoteEmail(email, q.guest_name||'お客様', null, quoteId);
 }
 
 // メール送信共通処理（構造化データをGASに渡す）
@@ -4962,7 +4987,7 @@ function buildQuoteHtmlFromData(q){
   return buildQuoteHtmlCore(guest,today,validity,rows,total);
 }
 
-function buildQuoteHtmlCore(guest,today,validity,rows,total,roomHeader){
+function buildQuoteHtmlCore(guest,today,validity,rows,total,roomHeader,totalSuffix){
   var logoUrl='https://okiwassa-cmyk.github.io/wassa-system/logo.png';
   var stampUrl='https://okiwassa-cmyk.github.io/wassa-system/stamp.png';
   var todayStr=typeof today==='string'?today:today.toISOString().slice(0,10);
@@ -5000,6 +5025,7 @@ function buildQuoteHtmlCore(guest,today,validity,rows,total,roomHeader){
     // ── 明細テーブル
     +'<table class="quote-tbl"><thead><tr><th>日付</th><th>内容</th><th>金額</th></tr></thead><tbody>'+rows+'</tbody></table>'
     +'<div class="quote-total"><span class="label">お見積り合計金額（税込）</span><span class="amount">'+fmtPrice(total)+'</span></div>'
+    +(totalSuffix||'')
     +'<div class="quote-note"><p>・ご不明な点はお気軽にお問い合わせください。</p></div>'
     +'<div class="quote-footer">海と星空の小さな宿 WASSA WASSA<br>wassa@wassa-okinawa.com　｜　wassa-okinawa.com</div>';
 }
@@ -5013,26 +5039,47 @@ async function confirmReservationFromQuote(quoteId){
   // 顧客自動検索・作成
   var autoCust2 = await findOrCreateCustomer(q.guest_name||'', q.phone||'', q.email||'');
 
-  // 室名リスト（貸切は改行区切りで複数室）
+  // 室名リスト（改行区切りで複数室）
   var roomTypes = (q.room_type||'').split('\n').map(function(s){return s.trim();}).filter(Boolean);
   if(!roomTypes.length) roomTypes = [q.room_type||''];
   var isBuyout = roomTypes.length > 1;
 
+  // room_details（室ごとの人数・食事・合計）
+  var roomDetails = q.room_details
+    ? (typeof q.room_details==='string' ? JSON.parse(q.room_details) : q.room_details)
+    : null;
+
   var billing = q.billing ? (typeof q.billing==='string' ? JSON.parse(q.billing) : q.billing) : null;
   var createdIds = [];
+  // 貸切時のgroup_id
+  var groupId = isBuyout ? ('buyout-'+Date.now()+'-'+Math.random().toString(36).slice(2,6)) : null;
 
   try{
     for(var ri=0; ri<roomTypes.length; ri++){
       var rt = roomTypes[ri];
-      // 貸切の場合、billingをこの室に対応する行だけ抽出
+      // room_detailsから室ごとの人数を取得
+      var rd = roomDetails ? roomDetails.find(function(d){return d.room_type===rt;}) : null;
+      if(!rd && roomDetails && roomDetails[ri]) rd = roomDetails[ri];
+
+      var adults   = rd ? String(rd.adults||0)   : (q.adults||'2');
+      var children = rd ? String(rd.children||0) : String(q.children||0);
+      var infants  = rd ? String(rd.infants||0)  : String(q.infants||0);
+      var inf_meal_bed  = rd ? (rd.inf_meal_bed||0)  : 0;
+      var inf_meal_only = rd ? (rd.inf_meal_only||0) : 0;
+      var inf_bed_only  = rd ? (rd.inf_bed_only||0)  : 0;
+      var inf_none      = rd ? (rd.inf_none||0)      : 0;
+      var roomTotal = rd ? String(rd.grand||0) : (isBuyout ? '' : (q.total_amount||''));
+      // mealラベルを日本語に変換
+      var mealMap = {both:'朝食＋ディナー', dinner:'ディナーのみ', breakfast:'朝食のみ', none:'食事なし'};
+      var planName = rd ? (mealMap[rd.meal]||rd.meal||q.meal||'') : (q.meal||'');
+
+      // billingを室ごとに分割
       var roomTag = isBuyout ? '【'+rt+'】' : '';
       var roomBilling = billing;
       if(isBuyout && Array.isArray(billing)){
-        roomBilling = billing.filter(function(b){ return !b.item || b.item.indexOf(roomTag)===0 || b.item.indexOf('【')===-1; });
-        // roomTagが一致するものだけ（タグなし行は全室共通として全室に含める）
-        roomBilling = billing.filter(function(b){ return b.item && (b.item.indexOf(roomTag)===0); });
-        // itemからroomTagを取り除く
-        roomBilling = roomBilling.map(function(b){ return Object.assign({},b,{item:b.item.replace(roomTag,'')}); });
+        roomBilling = billing
+          .filter(function(b){ return b.item && b.item.indexOf(roomTag)===0; })
+          .map(function(b){ return Object.assign({},b,{item:b.item.replace(roomTag,'')}); });
       }
 
       var payload = {
@@ -5043,15 +5090,20 @@ async function confirmReservationFromQuote(quoteId){
         check_in: q.check_in,
         check_out: q.check_out,
         room_type: rt,
-        adults: q.adults||'2',
-        children: String(q.children||0),
-        infants: String(q.infants||0),
-        plan_name: q.meal||'',
-        total_amount: isBuyout ? '' : (q.total_amount||''),
+        adults: adults,
+        children: children,
+        infants: infants,
+        inf_meal_bed:  inf_meal_bed,
+        inf_meal_only: inf_meal_only,
+        inf_bed_only:  inf_bed_only,
+        inf_none:      inf_none,
+        plan_name: planName,
+        total_amount: roomTotal,
         payment: '現地決済',
         status: 'confirmed',
-        billing: roomBilling && roomBilling.length>0 ? roomBilling : billing,
+        billing: roomBilling && roomBilling.length>0 ? roomBilling : (isBuyout ? null : billing),
         is_full_buyout: isBuyout || null,
+        group_id: groupId,
         customer_id: autoCust2 ? autoCust2.id : null
       };
       if(autoCust2){
@@ -5063,19 +5115,17 @@ async function confirmReservationFromQuote(quoteId){
         allReservations.unshift(res[0]);
         createdIds.push(res[0].id);
       } else {
-        throw new Error('予約の保存に失敗しました（レスポンスなし）。部屋タイプ: '+rt);
+        throw new Error('予約の保存に失敗しました（レスポンスなし）。部屋: '+rt);
       }
     }
 
-    // quotesのステータスを成約に更新
     await sbPatch('quotes', quoteId, {status:'成約'});
     const idx = allQuotes.findIndex(x=>x.id===quoteId);
     if(idx>-1) allQuotes[idx].status='成約';
     renderQuotesList();
     renderReservations();
-    closeModal('quote-detail-modal');  // バグ4: モーダルを閉じる
+    closeModal('quote-detail-modal');
     toast('✅ 予約確定！カレンダー同期は5分以内に自動実行されます');
-    // 作成した予約詳細を開く
     if(createdIds.length>0){
       setTimeout(function(){ openReservation(createdIds[0]); }, 300);
     }
@@ -6042,10 +6092,11 @@ function escHtml(s){
     </div>
     <div style="padding:0 4px">
       <div style="font-size:12px;color:var(--text2);margin-bottom:12px;background:var(--ocean-light);border-radius:8px;padding:10px 12px;line-height:1.8">
-        <strong>使い方：</strong>同じグループ（貸切・複数室）の予約どうしをリンクします。<br>
-        ① まず1室目の予約詳細を開く<br>
-        ② 下の検索で2室目の予約を探して「追加」<br>
-        ③ 両方の予約に「N室貸切」と表示されます
+        <strong>使い方：</strong>名前が異なる複数の予約を貸切グループとしてリンクします。<br>
+        例）田中様（S2）と鈴木様（S1）が一緒に貸切予約した場合。<br>
+        ① 田中様の予約詳細を開く<br>
+        ② 下の検索で鈴木様の予約を検索して「追加」<br>
+        ③ 両方の予約に「貸切」と表示されます
       </div>
       <!-- 現在のグループメンバー -->
       <div id="group-members-list" style="margin-bottom:14px"></div>
