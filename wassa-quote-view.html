@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>見積書 | WASSA WASSA</title>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;600&family=Zen+Kaku+Gothic+New:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ocean:   #1a6b7a;
+    --ocean2:  #2a8a9b;
+    --sand:    #f7f3ee;
+    --sand2:   #ede8e1;
+    --text:    #2c2c2c;
+    --text2:   #6b6b6b;
+    --text3:   #999;
+    --white:   #ffffff;
+    --border:  #d8d0c8;
+    --coral:   #e07a8a;
+    --bg:      #f5f5f5;
+    --radius:  8px;
+    --radius-sm: 6px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Zen Kaku Gothic New', 'Noto Sans JP', sans-serif;
+    background: var(--sand);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── サイトヘッダー ── */
+  .site-header {
+    background: var(--ocean);
+    color: var(--white);
+    text-align: center;
+    padding: 20px 20px 16px;
+  }
+  .site-header .logo {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 18px;
+    letter-spacing: .2em;
+    margin-bottom: 3px;
+  }
+  .site-header .tagline {
+    font-size: 10px;
+    opacity: .6;
+    letter-spacing: .12em;
+  }
+
+  /* ── コンテナ ── */
+  .container {
+    max-width: 680px;
+    margin: 28px auto 60px;
+    padding: 0 16px;
+  }
+
+  .card {
+    background: var(--white);
+    border-radius: 12px;
+    box-shadow: 0 2px 16px rgba(0,0,0,.07);
+    overflow: hidden;
+    padding: 32px 32px 28px;
+  }
+
+  /* ── 見積書本体（管理画面と同じクラス）── */
+  .quote-to { margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .quote-to .name-line { font-size: 20px; font-weight: 500; border-bottom: 2px solid var(--text); display: inline-block; min-width: 200px; padding-bottom: 2px; margin-right: 4px; }
+  .quote-to .sama { font-size: 14px; color: var(--text2); }
+  .quote-tbl { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 14px; }
+  .quote-tbl th { background: var(--ocean); color: var(--white); padding: 7px 10px; text-align: left; font-weight: 500; font-size: 11px; border: 1px solid var(--ocean); }
+  .quote-tbl th:last-child { text-align: right; }
+  .quote-tbl td { padding: 6px 10px; border: 1px solid var(--border); color: var(--text2); }
+  .quote-tbl td:last-child { text-align: right; color: var(--text); }
+  .quote-tbl tr.night-row td { background: var(--bg); font-weight: 600; color: var(--text); font-size: 11px; }
+  .quote-tbl tr.sub-row td { padding: 4px 10px 4px 24px; font-size: 10px; }
+  .quote-total { display: flex; justify-content: space-between; align-items: center; background: var(--ocean); color: var(--white); padding: 12px 16px; border-radius: var(--radius-sm); margin-bottom: 16px; }
+  .quote-total .label { font-size: 13px; font-weight: 500; }
+  .quote-total .amount { font-size: 22px; font-weight: 600; }
+  .quote-note { font-size: 11px; color: var(--text2); line-height: 1.7; margin-bottom: 14px; }
+  .quote-note p { margin-bottom: 3px; }
+  .quote-footer { text-align: center; font-size: 10px; color: var(--text3); padding-top: 12px; border-top: 1px solid var(--border); line-height: 1.8; }
+
+  /* ── 期限切れバッジ ── */
+  .expired-badge {
+    display: inline-block;
+    background: #e74c3c;
+    color: #fff;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+
+  /* ── ローディング / エラー ── */
+  .loading, .error-msg {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text2);
+    font-size: 14px;
+    line-height: 2;
+  }
+  .error-msg { color: #c0392b; }
+
+  /* ── 印刷ボタン ── */
+  .btn-print {
+    display: block;
+    width: 100%;
+    margin-top: 24px;
+    padding: 13px;
+    background: var(--sand);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--text2);
+    cursor: pointer;
+    text-align: center;
+    font-family: inherit;
+  }
+  .btn-print:hover { background: var(--sand2); }
+
+  @media print {
+    .site-header, .btn-print { display: none; }
+    body { background: #fff; }
+    .card { box-shadow: none; border-radius: 0; margin: 0; padding: 16px; }
+    .container { margin: 0; }
+    .quote-total { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+  @media (max-width: 480px) {
+    .card { padding: 20px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header" id="site-header">
+  <div class="logo">WASSA WASSA</div>
+  <div class="tagline">海と星空の小さな宿　大宜味村</div>
+</header>
+
+<div class="container">
+  <div class="card" id="main-card">
+    <div class="loading" id="loading">見積書を読み込んでいます…</div>
+  </div>
+</div>
+
+<script>
+var SB_URL = 'https://mtsdhheqddrckksiqlim.supabase.co';
+var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10c2RoaGVxZGRyY2trc2lxbGltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1OTc5NDgsImV4cCI6MjA4ODE3Mzk0OH0.c18ExSxNHBOani7CN4QAqaerhvpr5ZCYA0GGkUg0mlc';
+
+var LOGO_URL = './logo.png';
+var STAMP_URL = './stamp.png';
+
+function fmtDate(s) {
+  if (!s) return '';
+  var m = s.match(/(\d{4})-(\d{2})-(\d{2})/);
+  return m ? m[1]+'年'+parseInt(m[2])+'月'+parseInt(m[3])+'日' : s;
+}
+function fmtPrice(n) {
+  return '¥' + parseInt(n||0).toLocaleString();
+}
+function escHtml(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function getToken() {
+  var p = new URLSearchParams(location.search);
+  return p.get('token') || '';
+}
+
+async function loadQuote() {
+  var token = getToken();
+  if (!token) { showError('URLが正しくありません。'); return; }
+
+  var res = await fetch(SB_URL + '/rest/v1/quotes?token=eq.' + encodeURIComponent(token) + '&select=*', {
+    headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+  });
+  if (!res.ok) { showError('データを取得できませんでした。'); return; }
+  var rows = await res.json();
+  if (!rows || rows.length === 0) { showError('見積書が見つかりません。\nURLをご確認ください。'); return; }
+  render(rows[0]);
+}
+
+function render(q) {
+  var card = document.getElementById('main-card');
+
+  // 有効期限チェック
+  var isExpired = false;
+  if (q.valid_until) {
+    var exp = new Date(q.valid_until); exp.setHours(23,59,59);
+    isExpired = new Date() > exp;
+  }
+
+  var today = q.created_at ? q.created_at.slice(0,10) : new Date().toISOString().slice(0,10);
+  var planName = q.plan_name || '';
+
+  // 明細行生成（管理画面と同じロジック）
+  var rows = '';
+  var billing = q.billing;
+  if (billing && Array.isArray(billing) && billing.length > 0) {
+    var prevDate = '';
+    billing.forEach(function(row) {
+      var d = row.date || '';
+      var isNightRow = row.cat === 'night' || row.cat === '宿泊';
+      var isSubRow = row.cat !== 'night' && row.cat !== '宿泊' && d === prevDate;
+      var dateCell = (d && d !== prevDate) ? fmtDate(d) : '';
+      prevDate = d || prevDate;
+      var amt = (parseInt(row.price)||0) * (parseInt(row.qty)||1) - (parseInt(row.discount)||0);
+      var itemLabel = escHtml(row.item || row.cat || '');
+      if (parseInt(row.qty) > 1) itemLabel += ' ×' + row.qty + '名';
+      var trClass = isNightRow ? ' class="night-row"' : (isSubRow ? ' class="sub-row"' : '');
+      rows += '<tr'+trClass+'><td>'+escHtml(dateCell)+'</td><td>'+itemLabel+'</td><td>'+fmtPrice(amt)+'</td></tr>';
+    });
+  }
+
+  // 部屋ラベル
+  var roomType = q.room_type || q.room || '';
+  var roomLabel = '';
+  if (roomType) {
+    if (roomType.indexOf('デラックス') !== -1 || roomType === 'DX') roomLabel = 'DX';
+    else if (roomType.indexOf('01') !== -1 || roomType === 'S1' || roomType === '01') roomLabel = 'S01';
+    else if (roomType.indexOf('02') !== -1 || roomType === 'S2' || roomType === '02') roomLabel = 'S02';
+    else roomLabel = roomType;
+  }
+  var roomHeader = roomLabel ? '<div style="text-align:center;font-size:12px;font-weight:600;color:var(--ocean2);background:var(--sand);border-radius:4px;padding:4px 12px;display:inline-block;margin:0 auto 14px;letter-spacing:.05em">🛏 ' + roomLabel + '</div><br>' : '';
+
+  var expiredHtml = isExpired ? ' <span class="expired-badge">期限切れ</span>' : '';
+  var validFmt = q.valid_until ? fmtDate(q.valid_until) : '';
+
+  card.innerHTML =
+    // 発行日
+    '<div style="text-align:right;font-size:10px;color:var(--text2);line-height:2;margin-bottom:6px">'
+      + '<div>発行：' + fmtDate(today) + '</div>'
+      + (validFmt ? '<div>有効期限：' + validFmt + expiredHtml + '</div>' : '')
+    + '</div>'
+    // タイトル
+    + '<div style="text-align:center;font-size:22px;font-weight:700;letter-spacing:.3em;margin-bottom:' + (planName?'8':'18') + 'px">見　積　書</div>'
+    + (planName ? '<div style="text-align:center;font-size:13px;color:var(--ocean2);font-weight:600;margin-bottom:14px;letter-spacing:.05em">' + escHtml(planName) + '</div>' : '')
+    + (roomHeader || '')
+    // お客様名 ＋ 事業所情報
+    + '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid var(--ocean)">'
+      + '<div class="quote-to" style="margin:0;padding:0;border:none;padding-top:6px">'
+        + '<span class="name-line">' + escHtml(q.guest_name || '　　　　　　　　') + '</span>'
+        + '<span class="sama">様</span>'
+      + '</div>'
+      + '<div style="text-align:right">'
+        + '<div style="display:flex;align-items:flex-end;justify-content:flex-end;gap:8px;margin-bottom:6px">'
+          + '<img src="' + LOGO_URL + '" style="height:40px;width:auto;mix-blend-mode:multiply">'
+          + '<img src="' + STAMP_URL + '" style="width:36px;height:36px;object-fit:contain;mix-blend-mode:multiply">'
+        + '</div>'
+        + '<div style="font-size:10px;color:var(--text2);line-height:1.9">'
+          + '<div style="font-size:12px;font-weight:700;color:var(--ocean)">海と星空の小さな宿　WASSA WASSA</div>'
+          + '<div>〒905-1307 沖縄県国頭郡大宜味村根路銘97番地</div>'
+          + '<div>wassa@wassa-okinawa.com</div>'
+        + '</div>'
+      + '</div>'
+    + '</div>'
+    // 明細テーブル
+    + '<table class="quote-tbl"><thead><tr><th>日付</th><th>内容</th><th>金額</th></tr></thead><tbody>' + rows + '</tbody></table>'
+    // 合計
+    + '<div class="quote-total"><span class="label">お見積り合計金額（税込）</span><span class="amount">' + fmtPrice(q.total_amount) + '</span></div>'
+    // 備考
+    + (q.notes && !q.notes.startsWith('貸切 buyout-') ? '<div class="quote-note"><p>' + escHtml(q.notes).replace(/\n/g,'<br>') + '</p></div>' : '')
+    // ご連絡
+    + '<div class="quote-note"><p>・ご不明な点はお気軽にお問い合わせください。</p></div>'
+    // フッター
+    + '<div class="quote-footer">海と星空の小さな宿 WASSA WASSA<br>ご予約・お問い合わせ：wassa@wassa-okinawa.com</div>'
+    // 印刷ボタン
+    + '<button class="btn-print" onclick="window.print()">🖨️ 印刷・PDFとして保存</button>';
+}
+
+function showError(msg) {
+  document.getElementById('main-card').innerHTML = '<div class="error-msg">' + msg.replace(/\n/g,'<br>') + '<br><br><a href="mailto:wassa@wassa-okinawa.com" style="color:var(--ocean)">wassa@wassa-okinawa.com</a></div>';
+}
+
+loadQuote();
+</script>
+</body>
+</html>
