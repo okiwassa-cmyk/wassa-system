@@ -1835,6 +1835,8 @@ function doLogout(){
     });
   } else {
     // PIN画面表示中にバックグラウンドでauth→PINをSupabaseから取得
+    // 5秒以内に完了しない場合はデフォルトPINで動作継続（フェイルセーフ）
+    setTimeout(function(){_pinsReady=true;},5000);
     document.addEventListener('DOMContentLoaded',function(){
       signInToSupabase().then(function(){
         return fetch(SB_URL+'/rest/v1/price_common?id=eq.1&select=pin_owner,pin_staff',{
