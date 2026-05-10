@@ -1153,7 +1153,7 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
             <option value="素泊まり">素泊まり</option>
             <option value="朝食付き">朝食付き</option>
             <option value="夕食付き">夕食付き</option>
-            <option value="2食付き">2食付き（朝・夕）</option>
+            <option value="2食付き">朝夕食付き</option>
           </select>
         </div>
       </div>
@@ -3388,6 +3388,7 @@ function recalcBilling(){
   }
   // 保存用hidden更新
   var lc=document.getElementById('edit-local-charge'); if(lc) lc.value=onsiteTotal;
+  var ta=document.getElementById('edit-total-amt'); if(ta) ta.value=Math.max(0,totalA+totalB);
   recalcChange();
 }
 function recalcChange(){
@@ -5809,6 +5810,32 @@ function setDinCourse(val){
   if(lastEstimate||(lastEstimates&&lastEstimates.length)) calcEstimate();
 }
 
+// ━━ 見積書印刷用インラインCSS（CSS変数に依存しない自己完結スタイル） ━━
+function _quoteStyleTag(){
+  return '<style>'
+    +':root{--ocean:#0D3B4A;--ocean2:#1A5568;--sand2:#E8E0D0;--text:#1C2E35;--text2:#4A6570;--text3:#8AA0A8;--bg:#f5f8f9;--border:#d0dde0;--white:#FFFEFB}'
+    +'body,*{font-family:"Hiragino Sans","Yu Gothic UI","Noto Sans JP",sans-serif}'
+    +'.quote-to .name-line{font-size:20px;font-weight:500;border-bottom:2px solid #1C2E35;display:inline-block;min-width:200px;padding-bottom:2px;margin-right:4px}'
+    +'.quote-to .sama{font-size:14px;color:#4A6570}'
+    +'.quote-tbl{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:14px}'
+    +'.quote-tbl th{background:#0D3B4A!important;color:#fff!important;padding:7px 10px;text-align:left;font-weight:500;font-size:11px;border:1px solid #0D3B4A;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+    +'.quote-tbl th:last-child{text-align:right}'
+    +'.quote-tbl td{padding:5px 10px;border:1px solid #d0dde0;color:#4A6570}'
+    +'.quote-tbl td:last-child{text-align:right;color:#1C2E35}'
+    +'.quote-tbl tr.night-row td{background:#f5f8f9!important;font-weight:600;color:#1C2E35;font-size:11px;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+    +'.quote-tbl tr.sub-row td{padding:4px 10px 4px 24px;font-size:10px}'
+    +'.quote-total{display:flex;justify-content:space-between;align-items:center;background:#0D3B4A!important;color:#fff!important;padding:12px 16px;border-radius:6px;margin-bottom:16px;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+    +'.quote-total .label{font-size:13px;font-weight:500}'
+    +'.quote-total .amount{font-size:22px;font-weight:600}'
+    +'.quote-note{font-size:11px;color:#4A6570;line-height:1.7;margin-bottom:14px}'
+    +'.quote-note p{margin-bottom:3px}'
+    +'.quote-footer{text-align:center;font-size:10px;color:#8AA0A8;padding-top:12px;border-top:1px solid #d0dde0;line-height:1.8}'
+    +'.quote-actions{display:none!important}'
+    +'.quote-sheet{max-width:700px;margin:0 auto;padding-bottom:32px}'
+    +'@media print{@page{margin:8mm;size:A4 portrait}.quote-sheet+.quote-sheet{page-break-before:always;break-before:page}}'
+    +'</style>';
+}
+
 // ━━ 見積書オーバーレイ用ユーティリティ ━━
 function printFromQuoteOverlay(){
   var content=document.getElementById('quote-content');
@@ -5824,7 +5851,7 @@ function printFromQuoteOverlay(){
     +'<button onclick="(function(){var o=document.getElementById(\'quote-print-overlay\');if(o)o.style.display=\'none\';document.body.classList.remove(\'printing-quote\');})()" '
     +'style="padding:7px 18px;background:var(--ocean2);color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-family:\'Noto Sans JP\',sans-serif">✕ 閉じる</button>'
     +'</div>';
-  overlay.innerHTML=closeBtn+'<div style="max-width:700px;margin:0 auto">'+content.innerHTML+'</div>';
+  overlay.innerHTML=_quoteStyleTag()+closeBtn+'<div style="max-width:700px;margin:0 auto">'+content.innerHTML+'</div>';
   overlay.style.display='block';
   document.body.classList.add('printing-quote');
   function _cleanup(){
@@ -7401,13 +7428,21 @@ async function _doSendQuoteEmail(email, guest, quoteHtml, quoteId, urlLines){
       mail_body: quoteTpl.body||''
     };
     console.log('GAS送信:', JSON.stringify(gasPayload));
-    await fetch(GAS_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: {'Content-Type': 'text/plain'},
-      body: JSON.stringify(gasPayload)
-    });
-    toast('✅ メールを送付しました');
+    try {
+      var gasRes = await fetch(GAS_URL, {
+        method: 'POST',
+        headers: {'Content-Type': 'text/plain'},
+        body: JSON.stringify(gasPayload)
+      });
+      if(!gasRes.ok) throw new Error('HTTP ' + gasRes.status);
+      var gasData = await gasRes.json().catch(function(){return {};});
+      if(gasData.ok === false) throw new Error(gasData.error || 'GASエラー');
+      toast('✅ メールを送付しました');
+    } catch(fetchErr) {
+      console.error('GAS fetch error:', fetchErr);
+      toast('⚠️ 送信エラー: ' + fetchErr.message);
+      return;
+    }
 
     // ステータスを「送付済み」に更新（全室分）
     var idsToUpdate = (urlLines&&urlLines.length) ? urlLines.map(function(u){return u.id;}) : (targetQuoteId ? [targetQuoteId] : currentSavedQuoteIds||[]);
@@ -7800,7 +7835,7 @@ function printQuoteById(ids){
     overlay.style.cssText='display:none;position:fixed;inset:0;background:#fff;z-index:9999;overflow:auto;padding:20px';
     document.body.appendChild(overlay);
   }
-  overlay.innerHTML=closeBtn+sheetsHtml;
+  overlay.innerHTML=_quoteStyleTag()+closeBtn+sheetsHtml;
   overlay.style.display='block';
   document.body.classList.add('printing-quote');
   function _cleanupPrint(){
