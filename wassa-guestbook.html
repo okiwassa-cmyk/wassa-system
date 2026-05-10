@@ -6097,7 +6097,7 @@ function renderRoomTabs(rooms){
       html += '</select></div>';
     }
     html += '<div class="fr" style="margin-top:8px"><label>食事</label>';
-    html += '<select id="ri-'+r+'-meal" onchange="saveRoomInputState(\''+r+'\');updateInfMealOpts(\''+r+'\')">';
+    html += '<select id="ri-'+r+'-meal" onchange="saveRoomInputState(\''+r+'\');updateInfMealOpts(\''+r+'\');if(lastEstimates&&lastEstimates.length)calcEstimate();">';
     var meals=[['both','朝食＋ディナー'],['din','ディナーのみ'],['bf','朝食のみ'],['none','素泊まり']];
     meals.forEach(function(m){ html+='<option value="'+m[0]+'"'+(st.meal===m[0]?' selected':'')+'>'+m[1]+'</option>'; });
     html += '</select></div>';
@@ -6110,9 +6110,9 @@ function renderRoomTabs(rooms){
     html += '<div style="font-size:11px;color:var(--text2);margin-bottom:6px;font-weight:600">幼児の食事</div>';
     html += '<div style="display:flex;gap:16px;flex-wrap:wrap">';
     html += '<label id="ri-'+r+'-inf-bf-wrap" style="display:'+(_hasBf?'flex':'none')+';align-items:center;gap:5px;font-size:13px;cursor:pointer">';
-    html += '<input type="checkbox" id="ri-'+r+'-inf-meal-bf"'+(st.infMealBf?' checked':'')+' onchange="saveRoomInputState(\''+r+'\')" style="width:auto"> 朝食あり</label>';
+    html += '<input type="checkbox" id="ri-'+r+'-inf-meal-bf"'+(st.infMealBf?' checked':'')+' onchange="saveRoomInputState(\''+r+'\');if(lastEstimates&&lastEstimates.length)calcEstimate();" style="width:auto"> 朝食あり</label>';
     html += '<label id="ri-'+r+'-inf-din-wrap" style="display:'+(_hasDin?'flex':'none')+';align-items:center;gap:5px;font-size:13px;cursor:pointer">';
-    html += '<input type="checkbox" id="ri-'+r+'-inf-meal-din"'+(st.infMealDin?' checked':'')+' onchange="saveRoomInputState(\''+r+'\')" style="width:auto"> 夕食あり</label>';
+    html += '<input type="checkbox" id="ri-'+r+'-inf-meal-din"'+(st.infMealDin?' checked':'')+' onchange="saveRoomInputState(\''+r+'\');if(lastEstimates&&lastEstimates.length)calcEstimate();" style="width:auto"> 夕食あり</label>';
     html += '</div></div>';
     html += '</div>';
     return html;
