@@ -1900,6 +1900,14 @@ function saveDinCoursePresets(){/* Supabase保存に移行 - saveDinCourses()を
 let currentEditId=null, editType=null;
 let common={bf_adult:2200,bf_child:2200,bf_infant:2200,din_adult:7700,din_child_rate:0.65,din_child_price:null,din_infant:3300};
 var _pins={owner:'1234',staff:'5678'}; // Supabaseから起動時に読み込む
+// PIN をページ読み込み直後に取得（checkPin()より前に完了させる）
+(function(){
+  fetch('https://mtsdhheqddrckksiqlim.supabase.co/rest/v1/price_common?id=eq.1&select=pin_owner,pin_staff',{
+    headers:{'apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10c2RoaGVxZGRyY2trc2lxbGltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1OTc5NDgsImV4cCI6MjA4ODE3Mzk0OH0.c18ExSxNHBOani7CN4QAqaerhvpr5ZCYA0GGkUg0mlc','Authorization':'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10c2RoaGVxZGRyY2trc2lxbGltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1OTc5NDgsImV4cCI6MjA4ODE3Mzk0OH0.c18ExSxNHBOani7CN4QAqaerhvpr5ZCYA0GGkUg0mlc'}
+  }).then(function(r){return r.json();}).then(function(d){
+    if(d&&d[0]){if(d[0].pin_owner)_pins.owner=d[0].pin_owner;if(d[0].pin_staff)_pins.staff=d[0].pin_staff;}
+  }).catch(function(){});
+})();
 let prices={}, ranges={super_high:[],high:[],regular:[],low:[]};
 let rateCalYear=new Date().getFullYear(), rateCalMonth=new Date().getMonth();
 let lastEstimate=null;
