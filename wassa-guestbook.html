@@ -539,9 +539,25 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
       </div>
     </div>
     <div id="dash-pane-rate" style="padding:16px;display:none">
-      <div class="legend" style="margin-bottom:10px">
-        <span class="badge sh">Super High</span><span class="badge hi">High</span>
-        <span class="badge re">Regular</span><span class="badge lo">Low</span>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+        <div class="legend" style="display:flex;gap:6px;flex-wrap:wrap">
+          <span class="badge sh">Super High</span><span class="badge hi">High</span>
+          <span class="badge re">Regular</span><span class="badge lo">Low</span>
+        </div>
+        <button id="rate-edit-btn" onclick="toggleRateEdit()" style="padding:5px 14px;border-radius:16px;border:1px solid var(--ocean);background:transparent;color:var(--ocean);font-size:12px;cursor:pointer;font-weight:500">シーズンを編集</button>
+      </div>
+      <!-- 編集ツールバー（編集モード時のみ表示） -->
+      <div id="rate-edit-toolbar" style="display:none;background:var(--sand);border-radius:10px;padding:10px 12px;margin-bottom:10px">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">塗るシーズンを選んでから日付をタップ</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+          <button id="rpaint-sh" onclick="selectRateSeason('super_high')" style="padding:5px 10px;border-radius:12px;border:2px solid var(--sh);background:var(--sh-bg);color:var(--sh);font-size:12px;cursor:pointer;font-weight:600">SH</button>
+          <button id="rpaint-hi" onclick="selectRateSeason('high')" style="padding:5px 10px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:12px;cursor:pointer">Hi</button>
+          <button id="rpaint-re" onclick="selectRateSeason('regular')" style="padding:5px 10px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:12px;cursor:pointer">Re</button>
+          <button id="rpaint-lo" onclick="selectRateSeason('low')" style="padding:5px 10px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:12px;cursor:pointer">Lo</button>
+          <button id="rpaint-none" onclick="selectRateSeason(null)" style="padding:5px 10px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:12px;cursor:pointer">なし</button>
+          <button onclick="saveRatePaint()" style="margin-left:auto;padding:6px 16px;border-radius:12px;border:none;background:var(--ocean);color:#fff;font-size:12px;cursor:pointer;font-weight:500">保存</button>
+          <button onclick="discardRatePaint()" style="padding:6px 12px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:12px;cursor:pointer">キャンセル</button>
+        </div>
       </div>
       <div class="cal-nav">
         <button class="cal-btn" onclick="moveRateMonth(-1)">‹</button>
@@ -1919,6 +1935,7 @@ var _pinsReady=false; // true になるまで checkPin() は待機する
 let prices={}, ranges={super_high:[],high:[],regular:[],low:[]};
 let rateCalYear=new Date().getFullYear(), rateCalMonth=new Date().getMonth();
 let rateRangeYear=new Date().getFullYear(); // シーズン設定対象年
+var _rateEditMode=false, _selectedSeason='super_high', _ratePaintMap={}; // カレンダー塗り絵
 let lastEstimate=null;
 let currentSavedQuoteId=null;
 let currentSavedQuoteIds=[];
@@ -5814,7 +5831,8 @@ async function saveMenu(){const name=document.getElementById('menu-name').value.
 async function deleteMenu(){if(!confirm('このメニューを削除しますか？'))return;try{await sbDelete('wassa_menus',currentEditId);allMenus=allMenus.filter(m=>m.id!==currentEditId);renderMenus();closeModal('menu-modal');toast('削除しました');}catch(e){toast('エラー: '+e.message);}}
 
 // ━━ ESTIMATE (見積もり計算) ━━
-function getSeasonForDate(ds){for(const s of SEASONS)for(const r of(ranges[s]||[]))if(r.from&&r.to&&ds>=r.from&&ds<=r.to)return s;return null;}
+function getSeasonForDate(ds){if(_ratePaintMap.hasOwnProperty(ds))return _ratePaintMap[ds];for(const s of SEASONS)for(const r of(ranges[s]||[]))if(r.from&&r.to&&ds>=r.from&&ds<=r.to)return s;return null;}
+function getSeasonForDate_base(ds){for(const s of SEASONS)for(const r of(ranges[s]||[]))if(r.from&&r.to&&ds>=r.from&&ds<=r.to)return s;return null;}
 function fmtPrice(n){return'¥'+Math.round(n).toLocaleString();}
 function setDinCourse(val){
   var parts=val.split(':');
@@ -7949,7 +7967,10 @@ function renderRateCal(){
     const s=getSeasonForDate(ds);
     const dateObj=new Date(y,m,day);
     const isClosed=isClosedDay(ds);
-    const d=document.createElement('div');d.className='cal-day'+(s?' '+SDC[s]:'');
+    const d=document.createElement('div');
+    d.className='cal-day'+(s?' '+SDC[s]:'');
+    if(_rateEditMode){d.style.cursor='pointer';d.addEventListener('click',function(){paintDate(ds);});}
+    if(_rateEditMode&&_ratePaintMap.hasOwnProperty(ds))d.style.outline='2px solid var(--ocean)';
     const dn=document.createElement('div');dn.className='dn';dn.textContent=day;d.appendChild(dn);
     if(s){const sl=document.createElement('div');sl.className='ds';sl.textContent=SL[s].replace(' ','').slice(0,4);d.appendChild(sl);}
     if(isClosed){const cl=document.createElement('div');cl.style.cssText='font-size:9px;color:var(--coral);font-weight:600;margin-top:2px';cl.textContent='定休';d.appendChild(cl);}
@@ -7958,6 +7979,75 @@ function renderRateCal(){
   updateMealInfo();
 }
 function moveRateMonth(dir){rateCalMonth+=dir;if(rateCalMonth>11){rateCalMonth=0;rateCalYear++;}if(rateCalMonth<0){rateCalMonth=11;rateCalYear--;}renderRateCal();}
+
+// ━━ カレンダー塗り絵 ━━
+function toggleRateEdit(){
+  _rateEditMode=!_rateEditMode;
+  if(!_rateEditMode){_ratePaintMap={};} // キャンセル時は破棄
+  var tb=document.getElementById('rate-edit-toolbar');
+  var btn=document.getElementById('rate-edit-btn');
+  if(tb)tb.style.display=_rateEditMode?'block':'none';
+  if(btn){btn.textContent=_rateEditMode?'編集中...':'シーズンを編集';btn.style.background=_rateEditMode?'var(--ocean)':'transparent';btn.style.color=_rateEditMode?'#fff':'var(--ocean)';}
+  selectRateSeason('super_high');
+  renderRateCal();
+}
+function discardRatePaint(){_rateEditMode=false;_ratePaintMap={};var tb=document.getElementById('rate-edit-toolbar');if(tb)tb.style.display='none';var btn=document.getElementById('rate-edit-btn');if(btn){btn.textContent='シーズンを編集';btn.style.background='transparent';btn.style.color='var(--ocean)';}renderRateCal();}
+function selectRateSeason(s){
+  _selectedSeason=s;
+  var map={'super_high':'rpaint-sh','high':'rpaint-hi','regular':'rpaint-re','low':'rpaint-lo',null:'rpaint-none'};
+  var colors={'super_high':['var(--sh-bg)','var(--sh)','var(--sh)'],'high':['var(--hi-bg)','var(--hi)','var(--hi)'],'regular':['var(--re-bg)','var(--re)','var(--re)'],'low':['var(--lo-bg)','var(--lo)','var(--lo)'],null:['var(--sand2)','var(--text2)','var(--border)']};
+  Object.entries(map).forEach(function([key,id]){
+    var el=document.getElementById(id);if(!el)return;
+    var active=(key==='null'?null:key)===s||(key==='null'&&s===null);
+    var c=colors[key==='null'?null:key]||colors[null];
+    el.style.background=active?c[0]:'transparent';
+    el.style.color=active?c[1]:'var(--text2)';
+    el.style.border='2px solid '+(active?c[2]:'var(--border)');
+  });
+}
+function paintDate(ds){
+  if(!_rateEditMode)return;
+  _ratePaintMap[ds]=_selectedSeason;
+  renderRateCal();
+}
+async function saveRatePaint(){
+  var painted=Object.keys(_ratePaintMap);
+  if(!painted.length){alert('変更がありません');return;}
+  var years=[...new Set(painted.map(function(d){return d.slice(0,4);}))];
+  try{
+    for(var yi=0;yi<years.length;yi++){
+      var y=years[yi];
+      // その年の全日のシーズンを確定（既存 + 塗り絵）
+      var dayMap={};
+      var d=new Date(y+'-01-01');var end=new Date(y+'-12-31');
+      while(d<=end){var ds2=d.toISOString().slice(0,10);dayMap[ds2]=getSeasonForDate_base(ds2);d.setDate(d.getDate()+1);}
+      painted.filter(function(d){return d.startsWith(y);}).forEach(function(d){dayMap[d]=_ratePaintMap[d];});
+      // 連続する同シーズンをrangeにまとめる
+      var newRanges=[];var cur=null;
+      Object.keys(dayMap).sort().forEach(function(ds3){
+        var s=dayMap[ds3];
+        if(!s){cur=null;return;}
+        if(cur&&cur.season===s){cur.to=ds3;}
+        else{cur={season:s,from:ds3,to:ds3};newRanges.push(cur);}
+      });
+      // 対象年の既存rangesを削除
+      for(var si=0;si<SEASONS.length;si++){var s2=SEASONS[si];
+        var toDelete=(ranges[s2]||[]).filter(function(r){return r.from&&r.from.startsWith(y)&&r.id;});
+        for(var ti=0;ti<toDelete.length;ti++)await supa('season_ranges?id=eq.'+toDelete[ti].id,'DELETE');
+        ranges[s2]=(ranges[s2]||[]).filter(function(r){return !(r.from&&r.from.startsWith(y));});
+      }
+      // 新しいrangesをINSERT
+      for(var ni=0;ni<newRanges.length;ni++){var nr=newRanges[ni];
+        var res=await supa('season_ranges','POST',{season:nr.season,from_date:nr.from,to_date:nr.to});
+        if(!ranges[nr.season])ranges[nr.season]=[];
+        ranges[nr.season].push(res.length?{from:nr.from,to:nr.to,id:res[0].id}:{from:nr.from,to:nr.to});
+      }
+    }
+    _ratePaintMap={};
+    discardRatePaint();
+    toast('シーズン設定を保存しました');
+  }catch(e){alert('保存に失敗しました: '+e.message);}
+}
 
 // ━━ 料金設定 ━━
 function renderMgr(){
