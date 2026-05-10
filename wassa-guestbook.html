@@ -1918,6 +1918,7 @@ var _pins={owner:'1234',staff:'5678'}; // Supabaseから起動時に読み込む
 var _pinsReady=false; // true になるまで checkPin() は待機する
 let prices={}, ranges={super_high:[],high:[],regular:[],low:[]};
 let rateCalYear=new Date().getFullYear(), rateCalMonth=new Date().getMonth();
+let rateRangeYear=new Date().getFullYear(); // シーズン設定対象年
 let lastEstimate=null;
 let currentSavedQuoteId=null;
 let currentSavedQuoteIds=[];
@@ -8020,11 +8021,33 @@ function renderMgr(){
   }
   html+='</div>';
   html+='<div class="section-card"><div class="section-title">シーズン別室料・期間設定</div>';
+  // 年タブ + 前年コピーボタン
+  {const cy=new Date().getFullYear();
+  html+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:16px;flex-wrap:wrap">';
+  html+='<span style="font-size:13px;color:var(--text2);font-weight:500;white-space:nowrap">対象年：</span>';
+  [{y:cy-1,l:'前年'},{y:cy,l:'今年'},{y:cy+1,l:'来年'},{y:cy+2,l:'再来年'}].forEach(function(item){
+    var active=rateRangeYear===item.y;
+    html+='<button onclick="setRateRangeYear('+item.y+')" style="padding:5px 12px;border-radius:16px;border:1px solid '+(active?'var(--ocean)':'var(--border)')+';background:'+(active?'var(--ocean)':'transparent')+';color:'+(active?'var(--white)':'var(--text2)')+';font-size:13px;cursor:pointer;white-space:nowrap">'+item.l+'（'+item.y+'）</button>';
+  });
+  html+='<button onclick="copyAllRangesFromPrevYear()" style="margin-left:auto;padding:5px 14px;border-radius:16px;border:1px solid var(--border);background:var(--sand);color:var(--text2);font-size:12px;cursor:pointer;white-space:nowrap">前年からコピー</button>';
+  html+='</div>';}
   for(const s of SEASONS){
     const sp=prices[s]?.sup||{},dp=prices[s]?.dlx||{};
+    const yearStr=String(rateRangeYear);
     html+='<div class="season-block"><div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><span class="badge '+SC[s]+'">'+SL[s]+'</span></div>';
-    html+='<div class="sub-label">期間</div><div id="ranges-'+s+'">';
-    for(let i=0;i<(ranges[s]||[]).length;i++){const r=ranges[s][i];html+='<div class="range-row"><input type="date" value="'+r.from+'" onchange="updateRange(\''+s+'\','+i+',\'from\',this.value)"> 〜 <input type="date" value="'+r.to+'" onchange="updateRange(\''+s+'\','+i+',\'to\',this.value)"><button class="del-btn" onclick="delRange(\''+s+'\','+i+')">x</button></div>';}
+    html+='<div class="sub-label">期間 <span style="font-size:11px;color:var(--text3)">（'+rateRangeYear+'年）</span></div><div id="ranges-'+s+'">';
+    var hasYearRanges=false;
+    for(let i=0;i<(ranges[s]||[]).length;i++){
+      const r=ranges[s][i];
+      if(r.from&&!r.from.startsWith(yearStr))continue; // 対象年以外をスキップ
+      hasYearRanges=true;
+      // 月クイック入力セレクト
+      var monthSel='<select onchange="applyMonthToRange(\''+s+'\','+i+',this.value)" style="padding:5px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text2);cursor:pointer"><option value="">月▼</option>';
+      for(var mi=1;mi<=12;mi++)monthSel+='<option value="'+mi+'">'+mi+'月</option>';
+      monthSel+='</select>';
+      html+='<div class="range-row">'+monthSel+'<input type="date" value="'+r.from+'" onchange="updateRange(\''+s+'\','+i+',\'from\',this.value)"> 〜 <input type="date" value="'+r.to+'" onchange="updateRange(\''+s+'\','+i+',\'to\',this.value)"><button class="del-btn" onclick="delRange(\''+s+'\','+i+')">×</button></div>';
+    }
+    if(!hasYearRanges)html+='<div style="font-size:12px;color:var(--text3);margin-bottom:8px">'+rateRangeYear+'年の期間設定はありません</div>';
     html+='</div><button class="add-range-btn" onclick="addRange(\''+s+'\')">＋ 期間を追加</button>';
     html+='<button class="save-btn" style="margin-left:8px" onclick="saveRanges(\''+s+'\')">期間を保存</button><span class="saved-msg" id="msg-ranges-'+s+'">保存しました ✓</span>';
     html+='<div class="sub-label" style="margin-top:14px">室料（1泊）</div>';
@@ -8279,7 +8302,40 @@ function copyCleaningText(){ copyCleaningMonthText(); }
 
 function updatePrice(s,room,key,val){if(!prices[s])prices[s]={sup:{},dlx:{}};if(!prices[s][room])prices[s][room]={};prices[s][room][key]=parseInt(val)||0;}
 function updateRange(s,i,field,val){if(!ranges[s])ranges[s]=[];ranges[s][i][field]=val;renderRateCal();}
-function addRange(s){if(!ranges[s])ranges[s]=[];ranges[s].push({from:'',to:''});renderMgr();}
+function addRange(s){if(!ranges[s])ranges[s]=[];var y=String(rateRangeYear);ranges[s].push({from:y+'-01-01',to:y+'-01-31'});renderMgr();}
+function setRateRangeYear(y){rateRangeYear=y;renderMgr();}
+function applyMonthToRange(s,i,m){
+  if(!m)return;
+  var y=rateRangeYear,mo=parseInt(m),ld=new Date(y,mo,0).getDate();
+  var mm=String(mo).padStart(2,'0'),dd=String(ld).padStart(2,'0');
+  ranges[s][i].from=y+'-'+mm+'-01';
+  ranges[s][i].to=y+'-'+mm+'-'+dd;
+  renderMgr();renderRateCal();
+}
+async function copyAllRangesFromPrevYear(){
+  var prevYear=rateRangeYear-1,prevStr=String(prevYear),curStr=String(rateRangeYear);
+  var prevRanges=[];
+  for(const s of SEASONS){(ranges[s]||[]).filter(r=>r.from&&r.from.startsWith(prevStr)).forEach(r=>prevRanges.push({season:s,from:r.from,to:r.to}));}
+  if(!prevRanges.length){alert(prevYear+'年のシーズン設定がありません');return;}
+  var hasExisting=SEASONS.some(s=>(ranges[s]||[]).some(r=>r.from&&r.from.startsWith(curStr)));
+  if(hasExisting&&!confirm(rateRangeYear+'年の設定を上書きしてもよいですか？'))return;
+  try{
+    for(const s of SEASONS){
+      var toDelete=(ranges[s]||[]).filter(r=>r.from&&r.from.startsWith(curStr)&&r.id);
+      for(const r of toDelete)await supa('season_ranges?id=eq.'+r.id,'DELETE');
+      ranges[s]=(ranges[s]||[]).filter(r=>!(r.from&&r.from.startsWith(curStr)));
+    }
+    for(const pr of prevRanges){
+      var newFrom=curStr+pr.from.slice(4);
+      var newTo=String(parseInt(pr.to.slice(0,4))+1)+pr.to.slice(4);
+      var res=await supa('season_ranges','POST',{season:pr.season,from_date:newFrom,to_date:newTo});
+      if(!ranges[pr.season])ranges[pr.season]=[];
+      ranges[pr.season].push(res.length?{from:newFrom,to:newTo,id:res[0].id}:{from:newFrom,to:newTo});
+    }
+    renderMgr();renderRateCal();
+    alert(rateRangeYear+'年のシーズン設定を前年からコピーしました');
+  }catch(e){alert('コピーに失敗しました: '+e.message);}
+}
 async function delRange(s,i){const r=ranges[s][i];if(r.id){try{await supa('season_ranges?id=eq.'+r.id,'DELETE');}catch(e){alert('削除に失敗しました: '+e.message);return;}}ranges[s].splice(i,1);renderMgr();renderRateCal();}
 async function saveRanges(s){
   try{const toSave=ranges[s].filter(r=>r.from&&r.to);for(const r of toSave){if(r.id){await supa('season_ranges?id=eq.'+r.id,'PATCH',{season:s,from_date:r.from,to_date:r.to});}else{const res=await supa('season_ranges','POST',{season:s,from_date:r.from,to_date:r.to});if(res.length)r.id=res[0].id;}}showMsg('msg-ranges-'+s);renderRateCal();}catch(e){alert('保存に失敗しました: '+e.message);}
