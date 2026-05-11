@@ -911,19 +911,37 @@ function renderGroupCompList(resId){
   var comps = groupCompanions[resId]||[];
   if(!comps.length){ listEl.innerHTML='<div style="font-size:12px;color:var(--text3);padding:4px 0 6px">（なし）</div>'; return; }
   listEl.innerHTML = comps.map(function(comp,i){
-    return '<div style="background:#fff;border:1px solid var(--sand3);border-radius:8px;padding:10px 12px;margin-bottom:8px">'
+    var isFam = comp.isFamily;
+    var relOpts = ['配偶者','子','親','兄弟・姉妹','その他家族'];
+    var iconStyle = 'width:22px;height:22px;flex-shrink:0;border-radius:50%;border:2px solid '+(isFam?'var(--ocean2)':'var(--sand3)')+';background:'+(isFam?'var(--ocean2)':'transparent')+';display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff';
+    var row = '<div style="background:#fff;border:1px solid var(--sand3);border-radius:8px;padding:10px 12px;margin-bottom:8px">'
       +'<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">'
       +'<div style="flex:1"><label style="font-size:11px;color:var(--text2)">お名前</label>'
       +'<input type="text" value="'+escHtml(comp.name||'')+'" placeholder="山田 花子" oninput="groupCompanions['+resId+']['+i+'].name=this.value" style="font-size:15px;padding:8px 10px;width:100%"></div>'
       +'<button class="rm-btn" onclick="removeGroupComp('+resId+','+i+')">✕</button></div>'
-      +'<div><label style="font-size:11px;color:var(--text2)">ふりがな</label>'
+      +'<div style="margin-bottom:8px"><label style="font-size:11px;color:var(--text2)">ふりがな</label>'
       +'<input type="text" value="'+escHtml(comp.kana||'')+'" placeholder="やまだ はなこ" oninput="groupCompanions['+resId+']['+i+'].kana=this.value" style="font-size:15px;padding:8px 10px;width:100%"></div>'
-      +'</div>';
+      +'<label onclick="toggleGroupCompFamily('+resId+','+i+','+(!isFam)+')" style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;padding:8px 10px;background:'+(isFam?'var(--seafoam2)':'rgba(0,0,0,0.03)')+';border-radius:8px;border:1.5px solid '+(isFam?'var(--seafoam)':'var(--sand2)')+'"><input type="checkbox" '+(isFam?'checked':'')+' style="display:none">'
+      +'<div style="'+iconStyle+'">'+( isFam?'✓':'' )+'</div>'
+      +'<span style="color:'+(isFam?'var(--ocean2)':'var(--text2)')+';font-weight:'+(isFam?'500':'400')+'">代表者と同じ家族</span></label>';
+    if(isFam){
+      row += '<div style="margin-top:8px"><label style="font-size:11px;color:var(--text2)">続柄</label>'
+        +'<select onchange="groupCompanions['+resId+']['+i+'].rel=this.value" style="width:100%;padding:9px 12px;font-size:14px;border:1.5px solid var(--sand2);border-radius:8px;background:white;font-family:inherit">'
+        +'<option value="">選択してください</option>';
+      relOpts.forEach(function(opt){ row += '<option value="'+opt+'"'+(comp.rel===opt?' selected':'')+'>'+opt+'</option>'; });
+      row += '</select></div>';
+    }
+    row += '</div>';
+    return row;
   }).join('');
 }
 function addGroupComp(resId){
   if(!groupCompanions[resId]) groupCompanions[resId]=[];
-  groupCompanions[resId].push({name:'',kana:''});
+  groupCompanions[resId].push({name:'',kana:'',isFamily:false,rel:''});
+  renderGroupCompList(resId);
+}
+function toggleGroupCompFamily(resId, i, checked){
+  groupCompanions[resId][i].isFamily = !!checked;
   renderGroupCompList(resId);
 }
 function removeGroupComp(resId,i){
@@ -1310,7 +1328,8 @@ async function submit(){
               customer_id: null,
               name: gComps[gc].name,
               kana: gComps[gc].kana||'',
-              is_family: false,
+              is_family: gComps[gc].isFamily||false,
+              rel: gComps[gc].rel||'',
               address: '',
               mobile: ''
             })
