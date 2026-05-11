@@ -6569,7 +6569,7 @@ function renderResult(){
       } else if(it.type==='din_adult'){
         var _courseOpts=dinCoursePresets.map(function(c){return '<option value="'+c.price+':'+escHtml(c.name)+'"'+(rr.dinCourseName===c.name?' selected':'')+'>'+escHtml(c.name)+'　¥'+c.price.toLocaleString()+'</option>';}).join('');
         html+='<div style="display:flex;align-items:center;gap:6px;margin:2px 4px 2px"><span style="font-size:10px;color:var(--text3);white-space:nowrap">コース：</span><select style="font-size:11px;padding:2px 6px;border:1px solid var(--border);border-radius:4px;flex:1;background:var(--sand);color:var(--text)" onchange="onDinCourseChange('+ri+',this.value)">'+_courseOpts+'</select></div>';
-        html+=unitInput(ri,'dinAdultUnit',Math.round(rr.dinAdultAmt/(e.adult||1)),'ディナー（大人）',e.adult);
+        html+=unitInput(ri,'dinAdultUnit',Math.round(rr.dinAdultAmt/(e.adult||1)),(rr.dinCourseName||currentDinCourseName||'ディナー')+'（大人）',e.adult);
       } else if(it.type==='din_child'){
         html+=unitInput(ri,'dinChildUnit',Math.round(rr.dinChildAmt/(e.child||1)),'子供ディナー（小学生）',e.child);
       } else if(it.type==='din_inf_futon'){
@@ -7077,7 +7077,8 @@ function buildQuoteMulti(estimates){
       var r=e.rows[i]; var ds=r.date; var bfDs=nextDs(ds);
       var db=getDay(ds);
       var _qm=e.meal||'none';var _qhm=_qm!=='none';
-      var _qms={none:'',bf:'（朝食付き）',din:'（'+currentDinCourseName+'）',both:'（朝食＋'+currentDinCourseName+'）'}[_qm];
+      var _cn=r.dinCourseName||currentDinCourseName||'ディナー';
+      var _qms={none:'',bf:'（朝食付き）',din:'（'+_cn+'）',both:'（朝食＋'+_cn+'）'}[_qm];
       db.total+=r.nightRoom
         +(r.dinAdultOn?r.dinAdultAmt:0)+(r.dinChildOn?r.dinChildAmt:0)+(r.dinInfFutonOn?r.dinInfFutonAmt:0)+(r.dinInfNoFutonOn?r.dinInfNoFutonAmt:0)+(r.dinInfDlxOn?r.dinInfDlxAmt:0)
         +(r.bfAdultOn?r.bfAdultAmt:0)+(r.bfChildOn?r.bfChildAmt:0)+(r.bfInfFutonOn?r.bfInfFutonAmt:0)+(r.bfInfNoFutonOn?r.bfInfNoFutonAmt:0)+(r.bfInfDlxOn?r.bfInfDlxAmt:0);
@@ -7164,7 +7165,8 @@ function buildQuote(){
     var db=getDay(ds);
     var _qMeal=e.meal||'none';
     var _qHasMeal=_qMeal!=='none';
-    var _qMsfx={none:'',bf:'（朝食付き）',din:'（'+currentDinCourseName+'）',both:'（朝食＋'+currentDinCourseName+'）'}[_qMeal];
+    var _cnM=r.dinCourseName||currentDinCourseName||'ディナー';
+    var _qMsfx={none:'',bf:'（朝食付き）',din:'（'+_cnM+'）',both:'（朝食＋'+_cnM+'）'}[_qMeal];
     // 全カテゴリの合計（朝食も宿泊日に含める）
     db.total+=r.nightRoom
       +(r.dinAdultOn?r.dinAdultAmt:0)+(r.dinChildOn?r.dinChildAmt:0)+(r.dinInfFutonOn?r.dinInfFutonAmt:0)+(r.dinInfNoFutonOn?r.dinInfNoFutonAmt:0)+(r.dinInfDlxOn?r.dinInfDlxAmt:0)
