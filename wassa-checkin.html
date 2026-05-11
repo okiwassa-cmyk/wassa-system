@@ -1346,49 +1346,6 @@ async function submit(){
           if(!custRes.ok) console.warn('wassa_customers PATCH failed:', custRes.status);
         }
 
-        // 「代表者と同じ家族」の同室者を顧客マスタに登録してfamily_idでリンク
-        // 子ども続柄（子・息子・娘・長男・長女など）は顧客レコード作成不要
-        var CHILD_RELS = ['子','息子','娘','長男','長女','次男','次女','三男','三女'];
-        var famComps = companions.filter(function(c){ return c.name && c.isFamily; });
-        if(famComps.length > 0){
-          try{
-            var repRow = await (await fetch(SB_URL+'/rest/v1/wassa_customers?id=eq.'+custId+'&select=family_id',{headers:HDR})).json();
-            var famId = (repRow&&repRow[0]&&repRow[0].family_id) || custId;
-            if(!repRow||!repRow[0]||!repRow[0].family_id){
-              await fetch(SB_URL+'/rest/v1/wassa_customers?id=eq.'+custId,{
-                method:'PATCH', headers:HDR_PATCH, body:JSON.stringify({family_id:famId})
-              });
-            }
-            for(var fci=0; fci<famComps.length; fci++){
-              var fc = famComps[fci];
-              // 子ども続柄はfamily1~4テキストのみ（顧客レコード作成なし）
-              if(CHILD_RELS.indexOf(fc.rel||'')!==-1) continue;
-              var parts = fc.name.trim().split(/[\s\u3000]+/);
-              var fSei = parts[0]||''; var fMei = parts[1]||'';
-              var kparts = (fc.kana||'').trim().split(/[\s\u3000]+/);
-              var fSeiK = kparts[0]||''; var fMeiK = kparts[1]||'';
-              var searchUrl = SB_URL+'/rest/v1/wassa_customers?sei=eq.'+encodeURIComponent(fSei)+'&select=id,family_id';
-              if(fMei) searchUrl += '&mei=eq.'+encodeURIComponent(fMei);
-              var existing = await (await fetch(searchUrl,{headers:HDR})).json();
-              if(existing&&existing[0]){
-                var _upd = {};
-                if(existing[0].family_id!==famId) _upd.family_id = famId;
-                if(fc.rel) _upd.rel = fc.rel;
-                if(Object.keys(_upd).length){
-                  await fetch(SB_URL+'/rest/v1/wassa_customers?id=eq.'+existing[0].id,{
-                    method:'PATCH', headers:HDR_PATCH, body:JSON.stringify(_upd)
-                  });
-                }
-              } else {
-                await fetch(SB_URL+'/rest/v1/wassa_customers',{
-                  method:'POST',
-                  headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=minimal'},
-                  body:JSON.stringify({sei:fSei,mei:fMei,sei_kana:fSeiK,mei_kana:fMeiK,family_id:famId,rel:fc.rel||'',zip:g('zip'),pref:g('pref'),city:g('city'),address:[g('pref'),g('city'),g('addr')].filter(Boolean).join(' ')})
-                });
-              }
-            }
-          }catch(e5){ console.warn('family link error:', e5); }
-        }
       }
     }
 
@@ -1463,34 +1420,6 @@ async function submit(){
           }
           if(Object.keys(gFamSlotsUpdate).length){
             await fetch(SB_URL+'/rest/v1/wassa_customers?id=eq.'+custId,{method:'PATCH',headers:HDR_PATCH,body:JSON.stringify(gFamSlotsUpdate)});
-          }
-          // 全室の家族同室者をループ
-          for(var gfi=0; gfi<groupReservations.length; gfi++){
-            var gFamComps = (groupCompanions[groupReservations[gfi].id]||[]).filter(function(c){ return c.name && c.isFamily; });
-            for(var gfc=0; gfc<gFamComps.length; gfc++){
-              var gMember = gFamComps[gfc];
-              if(CHILD_RELS_G.indexOf(gMember.rel||'')!==-1) continue;
-              var gParts = gMember.name.trim().split(/[\s\u3000]+/);
-              var gSei = gParts[0]||''; var gMei = gParts[1]||'';
-              var gKparts = (gMember.kana||'').trim().split(/[\s\u3000]+/);
-              var gSeiK = gKparts[0]||''; var gMeiK = gKparts[1]||'';
-              var gSearchUrl = SB_URL+'/rest/v1/wassa_customers?sei=eq.'+encodeURIComponent(gSei)+'&select=id,family_id';
-              if(gMei) gSearchUrl += '&mei=eq.'+encodeURIComponent(gMei);
-              var gExisting = await (await fetch(gSearchUrl,{headers:HDR})).json();
-              if(gExisting&&gExisting[0]){
-                var _gUpd = {};
-                if(gExisting[0].family_id!==gFamId) _gUpd.family_id = gFamId;
-                if(gMember.rel) _gUpd.rel = gMember.rel;
-                if(Object.keys(_gUpd).length){
-                  await fetch(SB_URL+'/rest/v1/wassa_customers?id=eq.'+gExisting[0].id,{method:'PATCH',headers:HDR_PATCH,body:JSON.stringify(_gUpd)});
-                }
-              } else {
-                await fetch(SB_URL+'/rest/v1/wassa_customers',{method:'POST',
-                  headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=minimal'},
-                  body:JSON.stringify({sei:gSei,mei:gMei,sei_kana:gSeiK,mei_kana:gMeiK,family_id:gFamId,rel:gMember.rel||'',zip:g('zip'),pref:g('pref'),city:g('city'),address:[g('pref'),g('city'),g('addr')].filter(Boolean).join(' ')})
-                });
-              }
-            }
           }
         }catch(gfe){ console.warn('group family link error:', gfe); }
       }

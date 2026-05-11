@@ -2474,8 +2474,9 @@ function checkFamilyAndAddress(r){
   banner.innerHTML = '';
   var html = '';
 
-  // family_id検索：予約のcustomer_idからfamily_idを取得
   var cust = r.customer_id ? allCustomers.find(function(c){return c.id===r.customer_id;}) : null;
+
+  // ① family_id リンク済み家族
   if(cust && cust.family_id){
     var familyMembers = allCustomers.filter(function(x){
       return x.family_id===cust.family_id && x.id!==cust.id;
@@ -2486,13 +2487,33 @@ function checkFamilyAndAddress(r){
         var cnt = allReservations.filter(function(rv){return rv.customer_id===m.id&&rv.status!=='cancelled';}).length;
         var mName = (m.sei||'')+(m.mei?'　'+m.mei:'');
         return '<span onclick="openCustomer('+m.id+')" style="cursor:pointer;text-decoration:underline;font-weight:600">'+mName+'</span>'
-          +(cnt>0?'（'+cnt+'回宿泊）':'')
+          +(cnt>0?'（'+cnt+'回宿泊）':'');
       }).join('、');
       html += '<br><span style="color:#9A7700;font-size:11px">⚠️ リピーター様の可能性があります。食事内容をご確認ください。</span>';
     }
   }
 
-  // 同住所検索
+  // ② family1~4 スロット名前一致（未リンクの家族候補）
+  if(!cust){
+    var guestNameNorm = (r.guest_name||'').replace(/[\s\u3000　]+/g,'');
+    if(guestNameNorm){
+      allCustomers.forEach(function(c){
+        [1,2,3,4].forEach(function(n){
+          var fname = (c['family'+n]||'').replace(/[\s\u3000　]+/g,'');
+          if(!fname || fname !== guestNameNorm) return;
+          var frel = c['family'+n+'_rel'] || '';
+          var repName = (c.sei||'')+(c.mei?'　'+c.mei:'');
+          var relLabel = frel ? frel : '家族';
+          if(html) html += '<br>';
+          html += '👨‍👩‍👧 <strong>'+repName+'様の'+relLabel+'として登録されています。</strong> '
+            +'<button onclick="linkAsFamily('+c.id+',\''+frel+'\')" '
+            +'style="margin-left:6px;padding:3px 10px;font-size:12px;background:var(--ocean2);color:#fff;border:none;border-radius:6px;cursor:pointer">家族としてリンク</button>';
+        });
+      });
+    }
+  }
+
+  // ③ 同住所検索
   var addr = r.address || '';
   if(!addr && cust) addr = cust.address || '';
   if(addr){
@@ -2504,7 +2525,6 @@ function checkFamilyAndAddress(r){
         var cKey = x.address.replace(/〒[\d\-]+/,'').replace(/[\s\u3000]/g,'').trim();
         return cKey === addrKey;
       });
-      // family_idで既にヒットしているものは除外
       var familyIds = cust && cust.family_id ? allCustomers.filter(function(x){return x.family_id===cust.family_id;}).map(function(x){return x.id;}) : [];
       addrMatches = addrMatches.filter(function(x){return familyIds.indexOf(x.id)===-1;});
       if(addrMatches.length > 0){
@@ -2514,7 +2534,7 @@ function checkFamilyAndAddress(r){
           var cnt = allReservations.filter(function(rv){return rv.customer_id===m.id&&rv.status!=='cancelled';}).length;
           var mName = (m.sei||'')+(m.mei?'　'+m.mei:'');
           return '<span onclick="openCustomer('+m.id+')" style="cursor:pointer;text-decoration:underline;font-weight:600">'+mName+'</span>'
-            +(cnt>0?'（'+cnt+'回宿泊）':'')
+            +(cnt>0?'（'+cnt+'回宿泊）':'');
         }).join('<br>');
         html += '<br><span style="color:#9A7700;font-size:11px">⚠️ リピーター様の可能性があります。食事内容をご確認ください。</span>';
       }
@@ -2524,6 +2544,69 @@ function checkFamilyAndAddress(r){
   if(html){
     banner.innerHTML = html;
     banner.style.display = 'block';
+  }
+
+  // ④ 過去同室歴チェック（非同期・バナーに追記）
+  if(r.guest_name) checkPastCompanion(r.guest_name, banner);
+}
+
+async function checkPastCompanion(guestName, banner){
+  try{
+    var norm = guestName.replace(/[\s\u3000　]+/g,'');
+    if(!norm || norm.length < 2) return;
+    var data = await supa('reservation_companions?name=eq.'+encodeURIComponent(guestName)+'&select=reservation_id,name&limit=5');
+    if(!data || !data.length) return;
+    // 現在の予約IDは除外
+    var others = data.filter(function(c){ return c.reservation_id !== currentEditId; });
+    if(!others.length) return;
+    // 一致した予約の代表者名を取得
+    var repNames = [];
+    others.forEach(function(c){
+      var rv = allReservations.find(function(x){ return x.id===c.reservation_id; });
+      if(rv && rv.guest_name && rv.guest_name !== guestName) repNames.push(rv.guest_name);
+    });
+    var uniq = repNames.filter(function(v,i,a){ return a.indexOf(v)===i; });
+    if(!uniq.length) return;
+    var addHtml = (banner.innerHTML ? '<br>' : '')
+      +'🛌 過去に <strong>'+uniq.slice(0,3).join('、')+'</strong> 様と同室したことがあります。';
+    banner.innerHTML += addHtml;
+    banner.style.display = 'block';
+  }catch(e){}
+}
+
+async function linkAsFamily(repCustId, rel){
+  var r = allReservations.find(function(x){ return x.id===currentEditId; });
+  if(!r) return;
+  if(!confirm((r.guest_name||'このゲスト')+'様を家族としてリンクします。\n続柄: '+(rel||'家族')+'\n\nよろしいですか？')) return;
+  try{
+    // 代表者のfamily_idを確認・設定
+    var repCust = allCustomers.find(function(c){ return c.id===repCustId; });
+    var famId = (repCust && repCust.family_id) ? repCust.family_id : repCustId;
+    if(repCust && !repCust.family_id){
+      await supa('wassa_customers?id=eq.'+repCustId, 'PATCH', {family_id: famId});
+    }
+    // guest_name を姓・名に分割
+    var nameParts = (r.guest_name||'').trim().split(/[\s\u3000]+/);
+    var sei = nameParts[0]||''; var mei = nameParts[1]||'';
+    var kana = r.guest_name_kana||'';
+    var kanaParts = kana.trim().split(/[\s\u3000]+/);
+    var seiK = kanaParts[0]||''; var meiK = kanaParts[1]||'';
+    // 新規顧客レコード作成
+    var newCust = await supa('wassa_customers', 'POST', {
+      sei:sei, mei:mei, sei_kana:seiK, mei_kana:meiK,
+      family_id:famId, rel:rel||''
+    });
+    if(!newCust || !newCust[0]) throw new Error('顧客作成失敗');
+    var newCustId = newCust[0].id;
+    // 予約にcustomer_idをリンク
+    await supa('reservations?id=eq.'+currentEditId, 'PATCH', {customer_id: newCustId});
+    toast('✅ 家族としてリンクしました');
+    await loadAll();
+    var updated = allReservations.find(function(x){ return x.id===currentEditId; });
+    if(updated) checkFamilyAndAddress(updated);
+  }catch(e){
+    toast('エラー: '+e.message);
+    console.error('linkAsFamily error:', e);
   }
 }
 
