@@ -1341,6 +1341,43 @@ async function submit(){
           body:JSON.stringify({status:'checkin'})
         });
       }
+      // グループモード：家族同室者をwassa_customersにリンク（全室分まとめて処理）
+      if(custId){
+        try{
+          var CHILD_RELS_G = ['子','息子','娘','長男','長女','次男','次女','三男','三女'];
+          // 代表者のfamily_idを取得（なければcustId自身をfamily_idに設定）
+          var gRepRow = await (await fetch(SB_URL+'/rest/v1/wassa_customers?id=eq.'+custId+'&select=family_id',{headers:HDR})).json();
+          var gFamId = (gRepRow&&gRepRow[0]&&gRepRow[0].family_id) || custId;
+          if(!gRepRow||!gRepRow[0]||!gRepRow[0].family_id){
+            await fetch(SB_URL+'/rest/v1/wassa_customers?id=eq.'+custId,{method:'PATCH',headers:HDR_PATCH,body:JSON.stringify({family_id:gFamId})});
+          }
+          // 全室の家族同室者をループ
+          for(var gfi=0; gfi<groupReservations.length; gfi++){
+            var gFamComps = (groupCompanions[groupReservations[gfi].id]||[]).filter(function(c){ return c.name && c.isFamily; });
+            for(var gfc=0; gfc<gFamComps.length; gfc++){
+              var gMember = gFamComps[gfc];
+              if(CHILD_RELS_G.indexOf(gMember.rel||'')!==-1) continue;
+              var gParts = gMember.name.trim().split(/[\s\u3000]+/);
+              var gSei = gParts[0]||''; var gMei = gParts[1]||'';
+              var gKparts = (gMember.kana||'').trim().split(/[\s\u3000]+/);
+              var gSeiK = gKparts[0]||''; var gMeiK = gKparts[1]||'';
+              var gSearchUrl = SB_URL+'/rest/v1/wassa_customers?sei=eq.'+encodeURIComponent(gSei)+'&select=id,family_id';
+              if(gMei) gSearchUrl += '&mei=eq.'+encodeURIComponent(gMei);
+              var gExisting = await (await fetch(gSearchUrl,{headers:HDR})).json();
+              if(gExisting&&gExisting[0]){
+                if(gExisting[0].family_id!==gFamId){
+                  await fetch(SB_URL+'/rest/v1/wassa_customers?id=eq.'+gExisting[0].id,{method:'PATCH',headers:HDR_PATCH,body:JSON.stringify({family_id:gFamId})});
+                }
+              } else {
+                await fetch(SB_URL+'/rest/v1/wassa_customers',{method:'POST',
+                  headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=minimal'},
+                  body:JSON.stringify({sei:gSei,mei:gMei,sei_kana:gSeiK,mei_kana:gMeiK,family_id:gFamId})
+                });
+              }
+            }
+          }
+        }catch(gfe){ console.warn('group family link error:', gfe); }
+      }
     } else if(reservationId){
       // 通常モード：単室
       var validComps = companions.filter(function(comp){return comp.name;});
