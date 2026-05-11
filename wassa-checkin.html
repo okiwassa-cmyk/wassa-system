@@ -662,7 +662,7 @@ function loadFromParams(){
   ['family1','family2','family3','family4'].forEach(function(f){
     var fname = p.get(f)||'';
     if(fname){
-      companions.push({name:fname, kana:p.get(f+'_kana')||'', isFamily:true});
+      companions.push({name:fname, kana:p.get(f+'_kana')||'', isFamily:true, rel:p.get(f+'_rel')||''});
       anyPrefill = true;
     }
   });
@@ -912,11 +912,15 @@ async function loadFamilyCandidates(){
 function renderFamilyCandidatesArea(){
   var el = document.getElementById('family-candidates-area');
   if(!el) return;
-  if(!familyCandidates.length){ el.innerHTML=''; return; }
+  // すでに同室者行にいる人は候補から除外
+  var alreadyAdded = companions.map(function(c){ return (c.name||'').replace(/[\s\u3000　]+/g,''); });
+  var visible = familyCandidates.filter(function(c){ return alreadyAdded.indexOf((c.name||'').replace(/[\s\u3000　]+/g,''))===-1; });
+  if(!visible.length){ el.innerHTML=''; return; }
   var html = '<div style="margin-bottom:10px;padding:10px 12px;background:var(--seafoam2);border-radius:8px;border:1px solid var(--seafoam)">'
     +'<div style="font-size:11px;color:var(--ocean2);margin-bottom:8px;font-weight:600">ご家族の候補</div>'
     +'<div style="display:flex;flex-wrap:wrap;gap:6px">';
-  familyCandidates.forEach(function(c,idx){
+  visible.forEach(function(c){
+    var idx = familyCandidates.indexOf(c);
     var label = c.name+(c.rel?' ('+c.rel+')':'');
     html += '<button type="button" onclick="addFamilyCandidate('+idx+',null)" style="padding:5px 12px;font-size:13px;background:white;border:1.5px solid var(--seafoam);border-radius:20px;cursor:pointer;color:var(--ocean2)">'+escHtml(label)+'</button>';
   });
