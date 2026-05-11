@@ -6574,10 +6574,10 @@ function renderResult(){
         html+=unitInput(ri,'dinChildUnit',Math.round(rr.dinChildAmt/(e.child||1)),'子供ディナー（小学生）',e.child);
       } else if(it.type==='din_inf_futon'){
         var _dfc=Math.min(e.infFuton,rr.dinInfFutonAmt?Math.round(rr.dinInfFutonAmt/(common.din_child_price||Math.round(common.din_adult*common.din_child_rate)||1)):e.infFuton);
-        html+=unitInput(ri,'dinInfFutonUnit',Math.round(rr.dinInfFutonAmt/(_dfc||1)),'幼児ディナー（布団あり）',_dfc||e.infFuton);
+        html+=unitInput(ri,'dinInfFutonUnit',Math.round(rr.dinInfFutonAmt/(_dfc||1)),'幼児ディナー',_dfc||e.infFuton);
       } else if(it.type==='din_inf_nofuton'){
         var _dnc=Math.min(e.infNoFuton,rr.dinInfNoFutonAmt?Math.round(rr.dinInfNoFutonAmt/(common.din_child_price||Math.round(common.din_adult*common.din_child_rate)||1)):e.infNoFuton);
-        html+=unitInput(ri,'dinInfNoFutonUnit',Math.round(rr.dinInfNoFutonAmt/(_dnc||1)),'幼児ディナー（布団なし）',_dnc||e.infNoFuton);
+        html+=unitInput(ri,'dinInfNoFutonUnit',Math.round(rr.dinInfNoFutonAmt/(_dnc||1)),'幼児ディナー',_dnc||e.infNoFuton);
       } else if(it.type==='din_inf_dlx'){
         var _ddc=Math.min(e.infDlx,rr.dinInfDlxAmt?Math.round(rr.dinInfDlxAmt/(common.din_child_price||Math.round(common.din_adult*common.din_child_rate)||1)):e.infDlx);
         html+=unitInput(ri,'dinInfDlxUnit',Math.round(rr.dinInfDlxAmt/(_ddc||1)),'幼児ディナー',_ddc||e.infDlx);
