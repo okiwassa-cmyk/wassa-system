@@ -9227,7 +9227,10 @@ function getFamilyCandidates(){
   // family_idリンクのある顧客（大人家族）
   if(rep.family_id){
     allCustomers.filter(function(c){ return c.family_id===rep.family_id && c.id!==rep.id; })
-      .forEach(function(c){ results.push({name:(c.sei||'')+(c.mei?' '+c.mei:''), kana:(c.sei_kana||'')+(c.mei_kana?' '+c.mei_kana:''), rel:c.rel||''}); });
+      .forEach(function(c){
+        var name=(c.sei||'')+(c.mei?' '+c.mei:'');
+        if(name) results.push({name:name, kana:(c.sei_kana||'')+(c.mei_kana?' '+c.mei_kana:''), rel:c.rel||''});
+      });
   }
   // family1~4テキストスロット（子ども等）
   [1,2,3,4].forEach(function(n){
