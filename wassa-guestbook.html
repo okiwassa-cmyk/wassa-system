@@ -2020,7 +2020,7 @@ async function sbGet(table, query=''){
       offset+=pageSize;
     }
     return all;
-  }catch(e){console.error(e);return[];}
+  }catch(e){console.error(e);throw e;} // エラーを呼び出し元に伝播（空配列で握りつぶさない）
 }
 async function _sbWithRefresh(fn){
   // JWT期限切れ時に自動再サインインして1回リトライ
@@ -2075,13 +2075,15 @@ function _fillGuestNames(rows){
   });
 }
 async function loadAll(){
-  [allReservations,allCustomers,allMenus,allQuotes,allBillingPresets]=await Promise.all([
+  const [resv,custs,menus,quotes,presets]=await Promise.all([
     sbGet('reservations','select=*&order=check_in.desc'),
     sbGet('wassa_customers','select=*'),
     sbGet('wassa_menus','select=*&order=sort_order.asc'),
     sbGet('quotes','select=*&order=created_at.desc&limit=300').catch(()=>[]),
     sbGet('wassa_billing_presets','select=*&order=sort_order.asc').catch(()=>[])
   ]);
+  // 取得成功した場合のみ上書き（エラーで空配列が返った場合は既存データを保持）
+  allReservations=resv; allCustomers=custs; allMenus=menus; allQuotes=quotes; allBillingPresets=presets;
   _fillGuestNames(allReservations);
   await loadComms();
   buildKanaIndex();
@@ -2125,9 +2127,17 @@ async function saveClosedDaySettings(){
 
 async function syncReservations(){
   const btn=document.getElementById('sync-btn');btn.classList.add('spinning');
-  await loadAll();
-  renderDashboard();renderReservations();renderCalendar();renderQuotesList();
-  btn.classList.remove('spinning');toast('同期しました');
+  try{
+    await loadAll();
+    renderDashboard();renderReservations();renderCalendar();renderQuotesList();
+    toast('同期しました');
+  }catch(e){
+    console.error('sync error:',e);
+    toast('⚠️ 同期に失敗しました。再度お試しください。');
+    // 既存データはそのまま保持（再描画しない）
+  }finally{
+    btn.classList.remove('spinning');
+  }
 }
 
 // ━━ NAV ━━
@@ -3600,7 +3610,7 @@ async function loadFoodRecords(resvId) {
       infoEl.style.display = 'none';
     }
   }
-  var rows = await sbGet('food_records', 'select=*&reservation_id=eq.'+resvId+'&order=served_date.asc,id.asc');
+  var rows = await sbGet('food_records', 'select=*&reservation_id=eq.'+resvId+'&order=served_date.asc,id.asc').catch(()=>[]);
   currentFoodRecords = rows || [];
   // 食事データゼロなら日程に合わせて自動セット
   if(currentFoodRecords.length===0){
@@ -5774,7 +5784,7 @@ async function searchFoodHistoryNew(){
   if (cat === '夕食') q += '&category=in.(夕食,ディナー)';
   else if (cat) q += '&category=eq.'+encodeURIComponent(cat);
 
-  var rows = await sbGet('food_records', q);
+  var rows = await sbGet('food_records', q).catch(()=>[]);
   if (!rows || rows.length === 0) {
     content.innerHTML = '<div class="card" style="text-align:center;padding:30px;color:var(--text3);font-size:13px">該当する食事データがありません</div>';
     return;
@@ -8655,7 +8665,7 @@ async function downloadCSV(type){
 let allComms = [];
 
 async function loadComms(){
-  allComms = await sbGet('communications','select=*&order=date.desc');
+  allComms = await sbGet('communications','select=*&order=date.desc').catch(()=>allComms||[]);
 }
 
 function renderComms(){ filterComms(); }
