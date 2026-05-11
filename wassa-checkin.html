@@ -350,6 +350,7 @@ input.error{border-color:var(--coral);background:var(--coral-lt)}
 
   <div id="companion-area" style="margin-bottom:20px">
     <label style="font-size:13px;font-weight:600;color:var(--ocean2);letter-spacing:.05em;display:block;margin-bottom:10px" id="lbl-comp">同室者のお名前（任意）</label>
+    <div id="family-candidates-area"></div>
     <div id="companion-list"></div>
     <button class="add-btn" onclick="addComp()">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -429,6 +430,7 @@ let sigHasData = false;
 // グループ対応
 let groupReservations = []; // [{id, room_type, guest_name, adults}, ...]
 let groupCompanions = {};   // {reservationId: [{name, kana, isFamily}]}
+let familyCandidates = [];
 
 // 生年月日セレクト初期化
 (function(){
@@ -874,6 +876,68 @@ function toggleCompFamily(i, checked){
   renderCompanions();
 }
 
+async function loadFamilyCandidates(){
+  familyCandidates = [];
+  var cid = customerId;
+  if(!cid && reservationId){
+    try{
+      var rd = await (await fetch(SB_URL+'/rest/v1/reservations?id=eq.'+reservationId+'&select=customer_id',{headers:HDR})).json();
+      if(rd&&rd[0]&&rd[0].customer_id) cid = rd[0].customer_id;
+    }catch(e){}
+  }
+  if(!cid){ renderFamilyCandidatesArea(); return; }
+  try{
+    var cd = await (await fetch(SB_URL+'/rest/v1/wassa_customers?id=eq.'+cid+'&select=family_id,family1,family1_kana,family1_rel,family2,family2_kana,family2_rel,family3,family3_kana,family3_rel,family4,family4_kana,family4_rel',{headers:HDR})).json();
+    if(cd&&cd[0]){
+      var rep = cd[0];
+      var famId = rep.family_id;
+      [1,2,3,4].forEach(function(n){
+        if(rep['family'+n]) familyCandidates.push({name:rep['family'+n],kana:rep['family'+n+'_kana']||'',rel:rep['family'+n+'_rel']||''});
+      });
+      if(famId){
+        var linked = await (await fetch(SB_URL+'/rest/v1/wassa_customers?family_id=eq.'+famId+'&id=neq.'+cid+'&select=sei,mei,sei_kana,mei_kana,rel',{headers:HDR})).json();
+        if(linked&&linked.length){
+          linked.forEach(function(c){
+            var name=(c.sei||'')+(c.mei?' '+c.mei:'');
+            var kana=(c.sei_kana||'')+(c.mei_kana?' '+c.mei_kana:'');
+            if(name) familyCandidates.push({name:name,kana:kana,rel:c.rel||''});
+          });
+        }
+      }
+    }
+  }catch(e){ console.warn('loadFamilyCandidates error:', e); }
+  renderFamilyCandidatesArea();
+  if(groupReservations.length>0) groupReservations.forEach(function(res){ renderGroupCompList(res.id); });
+}
+function renderFamilyCandidatesArea(){
+  var el = document.getElementById('family-candidates-area');
+  if(!el) return;
+  if(!familyCandidates.length){ el.innerHTML=''; return; }
+  var html = '<div style="margin-bottom:10px;padding:10px 12px;background:var(--seafoam2);border-radius:8px;border:1px solid var(--seafoam)">'
+    +'<div style="font-size:11px;color:var(--ocean2);margin-bottom:8px;font-weight:600">ご家族の候補</div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:6px">';
+  familyCandidates.forEach(function(c,idx){
+    var label = c.name+(c.rel?' ('+c.rel+')':'');
+    html += '<button type="button" onclick="addFamilyCandidate('+idx+',null)" style="padding:5px 12px;font-size:13px;background:white;border:1.5px solid var(--seafoam);border-radius:20px;cursor:pointer;color:var(--ocean2)">'+escHtml(label)+'</button>';
+  });
+  html += '</div></div>';
+  el.innerHTML = html;
+}
+function addFamilyCandidate(idx, resId){
+  var c = familyCandidates[idx];
+  if(!c) return;
+  var CHILD_RELS_C = ['子','息子','娘','長男','長女','次男','次女','三男','三女'];
+  var newComp = {name:c.name,kana:c.kana||'',isFamily:true,rel:c.rel||''};
+  if(resId!=null){
+    if(!groupCompanions[resId]) groupCompanions[resId]=[];
+    groupCompanions[resId].push(newComp);
+    renderGroupCompList(resId);
+  } else {
+    companions.push(newComp);
+    renderCompanions();
+  }
+}
+
 // ━━ グループ同室者UI ━━
 function roomLabel(roomType){
   var t = roomType||'';
@@ -911,8 +975,19 @@ function renderGroupCompList(resId){
   var listEl = document.getElementById('grp-comp-list-'+resId);
   if(!listEl) return;
   var comps = groupCompanions[resId]||[];
-  if(!comps.length){ listEl.innerHTML='<div style="font-size:12px;color:var(--text3);padding:4px 0 6px">（なし）</div>'; return; }
-  listEl.innerHTML = comps.map(function(comp,i){
+  var candidateHtml = '';
+  if(familyCandidates.length){
+    candidateHtml = '<div style="margin-bottom:10px;padding:8px 10px;background:var(--seafoam2);border-radius:8px;border:1px solid var(--seafoam)">'
+      +'<div style="font-size:11px;color:var(--ocean2);margin-bottom:6px;font-weight:600">ご家族の候補</div>'
+      +'<div style="display:flex;flex-wrap:wrap;gap:5px">';
+    familyCandidates.forEach(function(c,idx){
+      var label = c.name+(c.rel?' ('+c.rel+')':'');
+      candidateHtml += '<button type="button" onclick="addFamilyCandidate('+idx+','+resId+')" style="padding:4px 10px;font-size:12px;background:white;border:1.5px solid var(--seafoam);border-radius:20px;cursor:pointer;color:var(--ocean2)">'+escHtml(label)+'</button>';
+    });
+    candidateHtml += '</div></div>';
+  }
+  if(!comps.length){ listEl.innerHTML=candidateHtml+'<div style="font-size:12px;color:var(--text3);padding:4px 0 6px">（なし）</div>'; return; }
+  listEl.innerHTML = candidateHtml + comps.map(function(comp,i){
     var isFam = comp.isFamily;
     var relOpts = ['配偶者','子','親','兄弟・姉妹','その他家族'];
     var iconStyle = 'width:22px;height:22px;flex-shrink:0;border-radius:50%;border:2px solid '+(isFam?'var(--ocean2)':'var(--sand3)')+';background:'+(isFam?'var(--ocean2)':'transparent')+';display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff';
@@ -996,6 +1071,7 @@ function goNext(){
   updateUI();
   if(step===4) renderConfirm();
   if(step===3){
+    loadFamilyCandidates();
     setTimeout(function(){
       var c = document.getElementById('sig-canvas');
       var ctx2 = c.getContext('2d');
@@ -1351,10 +1427,42 @@ async function submit(){
         try{
           var CHILD_RELS_G = ['子','息子','娘','長男','長女','次男','次女','三男','三女'];
           // 代表者のfamily_idを取得（なければcustId自身をfamily_idに設定）
-          var gRepRow = await (await fetch(SB_URL+'/rest/v1/wassa_customers?id=eq.'+custId+'&select=family_id',{headers:HDR})).json();
-          var gFamId = (gRepRow&&gRepRow[0]&&gRepRow[0].family_id) || custId;
-          if(!gRepRow||!gRepRow[0]||!gRepRow[0].family_id){
+          var gRepRow = await (await fetch(SB_URL+'/rest/v1/wassa_customers?id=eq.'+custId+'&select=family_id,family1,family1_kana,family1_rel,family2,family2_kana,family2_rel,family3,family3_kana,family3_rel,family4,family4_kana,family4_rel',{headers:HDR})).json();
+          var gRepData = (gRepRow&&gRepRow[0]) ? gRepRow[0] : {};
+          var gFamId = gRepData.family_id || custId;
+          if(!gRepData.family_id){
             await fetch(SB_URL+'/rest/v1/wassa_customers?id=eq.'+custId,{method:'PATCH',headers:HDR_PATCH,body:JSON.stringify({family_id:gFamId})});
+          }
+          // 全室の家族同室者をfamily1~4スロットに保存（子供含む全員）
+          var gFamSlotsUpdate = {};
+          var gSlots = ['family1','family2','family3','family4'];
+          for(var _gfi2=0; _gfi2<groupReservations.length; _gfi2++){
+            var _gAllComps = (groupCompanions[groupReservations[_gfi2].id]||[]).filter(function(c){ return c.name && c.isFamily; });
+            for(var _gci=0; _gci<_gAllComps.length; _gci++){
+              var _gm = _gAllComps[_gci];
+              var _matched = false;
+              for(var _gsi=0; _gsi<gSlots.length; _gsi++){
+                if((gRepData[gSlots[_gsi]]||gFamSlotsUpdate[gSlots[_gsi]]||'') === _gm.name){
+                  gFamSlotsUpdate[gSlots[_gsi]] = _gm.name;
+                  gFamSlotsUpdate[gSlots[_gsi]+'_kana'] = _gm.kana || gRepData[gSlots[_gsi]+'_kana'] || '';
+                  gFamSlotsUpdate[gSlots[_gsi]+'_rel']  = _gm.rel  || gRepData[gSlots[_gsi]+'_rel']  || '';
+                  _matched = true; break;
+                }
+              }
+              if(!_matched){
+                for(var _gsi2=0; _gsi2<gSlots.length; _gsi2++){
+                  if(!gRepData[gSlots[_gsi2]] && !gFamSlotsUpdate[gSlots[_gsi2]]){
+                    gFamSlotsUpdate[gSlots[_gsi2]] = _gm.name;
+                    gFamSlotsUpdate[gSlots[_gsi2]+'_kana'] = _gm.kana || '';
+                    gFamSlotsUpdate[gSlots[_gsi2]+'_rel']  = _gm.rel  || '';
+                    break;
+                  }
+                }
+              }
+            }
+          }
+          if(Object.keys(gFamSlotsUpdate).length){
+            await fetch(SB_URL+'/rest/v1/wassa_customers?id=eq.'+custId,{method:'PATCH',headers:HDR_PATCH,body:JSON.stringify(gFamSlotsUpdate)});
           }
           // 全室の家族同室者をループ
           for(var gfi=0; gfi<groupReservations.length; gfi++){
