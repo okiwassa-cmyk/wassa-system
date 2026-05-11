@@ -1307,7 +1307,7 @@ async function submit(){
                 await fetch(SB_URL+'/rest/v1/wassa_customers',{
                   method:'POST',
                   headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=minimal'},
-                  body:JSON.stringify({sei:fSei,mei:fMei,sei_kana:fSeiK,mei_kana:fMeiK,family_id:famId,rel:fc.rel||''})
+                  body:JSON.stringify({sei:fSei,mei:fMei,sei_kana:fSeiK,mei_kana:fMeiK,family_id:famId,rel:fc.rel||'',zip:g('zip'),pref:g('pref'),city:g('city'),address:[g('pref'),g('city'),g('addr')].filter(Boolean).join(' ')})
                 });
               }
             }
@@ -1379,7 +1379,7 @@ async function submit(){
               } else {
                 await fetch(SB_URL+'/rest/v1/wassa_customers',{method:'POST',
                   headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=minimal'},
-                  body:JSON.stringify({sei:gSei,mei:gMei,sei_kana:gSeiK,mei_kana:gMeiK,family_id:gFamId,rel:gMember.rel||''})
+                  body:JSON.stringify({sei:gSei,mei:gMei,sei_kana:gSeiK,mei_kana:gMeiK,family_id:gFamId,rel:gMember.rel||'',zip:g('zip'),pref:g('pref'),city:g('city'),address:[g('pref'),g('city'),g('addr')].filter(Boolean).join(' ')})
                 });
               }
             }
