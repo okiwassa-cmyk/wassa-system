@@ -7387,6 +7387,12 @@ async function openMailPreviewModal(email, guest, quoteIds){
   document.getElementById('mp-guest').textContent = guest + ' 様';
   var urlsEl = document.getElementById('mp-urls');
   urlsEl.innerHTML = '<div style="color:var(--text2);font-size:12px">URLを取得中…</div>';
+
+  // テンプレートを先にセット（URLは後で差し込む）
+  var tpl = getEmailTemplate('quote');
+  document.getElementById('mp-subject').value = tpl.subject || '';
+  document.getElementById('mp-body').value = (tpl.body || '').replace(/\{\{guest\}\}/g, guest);
+
   openModal('mail-preview-modal');
 
   // 各IDのtokenを取得してURL一覧を表示
@@ -7414,20 +7420,27 @@ async function openMailPreviewModal(email, guest, quoteIds){
         +'<a href="'+u.url+'" target="_blank" style="color:var(--ocean2);word-break:break-all">'+u.url+'</a>'
         +'</div>';
     }).join('');
+    // 本文の {{url}} をURL一覧に置換
+    var urlText = urlLines.map(function(u){ return (urlLines.length>1?(u.room+'\n'):'')+u.url; }).join('\n\n');
+    var bodyEl = document.getElementById('mp-body');
+    bodyEl.value = bodyEl.value.replace(/\{\{url\}\}/g, urlText);
   } else {
     urlsEl.innerHTML = '<div style="color:var(--text2);font-size:12px">（URLなし　先に保存してください）</div>';
   }
+
   // 送信ボタンにデータをバインド
   document.getElementById('mp-send-btn').onclick = async function(){
     var toEmail = document.getElementById('mp-email').value.trim();
     if(!toEmail){toast('メールアドレスを入力してください');return;}
+    var customSubject = document.getElementById('mp-subject').value.trim();
+    var customBody    = document.getElementById('mp-body').value;
     closeModal('mail-preview-modal');
-    await _doSendQuoteEmail(toEmail, guest, null, quoteIds[0], urlLines);
+    await _doSendQuoteEmail(toEmail, guest, null, quoteIds[0], urlLines, customSubject, customBody);
   };
 }
 
 // メール送信共通処理（構造化データをGASに渡す）
-async function _doSendQuoteEmail(email, guest, quoteHtml, quoteId, urlLines){
+async function _doSendQuoteEmail(email, guest, quoteHtml, quoteId, urlLines, customSubject, customBody){
   toast('送信中...');
 
   // 見積もりデータ（全明細込み）をGASに渡す
@@ -7520,8 +7533,8 @@ async function _doSendQuoteEmail(email, guest, quoteHtml, quoteId, urlLines){
       quote_id: String(targetQuoteId || ''),
       quote_url: quoteViewUrl,
       quote_urls: quoteUrlsForGas,
-      mail_subject: quoteTpl.subject||'',
-      mail_body: quoteTpl.body||''
+      mail_subject: customSubject || quoteTpl.subject || '',
+      mail_body:    customBody    || quoteTpl.body    || ''
     };
     console.log('GAS送信:', JSON.stringify(gasPayload));
     try {
@@ -9496,18 +9509,26 @@ function escHtml(s){
 <!-- グループリンクモーダル -->
 <!-- メール送付プレビューモーダル -->
 <div class="modal-overlay" id="mail-preview-modal">
-  <div class="modal-sheet" style="max-width:480px">
+  <div class="modal-sheet" style="max-width:520px;max-height:92vh;overflow-y:auto">
     <div class="modal-header">
-      <div class="modal-title">📧 メール送付確認</div>
+      <div class="modal-title">📧 メール編集・送付</div>
       <button class="modal-close" onclick="closeModal('mail-preview-modal')">✕</button>
     </div>
     <div style="padding:4px 4px 12px">
       <div style="font-size:14px;font-weight:600;color:var(--ocean);margin-bottom:14px" id="mp-guest"></div>
-      <div style="margin-bottom:12px">
+      <div style="margin-bottom:10px">
         <label style="font-size:11px;color:var(--text2);letter-spacing:.08em">送付先メールアドレス</label>
         <input type="email" id="mp-email" style="width:100%;font-size:13px;margin-top:4px" placeholder="guest@example.com">
       </div>
-      <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px">見積書URL</div>
+      <div style="margin-bottom:10px">
+        <label style="font-size:11px;color:var(--text2);letter-spacing:.08em">件名</label>
+        <input type="text" id="mp-subject" style="width:100%;font-size:13px;margin-top:4px">
+      </div>
+      <div style="margin-bottom:10px">
+        <label style="font-size:11px;color:var(--text2);letter-spacing:.08em">本文</label>
+        <textarea id="mp-body" rows="10" style="width:100%;font-size:12px;font-family:inherit;line-height:1.7;margin-top:4px;resize:vertical"></textarea>
+      </div>
+      <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px">見積書URL（本文の {{url}} に挿入されます）</div>
       <div id="mp-urls" style="margin-bottom:16px"></div>
       <button id="mp-send-btn" class="btn btn-primary" style="width:100%;padding:12px;font-size:14px">送付する</button>
     </div>
