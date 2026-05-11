@@ -4705,10 +4705,15 @@ function openNewCustomerFromReservation(){
   // currentEditIdはcust-modalのsaveCustomerで null のまま → 新規作成フローへ
   // _pendingLinkResIdが残っているので保存後に自動リンク
 }
+var _savedResEditId = null; // 顧客モーダルを開く前の予約IDを退避
 function openCustomer(id, defaultTab){
   if(document.body.classList.contains('staff-mode')){ toast('スタッフモードでは顧客情報を閲覧できません'); return; }
   var c=allCustomers.find(function(x){return x.id===id;});if(!c)return;
   _custDirty=false;
+  // 予約編集中なら予約IDを退避してから顧客IDに切り替え
+  if(currentEditId && allReservations.find(function(r){ return r.id===currentEditId; })){
+    _savedResEditId = currentEditId;
+  }
   currentEditId=id;
   document.getElementById('cust-modal-title').textContent=(c.sei||'')+(c.mei?'　'+c.mei:'');
   document.getElementById('del-cust-btn').style.display='';
@@ -9322,7 +9327,11 @@ function closeModal(id){
   }
   _resDirty=false; _custDirty=false;
   _setDirtyIndicator('res-modal',false); _setDirtyIndicator('cust-modal',false);
-  if(id==='cust-modal') _pendingLinkResId=null; // 途中キャンセル時にリセット
+  if(id==='cust-modal'){
+    _pendingLinkResId=null; // 途中キャンセル時にリセット
+    // 予約編集中に顧客モーダルを開いた場合は予約IDに戻す
+    if(_savedResEditId){ currentEditId=_savedResEditId; _savedResEditId=null; }
+  }
   document.getElementById(id).classList.remove('open');document.body.style.overflow='';
 }
 document.querySelectorAll('.modal-overlay').forEach(o=>{o.addEventListener('click',e=>{if(e.target===o)closeModal(o.id);});});
