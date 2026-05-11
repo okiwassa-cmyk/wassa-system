@@ -6075,24 +6075,24 @@ function renderRoomTabs(rooms){
     var html = '<div id="room-input-'+r+'" style="display:'+display+';margin-top:12px">';
     html += '<div class="sdiv">人数</div>';
     html += '<div class="row2">';
-    html += '<div class="fr"><label>大人</label><select id="ri-'+r+'-adult" onchange="saveRoomInputState(\'+r+\')">';
+    html += '<div class="fr"><label>大人</label><select id="ri-'+r+'-adult" onchange="saveRoomInputState(\''+r+'\')">';
     [1,2,3,4].forEach(function(n){ html+='<option value="'+n+'"'+(st.adults===n?' selected':'')+'>'+n+'名</option>'; });
     html += '</select></div>';
-    html += '<div class="fr"><label>小学生</label><select id="ri-'+r+'-child" onchange="saveRoomInputState(\'+r+\')">';
+    html += '<div class="fr"><label>小学生</label><select id="ri-'+r+'-child" onchange="saveRoomInputState(\''+r+'\')">';
     [0,1,2].forEach(function(n){ html+='<option value="'+n+'"'+(st.children===n?' selected':'')+'>'+n+'名</option>'; });
     html += '</select></div>';
     html += '</div>';
     if(isSup){
       html += '<div class="row2">';
-      html += '<div class="fr"><label>幼児（布団あり）</label><select id="ri-'+r+'-inf-futon" onchange="saveRoomInputState(\'+r+\')">';
+      html += '<div class="fr"><label>幼児（布団あり）</label><select id="ri-'+r+'-inf-futon" onchange="saveRoomInputState(\''+r+'\');updateInfDinOpts(\''+r+'\')">';
       [0,1,2].forEach(function(n){ html+='<option value="'+n+'"'+(st.infFuton===n?' selected':'')+'>'+n+'名</option>'; });
       html += '</select></div>';
-      html += '<div class="fr"><label>幼児（布団なし）</label><select id="ri-'+r+'-inf-nofuton" onchange="saveRoomInputState(\'+r+\')">';
+      html += '<div class="fr"><label>幼児（布団なし）</label><select id="ri-'+r+'-inf-nofuton" onchange="saveRoomInputState(\''+r+'\');updateInfDinOpts(\''+r+'\')">';
       [0,1,2].forEach(function(n){ html+='<option value="'+n+'"'+(st.infNoFuton===n?' selected':'')+'>'+n+'名</option>'; });
       html += '</select></div>';
       html += '</div>';
     } else {
-      html += '<div class="fr"><label>幼児</label><select id="ri-'+r+'-inf-dlx" onchange="saveRoomInputState(\'+r+\')">';
+      html += '<div class="fr"><label>幼児</label><select id="ri-'+r+'-inf-dlx" onchange="saveRoomInputState(\''+r+'\');updateInfDinOpts(\''+r+'\')">';
       [0,1,2].forEach(function(n){ html+='<option value="'+n+'"'+(st.infDlx===n?' selected':'')+'>'+n+'名</option>'; });
       html += '</select></div>';
     }
@@ -6149,6 +6149,28 @@ function updateInfMealOpts(r){
   var dinWrap = document.getElementById('ri-'+r+'-inf-din-wrap');
   if(bfWrap)  bfWrap.style.display  = hasBf  ? 'flex' : 'none';
   if(dinWrap) dinWrap.style.display = hasDin ? 'flex' : 'none';
+  updateInfDinOpts(r);
+}
+
+// 幼児人数が変わったとき夕食人数セレクトのoptionを更新する
+function updateInfDinOpts(r){
+  var dinCntEl = document.getElementById('ri-'+r+'-inf-din-cnt');
+  if(!dinCntEl) return;
+  var isSup = r !== 'dx';
+  var total;
+  if(isSup){
+    var futonEl    = document.getElementById('ri-'+r+'-inf-futon');
+    var nofutonEl  = document.getElementById('ri-'+r+'-inf-nofuton');
+    total = (futonEl ? parseInt(futonEl.value)||0 : 0) + (nofutonEl ? parseInt(nofutonEl.value)||0 : 0);
+  } else {
+    var dlxEl = document.getElementById('ri-'+r+'-inf-dlx');
+    total = dlxEl ? parseInt(dlxEl.value)||0 : 0;
+  }
+  var cur = parseInt(dinCntEl.value)||0;
+  if(cur > total) cur = total;
+  var html = '';
+  for(var i=0;i<=total;i++) html += '<option value="'+i+'"'+(cur===i?' selected':'')+'>'+i+'名</option>';
+  dinCntEl.innerHTML = html;
 }
 
 function saveRoomInputState(r){
