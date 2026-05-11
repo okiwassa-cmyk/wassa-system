@@ -9133,16 +9133,27 @@ function renderCompanionRows(){
 
 function escComp(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
 
-// 代表者と同じfamily_idの顧客を取得（候補表示用）
+// 代表者の家族候補を取得（顧客レコードあり＋family1~4テキストスロット）
 function getFamilyCandidates(){
   if(!currentEditId) return [];
   var resv = allReservations.find(function(r){ return r.id===currentEditId; });
   if(!resv||!resv.customer_id) return [];
   var rep = allCustomers.find(function(c){ return c.id===resv.customer_id; });
-  if(!rep||!rep.family_id) return [];
-  return allCustomers.filter(function(c){
-    return c.family_id===rep.family_id && c.id!==rep.id;
+  if(!rep) return [];
+  var results = [];
+  // family_idリンクのある顧客（大人家族）
+  if(rep.family_id){
+    allCustomers.filter(function(c){ return c.family_id===rep.family_id && c.id!==rep.id; })
+      .forEach(function(c){ results.push({name:(c.sei||'')+(c.mei?' '+c.mei:''), kana:(c.sei_kana||'')+(c.mei_kana?' '+c.mei_kana:''), rel:c.rel||''}); });
+  }
+  // family1~4テキストスロット（子ども等）
+  [1,2,3,4].forEach(function(n){
+    var fname = rep['family'+n];
+    if(fname){
+      results.push({name:fname, kana:rep['family'+n+'_kana']||'', rel:rep['family'+n+'_rel']||''});
+    }
   });
+  return results;
 }
 
 function applyFamilyCandidate(i, name, kana){
