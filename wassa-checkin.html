@@ -900,7 +900,12 @@ async function loadFamilyCandidates(){
           linked.forEach(function(c){
             var name=(c.sei||'')+(c.mei?' '+c.mei:'');
             var kana=(c.sei_kana||'')+(c.mei_kana?' '+c.mei_kana:'');
-            if(name) familyCandidates.push({name:name,kana:kana,rel:c.rel||''});
+            if(!name) return;
+            var norm = name.replace(/[\s\u3000　]+/g,'');
+            // family1~4と重複する名前はrel情報だけ補完して追加しない
+            var existing = familyCandidates.find(function(x){ return (x.name||'').replace(/[\s\u3000　]+/g,'')=== norm; });
+            if(existing){ if(!existing.rel && c.rel) existing.rel = c.rel; }
+            else familyCandidates.push({name:name,kana:kana,rel:c.rel||''});
           });
         }
       }
