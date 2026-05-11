@@ -7526,13 +7526,14 @@ async function _doSendQuoteEmail(email, guest, quoteHtml, quoteId, urlLines, cus
       ? urlLines.map(function(u){return {room:u.room, url:u.url};})
       : (quoteViewUrl ? [{room:'', url:quoteViewUrl}] : []);
     var quoteTpl = getEmailTemplate('quote');
+    // customBodyが渡された場合、本文にURLが既に展開済みなのでGASのURL追加セクションは不要
     var gasPayload = {
       action: 'sendQuoteEmail',
       to: email,
       guest_name: guest,
       quote_id: String(targetQuoteId || ''),
       quote_url: quoteViewUrl,
-      quote_urls: quoteUrlsForGas,
+      quote_urls: customBody ? [] : quoteUrlsForGas,
       mail_subject: customSubject || quoteTpl.subject || '',
       mail_body:    customBody    || quoteTpl.body    || ''
     };
