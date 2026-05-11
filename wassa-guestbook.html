@@ -2828,6 +2828,32 @@ async function saveReservation(andClose){
     billing:collectBilling(),food_days:collectFood(),stay_record:collectRecord(),
     is_full_buyout: _currentGroupId ? true : false,
     group_id:_currentGroupId||null};
+  // ── ダブルブッキング防止チェック ──
+  // waitlist・cancelled は重複OK。それ以外はチェック。
+  var _newStatus = payload.status;
+  if(room && payload.check_in && payload.check_out && _newStatus !== 'waitlist' && _newStatus !== 'cancelled'){
+    try{
+      var _dbq = SUPA_URL+'/rest/v1/reservations'
+        +'?room_type=eq.'+encodeURIComponent(room)
+        +'&check_in=lt.'+payload.check_out
+        +'&check_out=gt.'+payload.check_in
+        +'&status=not.in.(cancelled,waitlist)'
+        +'&select=id,guest_name,check_in,check_out,status';
+      if(currentEditId) _dbq += '&id=neq.'+currentEditId;
+      var _dbRes = await fetch(_dbq,{headers:{'apikey':SUPA_KEY,'Authorization':SB_HEADERS['Authorization']}});
+      var _dbData = await _dbRes.json();
+      if(_dbData && _dbData.length > 0){
+        var _conflict = _dbData[0];
+        var _msg = '⚠ ダブルブッキングの可能性があります\n\n'
+          +room+'\n'
+          +_conflict.check_in+' 〜 '+_conflict.check_out+'\n'
+          +(_conflict.guest_name||'（名前なし）')+' 様（'+(_conflict.status||'')+'）\n\n'
+          +'このまま保存しますか？';
+        if(!confirm(_msg)) return;
+      }
+    }catch(_dbe){ console.warn('ダブルブッキングチェックエラー:',_dbe); }
+  }
+
   try{
     var savedResId = currentEditId;
     if(currentEditId){
