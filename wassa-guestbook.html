@@ -1296,7 +1296,6 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
       <button class="btn btn-secondary" onclick="closeModal('res-modal')">閉じる</button>
       <button class="btn btn-sm" id="checkin-start-btn" onclick="openCheckinSheet('ja')" style="background:var(--green);color:var(--white);display:none">📋 チェックイン開始</button>
       <button class="btn btn-sm" id="checkin-start-btn-en" onclick="(function(){var r=allReservations.find(function(x){return x.id===currentEditId;});if(r&&r.group_id)openGroupCheckinSheets('en');else openCheckinSheet('en');})()" style="background:var(--ocean2);color:var(--white);display:none">🌐 English Check-in</button>
-      <button class="btn btn-sm" id="checkin-group-btn" onclick="openGroupCheckinSheets()" style="background:var(--green);color:var(--white);display:none">📋 全室チェックイン</button>
       <button class="btn btn-sm" id="quick-checkin-btn" onclick="quickCheckin(currentEditId)" style="background:var(--ocean3);color:#fff;display:none">✅ CI済にする</button>
       <button class="btn btn-sm" id="lodger-print-btn" onclick="printLodgerCard(currentEditId)" style="background:var(--sand2);color:var(--text);display:none">🖨 宿泊台帳</button>
       <button class="btn btn-danger btn-sm" id="del-res-btn" onclick="deleteReservation()" style="margin-left:auto">削除</button>
@@ -2334,14 +2333,11 @@ function openReservation(id){
   document.getElementById('res-modal-title').textContent=(r.guest_name||'予約詳細')+_stSuffix+(r.guest_name_kana?' 　('+r.guest_name_kana+')':'');
   document.getElementById('del-res-btn').style.display='';fillResForm(r);openModal('res-modal');
   var ciBtn=document.getElementById('checkin-start-btn');var showCi=r.status!=='cancelled'&&r.status!=='checkout';
-  // グループ（貸切）の場合は「全室チェックイン」ボタン、単室は通常ボタン
-  var isGroupRes = !!(r.group_id);
-  ciBtn.style.display=(showCi&&!isGroupRes)?'':'none';
+  ciBtn.style.display=showCi?'':'none';
   ciBtn.innerHTML=r.status==='checkin'?'✅ CI済（再送信）':'📋 チェックイン開始';
-  // 英語チェックインは単室・貸切どちらでも表示
   document.getElementById('checkin-start-btn-en').style.display=showCi?'':'none';
   var grpCiBtn=document.getElementById('checkin-group-btn');
-  if(grpCiBtn) grpCiBtn.style.display=(showCi&&isGroupRes)?'':'none';
+  if(grpCiBtn) grpCiBtn.style.display='none';
   // 手動CI済ボタン：confirmed かつ check_in が今日以前のときのみ表示
   var qciBtn=document.getElementById('quick-checkin-btn');
   if(qciBtn){var _ciDate=r.check_in?new Date(r.check_in):null;var _today=new Date();_today.setHours(0,0,0,0);qciBtn.style.display=(r.status==='confirmed'&&_ciDate&&_ciDate<=_today)?'':'none';}
@@ -9107,6 +9103,19 @@ function renderCompanionRows(){
       html += '<option value="">選択してください</option>';
       relOpts.forEach(function(opt){ html += '<option value="'+opt+'"'+(c.rel===opt?' selected':'')+'>'+opt+'</option>'; });
       html += '</select></div>';
+      // 家族候補（同family_idの顧客）を表示
+      var _famCands = getFamilyCandidates();
+      if(_famCands.length){
+        html += '<div style="margin-bottom:4px"><label style="font-size:11px;color:var(--text3)">家族候補（クリックで入力）</label>';
+        html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">';
+        _famCands.forEach(function(fc){
+          var _fn=(fc.sei||'')+(fc.mei?' '+fc.mei:'');
+          var _fk=(fc.sei_kana||'')+(fc.mei_kana?' '+fc.mei_kana:'');
+          html += '<button type="button" onclick="applyFamilyCandidate('+i+',\''+_fn.replace(/'/g,'\\\'')+ '\',\''+_fk.replace(/'/g,'\\\'')+'\')" '
+            +'style="padding:4px 10px;background:var(--ocean-light);border:1px solid var(--ocean2);border-radius:20px;font-size:12px;color:var(--ocean2);cursor:pointer">'+_fn+'</button>';
+        });
+        html += '</div></div>';
+      }
     }
     if(!c.isFamily){
       html += '<div style="margin-top:4px">';
@@ -9122,6 +9131,24 @@ function renderCompanionRows(){
 }
 
 function escComp(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+
+// 代表者と同じfamily_idの顧客を取得（候補表示用）
+function getFamilyCandidates(){
+  if(!currentEditId) return [];
+  var resv = allReservations.find(function(r){ return r.id===currentEditId; });
+  if(!resv||!resv.customer_id) return [];
+  var rep = allCustomers.find(function(c){ return c.id===resv.customer_id; });
+  if(!rep||!rep.family_id) return [];
+  return allCustomers.filter(function(c){
+    return c.family_id===rep.family_id && c.id!==rep.id;
+  });
+}
+
+function applyFamilyCandidate(i, name, kana){
+  editCompanions[i].name = name;
+  editCompanions[i].kana = kana;
+  renderCompanionRows();
+}
 
 function addCompanionRow(){
   if(editCompanions.length>=4){ alert('同室者は最大4名までです'); return; }
