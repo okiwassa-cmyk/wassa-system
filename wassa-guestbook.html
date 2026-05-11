@@ -9192,9 +9192,10 @@ function renderCompanionRows(){
         html += '<div style="margin-bottom:4px"><label style="font-size:11px;color:var(--text3)">家族候補（クリックで入力）</label>';
         html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">';
         _famCands.forEach(function(fc){
-          var _fn=(fc.sei||'')+(fc.mei?' '+fc.mei:'');
-          var _fk=(fc.sei_kana||'')+(fc.mei_kana?' '+fc.mei_kana:'');
-          var _label=_fn+(fc.rel?' ('+fc.rel+')':'');
+          var _fn = fc.name || '';
+          var _fk = fc.kana || '';
+          var _label = _fn + (fc.rel ? ' ('+fc.rel+')' : '');
+          if(!_fn) return;
           html += '<button type="button" onclick="applyFamilyCandidate('+i+',\''+_fn.replace(/'/g,'\\\'')+ '\',\''+_fk.replace(/'/g,'\\\'')+'\')" '
             +'style="padding:4px 10px;background:var(--ocean-light);border:1px solid var(--ocean2);border-radius:20px;font-size:12px;color:var(--ocean2);cursor:pointer">'+_label+'</button>';
         });
