@@ -572,6 +572,8 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
     </div>
   </div>
 
+  <div id="dash-co-section" style="margin-top:16px;display:none"></div>
+
   <div class="card" style="margin-top:16px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
       <div style="font-size:13px;font-weight:700;color:var(--text2)">📊 月次サマリー</div>
@@ -1151,6 +1153,11 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
         <div id="allergy-display" style="padding:8px 12px;background:var(--coral-lt,#FFF0EE);border:1px solid #EDCCC7;border-radius:8px;font-size:13px;color:var(--coral,#c0392b)"></div>
       </div>
       <div class="fg full" style="margin-top:12px"><label>特記事項</label><textarea id="edit-notes" rows="3" style="resize:vertical;field-sizing:content;min-height:72px"></textarea></div>
+      <div class="fg full" style="margin-top:8px;display:flex;align-items:center;gap:8px">
+        <input type="checkbox" id="edit-skip-thankyou" style="margin:0;cursor:pointer">
+        <label for="edit-skip-thankyou" style="font-size:12px;color:var(--text2);cursor:pointer;margin:0">サンキューメール送信しない</label>
+        <span id="edit-thankyou-sent-badge" style="display:none;font-size:11px;color:var(--text3)">（送信済み）</span>
+      </div>
     </div>
     <div class="modal-pane" id="pane-billing">
       <!-- 保存用hidden -->
@@ -2192,10 +2199,50 @@ function renderDashboard(){
   setHtml('dash-ci-list',ciRows(ci)||emptyRow('本日のチェックインはありません'));
   setHtml('dash-stay-list',ciRows(stay)||emptyRow('現在の宿泊者はいません'));
   setEl('dash-date','');
+  // 本日チェックアウト → サンキューメール送信確認
+  var coSec=document.getElementById('dash-co-section');
+  if(coSec){
+    var coMail=co.filter(function(r){return r.email&&r.thankyou_sent==null;});
+    var coSkipped=co.filter(function(r){return r.email&&r.thankyou_sent===true;});
+    if(co.length>0){
+      var coHtml='<div class="card" style="padding:14px 16px">';
+      coHtml+='<div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:10px">📤 本日チェックアウト（サンキューメール）</div>';
+      co.forEach(function(r){
+        var roomBadge='<span class="ci-room '+roomClass(r.room_type)+'" style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;font-size:10px;font-weight:700;margin-right:6px">'+shortRoom(r.room_type)+'</span>';
+        var nameHtml='<span style="font-size:13px;font-weight:600">'+escHtml(r.guest_name||'—')+'</span>';
+        coHtml+='<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--sand2)">';
+        coHtml+='<div>'+roomBadge+nameHtml+'</div>';
+        if(!r.email){
+          coHtml+='<span style="font-size:11px;color:var(--text3)">メールなし</span>';
+        }else if(r.thankyou_sent===true){
+          coHtml+='<span style="font-size:11px;color:var(--text3)">スキップ済み</span>';
+        }else{
+          coHtml+='<button onclick="skipThankYou('+r.id+')" style="padding:5px 14px;border-radius:14px;border:1px solid var(--border);background:var(--sand);color:var(--text2);font-size:12px;cursor:pointer;font-family:inherit">送らない</button>';
+        }
+        coHtml+='</div>';
+      });
+      coHtml+='<div style="font-size:11px;color:var(--text3);margin-top:8px">※「送らない」を押さなければ翌朝自動送信されます</div>';
+      coHtml+='</div>';
+      coSec.innerHTML=coHtml;
+      coSec.style.display='';
+    }else{
+      coSec.style.display='none';
+    }
+  }
   renderDashboardChart();
 }
 function ciRows(arr){return arr.map(r=>{var buyoutBadge=r.is_full_buyout?'<span style="font-size:10px;background:var(--coral);color:white;border-radius:4px;padding:1px 5px;margin-left:4px">貸切</span>':'';var groupBadge=r.group_id?'<span style="font-size:10px;background:var(--ocean2);color:white;border-radius:4px;padding:1px 5px;margin-left:4px">G</span>':'';return`<div class="ci-row" onclick="openReservation(${r.id})"><div class="ci-room ${roomClass(r.room_type)}">${shortRoom(r.room_type)}</div><div class="ci-info"><div class="ci-name">${r.guest_name||'—'}${buyoutBadge}${groupBadge}</div><div class="ci-detail">大人${parseInt(r.adults)||0}名 ${parseInt(r.children)>0?'小学生'+(parseInt(r.children))+'名 ':''}${parseInt(r.infants)>0?'幼児'+(parseInt(r.infants))+'名 ':''}\／${r.plan_name||'プラン未設定'}</div></div><div class="ci-badges">${statusBadge(r.status)}</div></div>`;}).join('');}
 function emptyRow(msg){return`<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">${msg}</div>`;}
+async function skipThankYou(id){
+  if(!confirm('このお客様へのサンキューメールをスキップしますか？'))return;
+  try{
+    await sbPatch('reservations',id,{thankyou_sent:true});
+    var idx=allReservations.findIndex(function(r){return r.id===id;});
+    if(idx>-1)allReservations[idx].thankyou_sent=true;
+    renderDashboard();
+    toast('サンキューメールをスキップしました');
+  }catch(e){toast('エラー: '+e.message);}
+}
 
 // ━━ RESERVATIONS ━━
 function renderReservations(){filterReservations();}
@@ -2712,6 +2759,8 @@ function openGroupCheckinSheets(lang){
 
 function clearResForm(){
   ['edit-id','edit-resno1','edit-resno2','edit-planname','edit-guestname','edit-phone','edit-email','edit-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});loadCompanions('');
+  var _sty=document.getElementById('edit-skip-thankyou');if(_sty){_sty.checked=false;_sty.disabled=false;}
+  var _stb=document.getElementById('edit-thankyou-sent-badge');if(_stb)_stb.style.display='none';
   document.getElementById('edit-source').value='直予約';document.getElementById('edit-adults').value='2';
   document.getElementById('edit-children').value='0';document.getElementById('edit-infants').value='0';document.getElementById('edit-inf-meal-bed').value='0';document.getElementById('edit-inf-meal-only').value='0';document.getElementById('edit-inf-bed-only').value='0';document.getElementById('edit-inf-none').value='0';
   document.getElementById('edit-status').value='confirmed';updateTentativeBanner();document.getElementById('edit-checkin').value=dateStr(new Date());
@@ -2746,6 +2795,19 @@ function fillResForm(r){
     else allergyRow.style.display='none';
   }
   set('edit-phone',r.phone||'');updateLockPin(r.phone||'');set('edit-email',r.email||'');set('edit-notes',r.notes||'');
+  // サンキューメール不要チェックボックス
+  var skipTyCb=document.getElementById('edit-skip-thankyou');
+  var sentBadge=document.getElementById('edit-thankyou-sent-badge');
+  if(skipTyCb){
+    if(r.thankyou_sent===true){
+      // 送信済み or スキップ済み → チェックしてdisabled
+      skipTyCb.checked=true; skipTyCb.disabled=true;
+      if(sentBadge)sentBadge.style.display='';
+    }else{
+      skipTyCb.checked=false; skipTyCb.disabled=false;
+      if(sentBadge)sentBadge.style.display='none';
+    }
+  }
   // kanaが予約に未設定なら顧客マスタから補完
   // 貸切・グループ情報セット
   var buyoutEl = document.getElementById('edit-buyout');
@@ -2917,6 +2979,9 @@ async function saveReservation(andClose){
     billing:collectBilling(),food_days:collectFood(),stay_record:collectRecord(),
     is_full_buyout: _currentGroupId ? true : false,
     group_id:_currentGroupId||null};
+  // サンキューメール不要チェックボックス
+  var _skipTyCb=document.getElementById('edit-skip-thankyou');
+  if(_skipTyCb&&_skipTyCb.checked&&!_skipTyCb.disabled) payload.thankyou_sent=true;
   // ── ダブルブッキング防止チェック ──
   // waitlist・cancelled は重複OK。それ以外はチェック。
   var _newStatus = payload.status;
@@ -8397,7 +8462,7 @@ var _defaultEmailTemplates={
   quote:{subject:'【WASSA WASSA】ご宿泊の見積書をお送りします',body:'{{guest}} 様\n\nこの度はWASSA WASSAへのお問い合わせありがとうございます。\nご宿泊の見積書をお送りいたします。\n\n{{url}}\n\n有効期限内にご確認いただけますと幸いです。\nご不明な点はお気軽にお問い合わせください。\n\n---\n海と星空の小さな宿 WASSA WASSA　溝川 祐次・理佐\nTEL: 0980-50-2500  wassa@wassa-okinawa.com'},
   confirmation_summer:{subject:'【WASSA WASSA】ご予約ありがとうございます',body:'{{guest}} 様\n\n海と星空の小さな宿　WASSA WASSAの溝川です。\nこの度はご予約いただき、ありがとうございます(^o^)/\n\n当宿は3部屋だけの小さな宿で、目の前は手つかずの海、背後は山といった自然あふれる環境の中にあります。\n沖縄の中でも観光地化があまりされていない地域なので、ゆったりと過ごすのがおすすめです。\n\n車で5分ほどのところにコンビニエンスストアがありますが、\nスーパーはないので必要なものがあれば、途中の名護のイオン等に立ち寄られることをお勧めします。\n\n目の前の海では、海水浴、シュノーケルもできます。\nただ天然のビーチとなっている為、クラゲ対策用にラッシュガード等で自衛をお願いしています。\n\n有料でのレンタルにはなりますが、\nシュノーケルセット（ライフジャケット含む）・ラッシュガード・浮き輪などもございますのでお気軽にご利用下さい。\n\n周辺には自然で遊べるスポットも沢山あります。\n海遊びの他にも滝壺トレッキングやカヌーや釣りなどもできます！\n\nおすすめ周辺スポット↓\nhttps://wassa-okinawa.com/#tourism-sec\n\n宿のチェックインは１６時～です。\n当宿は（駐車場のみ利用を含む）１６時以前のアーリーチェックインはお受けできませんのでご注意下さい。\n\nチェックインの時間に変更があったり、食事・その他ご要望などあれば、お気軽にメールください。\nお会いできるのを楽しみにしています\n\n---\n海と星空の小さな宿 WASSA WASSA　溝川 祐次・理佐\nTEL: 0980-50-2500  wassa@wassa-okinawa.com'},
   confirmation_winter:{subject:'【WASSA WASSA】ご予約ありがとうございます',body:'{{guest}} 様\n\n海と星空の小さな宿　WASSA WASSAの溝川です。\nこの度はご予約いただき、ありがとうございます。\n\n当宿は3部屋だけの小さな宿で、目の前は手つかずの海、背後は山といった自然あふれる環境の中にあります。\n沖縄の中でも観光地化があまりされていない地域なので、ゆったりと過ごすのがおすすめです。\n\n車で5分ほどのところにコンビニエンスストアがありますが、\nスーパーはないので必要なものがあれば、途中の名護のイオン等に立ち寄られることをお勧めします。\n\n冬の沖縄は一番寒い時期でも日中平均気温１５度以上！\n暖かい沖縄でいっぱい楽しんでください。\n私たちの個人的なおすすめは…\n\nアクティブ派なら\n・亜熱帯の山を散策！\n　涼しい季節は山歩きに最適です！ネイチャーガイドさんをつけて、生物多様性の沖縄の山を散策するのもおすすめです。\n\n・カヌーでリバートレッキング\n\n・ホエールウォッチング（１２月下旬から４月上旬）\n　９９パーセントの確率でクジラに会えるツアーもあります。\n\n・体験フィッシング\n　色とりどりの魚が釣れます。お子様も楽しめます！\n\n・パワースポット巡り\n　北部には沖縄最古の聖地　大石林山　\n　信仰の要点　備瀬崎などがあります。\n\nのんびりしたい方には\n・やちむん（沖縄の陶芸）工房めぐり\n　冬こそ沖縄の工芸品などじっくり見てみるチャンスです。忙しくない時期だと人気工房の親方さんとも喋れたりするかも。\n\n・山カフェ・森カフェ巡り\n\n・夜には北部周辺のリゾートホテルでイルミネーションも楽しめます。\n\n・やっぱり何もしないのも贅沢です。。。\n\n周辺スポット↓\nhttp://wassa-okinawa.com/spot/index.html\n\n宿のチェックインは１６時からです。\n当宿は（駐車場のみ利用を含む）１６時以前のアーリーチェックインはお受けできませんのでご注意下さい。\n\nチェックインの時間に変更があったり、食事・その他ご要望などあれば、お気軽にメールください。\nお会いできるのを楽しみにしています\n\n---\n海と星空の小さな宿 WASSA WASSA　溝川 祐次・理佐\nTEL: 0980-50-2500  wassa@wassa-okinawa.com'},
-  thankyou:{subject:'【WASSA WASSA】ご宿泊ありがとうございました！',body:'{{guest}} 様\n\nこんにちは。WASSA WASSAの溝川です。先日はご利用いただき誠にありがとうございました。\n\nお時間がございましたら、Googleレビューをいただけると嬉しいです。\nhttps://search.google.com/local/writereview?placeid=ChIJYcSww32lTjQRU_Qef0TugLA\n\nまたのお越しをお待ちしております。\n\n---\n海と星空の小さな宿 WASSA WASSA　溝川 祐次・理佐\nTEL: 0980-50-2500  wassa@wassa-okinawa.com'}
+  thankyou:{subject:'【WASSA WASSA】ご宿泊ありがとうございました！',body:'{{guest}} 様\n\nこんにちは。WASSA WASSAの溝川です。先日はご利用いただき誠にありがとうございました。\n\nお時間がございましたら、Googleレビューをいただけると嬉しいです。\nhttps://g.page/r/CVP0Hn007oC0EBE/review\n\nまたのお越しをお待ちしております。\n\n---\n海と星空の小さな宿 WASSA WASSA　溝川 祐次・理佐\nTEL: 0980-50-2500  wassa@wassa-okinawa.com'}
 };
 async function savePins(){
   var op=String(document.getElementById('pin-owner-inp').value).replace(/\D/g,'');
