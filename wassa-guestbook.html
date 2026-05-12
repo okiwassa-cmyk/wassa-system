@@ -7159,7 +7159,8 @@ async function saveDirectReservation(){
       var rb=null;document.querySelectorAll('.nav-btn').forEach(function(b){if(b.getAttribute('onclick')&&b.getAttribute('onclick').indexOf("'reservations'")!==-1)rb=b;});
       if(rb)showSec('reservations',rb);
       toast('✅ 貸切予約を'+ests.length+'室分登録しました');
-      sendConfirmationEmail(name, document.getElementById('dr-email').value, ests[0].cin);
+      if(document.getElementById('dr-email').value&&confirm('予約確定メールを送信しますか？\n宛先: '+document.getElementById('dr-email').value))
+        sendConfirmationEmail(name, document.getElementById('dr-email').value, ests[0].cin);
       if(createdIds.length>0) setTimeout(function(){openReservation(createdIds[0]);},400);
     }catch(err){toast('エラー: '+err.message);}
     return;
@@ -7182,7 +7183,8 @@ async function saveDirectReservation(){
       }
       if(resBtn) showSec('reservations', resBtn);
       toast('✅ 予約を登録しました'+(autoCust?' （顧客ID: '+autoCust.id+'）':''));
-      sendConfirmationEmail(name, payload.email, e.cin);
+      if(payload.email&&confirm('予約確定メールを送信しますか？\n宛先: '+payload.email))
+        sendConfirmationEmail(name, payload.email, e.cin);
       var newResId = res[0].id;
       setTimeout(function(){ openReservation(newResId); }, 400);
     }
