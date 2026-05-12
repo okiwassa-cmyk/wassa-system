@@ -3227,14 +3227,15 @@ function billUpdate(i,key,val){
   billingRows[i][key]=val;
   var amtEl=document.getElementById('bill-row-amt-'+i);
   if(amtEl) amtEl.textContent='=¥'+fmt(_billingRowAmt(billingRows[i]));
-  // 食事行の単価・数量変更時に素泊まり料金を自動再計算（参考行がある場合）
+  // 食事行の単価・数量変更時に素泊まり料金を自動再計算（参考行がある場合・同日付のみ）
   var _cr=billingRows[i];
   if((_cr.cat==='朝食'||_cr.cat==='夕食')&&(key==='price'||key==='qty')){
-    var _ref=billingRows.find(function(r){return r.is_ref;});
-    var _ri=billingRows.findIndex(function(r){return !r.is_ref&&r.cat==='宿泊料金';});
+    var _crDate=_cr.date||'';
+    var _ref=billingRows.find(function(r){return r.is_ref&&(r.date||'')=== _crDate;});
+    var _ri=billingRows.findIndex(function(r){return !r.is_ref&&r.cat==='宿泊料金'&&(r.date||'')=== _crDate;});
     if(_ref&&_ri!==-1){
       var _rt=(parseFloat(_ref.price)||0)*(parseFloat(_ref.qty)||1);
-      var _mt=billingRows.reduce(function(s,r){if(r.is_ref||r.cat==='宿泊料金'||r.cat==='諸費用'||r.cat==='その他')return s;return s+(parseFloat(r.price)||0)*(parseFloat(r.qty)||1);},0);
+      var _mt=billingRows.reduce(function(s,r){if(r.is_ref||r.cat==='宿泊料金'||r.cat==='諸費用'||r.cat==='その他')return s;if((r.date||'')!==_crDate)return s;return s+(parseFloat(r.price)||0)*(parseFloat(r.qty)||1);},0);
       var _rq=parseFloat(billingRows[_ri].qty)||1;
       var _np=Math.round((_rt-_mt)/_rq);
       billingRows[_ri].price=_np;
@@ -3360,7 +3361,22 @@ function addBillingRow(){
   billingRows.push({date:lastDate,cat:'その他',item:'',qty:1,discount:0,price:0,payment:'事後決済'});
   renderBillingRows();
 }
-function removeBillingRow(i){billingRows.splice(i,1);renderBillingRows();}
+function removeBillingRow(i){
+  var removed=billingRows[i];
+  billingRows.splice(i,1);
+  // 食事行削除時に同日付の素泊まり料金を自動再計算
+  if(removed&&(removed.cat==='朝食'||removed.cat==='夕食')){
+    var _d=removed.date||'';
+    var _ref=billingRows.find(function(r){return r.is_ref&&(r.date||'')===_d;});
+    var _ri=billingRows.findIndex(function(r){return !r.is_ref&&r.cat==='宿泊料金'&&(r.date||'')===_d;});
+    if(_ref&&_ri!==-1){
+      var _rt=(parseFloat(_ref.price)||0)*(parseFloat(_ref.qty)||1);
+      var _mt=billingRows.reduce(function(s,r){if(r.is_ref||r.cat==='宿泊料金'||r.cat==='諸費用'||r.cat==='その他')return s;if((r.date||'')!==_d)return s;return s+(parseFloat(r.price)||0)*(parseFloat(r.qty)||1);},0);
+      billingRows[_ri].price=Math.round((_rt-_mt)/(parseFloat(billingRows[_ri].qty)||1));
+    }
+  }
+  renderBillingRows();
+}
 function autoGenBillingRows(){
   var r=allReservations.find(function(x){return x.id===currentEditId;});
   if(!r){toast('予約を開いてください');return;}
