@@ -1171,7 +1171,7 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
         <div id="bill-stay-info" style="font-size:11px;color:var(--text3);margin-bottom:8px"></div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <label style="font-size:11px;font-weight:600;white-space:nowrap">宿泊プラン</label>
-          <select id="bill-plan-name" onchange="billingMeta.plan_name=this.value" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;flex:1;min-width:120px">
+          <select id="bill-plan-name" onmousedown="this._v=this.value;this.value=''" onchange="billingMeta.plan_name=this.value;applyMealPlanToBilling(this.value)" onblur="if(!this.value&&this._v)this.value=this._v" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;flex:1;min-width:120px">
             <option value="">— 選択 —</option>
             <option value="素泊まり">素泊まり</option>
             <option value="朝食付き">朝食付き</option>
@@ -3574,6 +3574,48 @@ function applyBillingPreset(presetId){
   closeModal('billing-picker-modal');
 }
 function _billingRowAmt(r){return r.is_ref?0:(parseFloat(r.price)||0)*(parseFloat(r.qty)||1)-(parseFloat(r.discount)||0);}
+
+// ── 宿泊プランドロップダウンから食事行を自動展開 ──
+function applyMealPlanToBilling(planName){
+  var hasBf  = /朝食|朝夕|2食|二食|両食/i.test(planName);
+  var hasDin = /夕食|朝夕|2食|二食|両食/i.test(planName);
+  if(!hasBf && !hasDin) return;
+  // 参考行のない宿泊料金行（＝素泊まり行でもない）があるか確認
+  var targets = billingRows.filter(function(r){
+    return r.cat==='宿泊料金' && !r.is_ref && !/素泊まり/.test(r.item||'');
+  });
+  if(!targets.length) return;
+  // すでに食事行がある場合はスキップ
+  if(billingRows.some(function(r){return r.cat==='朝食'||r.cat==='夕食';})) return;
+  if(!confirm('宿泊料金行を参考行に変換して、食事行を追加しますか？')) return;
+  var newRows=[];
+  billingRows.forEach(function(r){
+    if(r.cat==='宿泊料金'&&!r.is_ref&&!/素泊まり/.test(r.item||'')){
+      var qty=parseFloat(r.qty)||1, price=parseFloat(r.price)||0, pay=r.payment||'';
+      var isAdult=/大人/.test(r.item||''), isChild=/小学生/.test(r.item||'');
+      // 食事単価
+      var dinP=isChild?Math.round((common.din_adult||7700)*(common.din_child_rate||0.65)):(common.din_adult||7700);
+      var bfP =isChild?(common.bf_child||2200):(common.bf_adult||2200);
+      var deduct=(hasDin?dinP:0)+(hasBf?bfP:0);
+      var sonoLabel=(r.item||'宿泊料金').replace('宿泊料金','素泊まり料金');
+      var personLabel=isChild?'小学生':isAdult?'大人':'';
+      // 参考行
+      newRows.push(Object.assign({},r,{is_ref:true}));
+      // 素泊まり行
+      newRows.push({cat:'宿泊料金',date:r.date,item:sonoLabel,qty:qty,discount:0,price:Math.max(0,price-deduct),payment:pay});
+      // 朝食行
+      if(hasBf) newRows.push({cat:'朝食',date:r.date,item:'朝食（'+personLabel+'）',qty:qty,discount:0,price:bfP,payment:pay});
+      // 夕食行
+      if(hasDin) newRows.push({cat:'夕食',date:r.date,item:'夕食（'+personLabel+'）',qty:qty,discount:0,price:dinP,payment:pay});
+    }else{
+      newRows.push(r);
+    }
+  });
+  billingRows=newRows;
+  renderBillingRows();
+  recalcBilling();
+}
+
 function recalcBilling(){
   var totalA=billingRows.reduce(function(s,r){return s+_billingRowAmt(r);},0);
   var coupon=billingMeta.coupon||0;
