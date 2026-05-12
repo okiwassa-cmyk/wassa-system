@@ -1977,7 +1977,7 @@ async function startApp(){
     var yr=now.getFullYear(), mo=String(now.getMonth()+1).padStart(2,'0');
     var yrSel=document.getElementById('res-year');
     if(yrSel){
-      for(var y=yr-2;y<=yr+2;y++){
+      for(var y=2014;y<=yr+2;y++){
         var op=document.createElement('option');
         op.value=String(y);op.textContent=y+'年';
         yrSel.appendChild(op);
