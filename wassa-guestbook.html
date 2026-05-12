@@ -4861,7 +4861,11 @@ function openCustomer(id, defaultTab){
   var _pref=c.pref||'', _city=c.city||'', _addr=c.address||'';
   // cityが既にprefを含む場合は重複しない
   var _cityDisp = (_city.indexOf(_pref)===0||!_pref) ? _city : _pref+_city;
-  var fullAddr=[_cityDisp,_addr].filter(Boolean).join('\n');
+  // addressが都道府県を含む場合（旧データ重複）は2行目に表示しない
+  var _addrNorm=_addr.replace(/[\s\u3000]/g,'');
+  var _prefNorm=_pref.replace(/[\s\u3000]/g,'');
+  var _showAddr=_addr&&(!_prefNorm||_addrNorm.indexOf(_prefNorm)<0);
+  var fullAddr=[_cityDisp,_showAddr?_addr:''].filter(Boolean).join('\n');
   document.getElementById('cust-city').value=fullAddr;
   document.getElementById('cust-pref').value=c.pref||'';
   document.getElementById('cust-address').value='';
