@@ -482,7 +482,7 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
 
 <nav>
   <button class="nav-btn active" onclick="showSec('dash',this)">
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>今日
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>TOP
   </button>
   <button class="nav-btn" onclick="showSec('reservations',this)">
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>予約
@@ -505,12 +505,6 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
   <button class="nav-btn owner-only" onclick="showSec('comms',this)">
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>対応履歴
   </button>
-  <button class="nav-btn" onclick="showSec('cleaning',this)">
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V7l8-4 8 4v14"/><path d="M9 21v-4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v4"/></svg>清掃
-  </button>
-  <button class="nav-btn owner-only" onclick="showSec('csv',this)">
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>CSV
-  </button>
   <button class="nav-btn owner-only" onclick="showSec('admin',this)">
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>管理
   </button>
@@ -526,6 +520,7 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
     <div style="display:flex;border-bottom:1px solid var(--sand2)">
       <button id="dash-tab-reserve" onclick="switchDashTab('reserve')" style="flex:1;padding:12px;border:none;background:var(--ocean);color:#fff;font-size:13px;font-family:inherit;cursor:pointer;font-weight:500">📅 予約カレンダー</button>
       <button id="dash-tab-rate" onclick="switchDashTab('rate')" style="flex:1;padding:12px;border:none;background:var(--sand);color:var(--text2);font-size:13px;font-family:inherit;cursor:pointer;font-weight:500">💴 料金カレンダー</button>
+      <button id="dash-tab-clean" onclick="switchDashTab('clean')" style="flex:1;padding:12px;border:none;background:var(--sand);color:var(--text2);font-size:13px;font-family:inherit;cursor:pointer;font-weight:500">🧹 清掃</button>
     </div>
     <div id="dash-pane-reserve" style="padding:16px">
       <div class="cal-nav">
@@ -537,6 +532,25 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
         <div class="cal-dow">日</div><div class="cal-dow">月</div><div class="cal-dow">火</div>
         <div class="cal-dow">水</div><div class="cal-dow">木</div><div class="cal-dow">金</div><div class="cal-dow">土</div>
       </div>
+    </div>
+    <div id="dash-pane-clean" style="padding:16px;display:none">
+      <!-- 月ナビ -->
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="changeCleanMonth(-1)">◀</button>
+        <span id="clean-month-label" style="font-size:14px;font-weight:600;color:var(--ocean);min-width:110px;text-align:center"></span>
+        <button class="btn btn-ghost btn-sm" onclick="changeCleanMonth(1)">▶</button>
+        <button class="btn btn-ghost btn-sm" onclick="cleanGoToday()">今月</button>
+        <button class="btn btn-primary btn-sm" onclick="copyCleaningMonthText()" style="margin-left:auto">📋 月コピー</button>
+      </div>
+      <!-- スタッフ登録 -->
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px;padding:8px 10px;background:var(--sand);border-radius:8px">
+        <span style="font-size:11px;color:var(--text2);font-weight:600;white-space:nowrap">担当者登録:</span>
+        <span id="clean-staff-tags" style="display:flex;gap:4px;flex-wrap:wrap"></span>
+        <input type="text" id="clean-staff-input" placeholder="名前" style="font-size:12px;padding:3px 8px;border:1px solid var(--border);border-radius:6px;width:80px;font-family:inherit" onkeydown="if(event.key==='Enter')addCleanStaff()">
+        <button class="btn btn-ghost btn-sm" onclick="addCleanStaff()">＋追加</button>
+      </div>
+      <!-- 月リスト -->
+      <div id="clean-list"></div>
     </div>
     <div id="dash-pane-rate" style="padding:16px;display:none">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
@@ -890,68 +904,6 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
 
 
 <!-- ═══ CLEANING ═══ -->
-<section class="sec" id="sec-cleaning">
-  <div class="page-title">清掃スケジュール</div>
-  <div class="card" style="padding:16px">
-    <!-- 月ナビ -->
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
-      <button class="btn btn-ghost btn-sm" onclick="changeCleanMonth(-1)">◀</button>
-      <span id="clean-month-label" style="font-size:14px;font-weight:600;color:var(--ocean);min-width:110px;text-align:center"></span>
-      <button class="btn btn-ghost btn-sm" onclick="changeCleanMonth(1)">▶</button>
-      <button class="btn btn-ghost btn-sm" onclick="cleanGoToday()">今月</button>
-      <button class="btn btn-primary btn-sm" onclick="copyCleaningMonthText()" style="margin-left:auto">📋 月コピー</button>
-    </div>
-    <!-- スタッフ登録 -->
-    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px;padding:8px 10px;background:var(--sand);border-radius:8px">
-      <span style="font-size:11px;color:var(--text2);font-weight:600;white-space:nowrap">担当者登録:</span>
-      <span id="clean-staff-tags" style="display:flex;gap:4px;flex-wrap:wrap"></span>
-      <input type="text" id="clean-staff-input" placeholder="名前" style="font-size:12px;padding:3px 8px;border:1px solid var(--border);border-radius:6px;width:80px;font-family:inherit" onkeydown="if(event.key==='Enter')addCleanStaff()">
-      <button class="btn btn-ghost btn-sm" onclick="addCleanStaff()">＋追加</button>
-    </div>
-    <!-- 月リスト -->
-    <div id="clean-list"></div>
-  </div>
-</section>
-
-<!-- ═══ CSV ═══ -->
-<section class="sec" id="sec-csv">
-  <div class="page-title">データダウンロード</div>
-
-  <!-- 自動バックアップリンク -->
-  <div class="card" style="margin-bottom:16px;padding:16px 20px;background:var(--ocean-light);border:1px solid var(--seafoam)">
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
-      <div>
-        <div style="font-size:14px;font-weight:600;color:var(--ocean2);margin-bottom:3px">☁️ 自動バックアップ（Googleスプレッドシート）</div>
-        <div style="font-size:12px;color:var(--text2);line-height:1.6">毎週月曜 7:00 に自動同期。予約・顧客・食事記録・対応履歴・見積書・設定を保存。</div>
-      </div>
-      <a href="https://docs.google.com/spreadsheets/d/1Tknk8Agv9QJRYFe1Gsm_Mn98xYGyL7BbO988mAd9BH0" target="_blank" class="btn btn-sm" style="background:var(--ocean2);color:#fff;white-space:nowrap;text-decoration:none">📊 開く</a>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-title">CSVエクスポート</div>
-    <p style="font-size:13px;color:var(--text2);margin-bottom:20px;line-height:1.7">手動でダウンロードしたい場合はこちら。ファイルはExcelで開けます。</p>
-    <div style="display:flex;flex-direction:column;gap:12px">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px;background:var(--sand);border-radius:10px">
-        <div><div style="font-size:14px;font-weight:500">予約データ</div><div style="font-size:11px;color:var(--text2);margin-top:2px">チェックイン・プラン・請求情報など</div></div>
-        <button class="btn btn-primary btn-sm" onclick="downloadCSV('reservations')">ダウンロード</button>
-      </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px;background:var(--sand);border-radius:10px">
-        <div><div style="font-size:14px;font-weight:500">顧客データ</div><div style="font-size:11px;color:var(--text2);margin-top:2px">氏名・連絡先・アレルギーなど</div></div>
-        <button class="btn btn-primary btn-sm" onclick="downloadCSV('customers')">ダウンロード</button>
-      </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px;background:var(--sand);border-radius:10px">
-        <div><div style="font-size:14px;font-weight:500">見積もりデータ</div><div style="font-size:11px;color:var(--text2);margin-top:2px">見積もり一覧</div></div>
-        <button class="btn btn-primary btn-sm" onclick="downloadCSV('quotes')">ダウンロード</button>
-      </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px;background:var(--sand);border-radius:10px;border:2px solid var(--ocean3)">
-        <div><div style="font-size:14px;font-weight:500">🍽 食事履歴データ</div><div style="font-size:11px;color:var(--text2);margin-top:2px">日付・ゲスト名・食事内容（全件）</div></div>
-        <button class="btn btn-primary btn-sm" onclick="downloadCSV('food')">ダウンロード</button>
-      </div>
-    </div>
-  </div>
-</section>
-
 <!-- ═══ スタッフ用画面 ═══ -->
 
 <!-- ═══ ADMIN ═══ -->
@@ -982,6 +934,40 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
     </div>
   </div>
   <div id="billing-preset-list2"></div>
+
+  <!-- ─── データ管理 ─── -->
+  <div style="font-size:12px;font-weight:700;color:var(--text3);letter-spacing:.08em;margin:24px 0 10px;padding:0 2px">☁️ データ管理</div>
+  <div class="card" style="margin-bottom:16px;padding:16px 20px;background:var(--ocean-light);border:1px solid var(--seafoam)">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+      <div>
+        <div style="font-size:14px;font-weight:600;color:var(--ocean2);margin-bottom:3px">自動バックアップ（Googleスプレッドシート）</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.6">毎週月曜 7:00 に自動同期。予約・顧客・食事記録・対応履歴・見積書・設定を保存。</div>
+      </div>
+      <a href="https://docs.google.com/spreadsheets/d/1Tknk8Agv9QJRYFe1Gsm_Mn98xYGyL7BbO988mAd9BH0" target="_blank" class="btn btn-sm" style="background:var(--ocean2);color:#fff;white-space:nowrap;text-decoration:none">📊 開く</a>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">CSVエクスポート</div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.7">手動でダウンロードしたい場合はこちら。ファイルはExcelで開けます。</p>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--sand);border-radius:10px">
+        <div><div style="font-size:14px;font-weight:500">予約データ</div><div style="font-size:11px;color:var(--text2);margin-top:2px">チェックイン・プラン・請求情報など</div></div>
+        <button class="btn btn-primary btn-sm" onclick="downloadCSV('reservations')">ダウンロード</button>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--sand);border-radius:10px">
+        <div><div style="font-size:14px;font-weight:500">顧客データ</div><div style="font-size:11px;color:var(--text2);margin-top:2px">氏名・連絡先・アレルギーなど</div></div>
+        <button class="btn btn-primary btn-sm" onclick="downloadCSV('customers')">ダウンロード</button>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--sand);border-radius:10px">
+        <div><div style="font-size:14px;font-weight:500">見積もりデータ</div><div style="font-size:11px;color:var(--text2);margin-top:2px">見積もり一覧</div></div>
+        <button class="btn btn-primary btn-sm" onclick="downloadCSV('quotes')">ダウンロード</button>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--sand);border-radius:10px">
+        <div><div style="font-size:14px;font-weight:500">🍽 食事履歴データ</div><div style="font-size:11px;color:var(--text2);margin-top:2px">日付・ゲスト名・食事内容（全件）</div></div>
+        <button class="btn btn-primary btn-sm" onclick="downloadCSV('food')">ダウンロード</button>
+      </div>
+    </div>
+  </div>
 </section>
 
 </main>
@@ -2198,23 +2184,26 @@ function showSec(id,btn){
 function switchDashTab(tab){
   var paneReserve = document.getElementById('dash-pane-reserve');
   var paneRate    = document.getElementById('dash-pane-rate');
+  var paneClean   = document.getElementById('dash-pane-clean');
   var tabReserve  = document.getElementById('dash-tab-reserve');
   var tabRate     = document.getElementById('dash-tab-rate');
+  var tabClean    = document.getElementById('dash-tab-clean');
+  var inact = 'var(--sand)', inactC = 'var(--text2)', act = 'var(--ocean)', actC = '#fff';
+  paneReserve.style.display = 'none';
+  paneRate.style.display    = 'none';
+  paneClean.style.display   = 'none';
+  [tabReserve, tabRate, tabClean].forEach(function(b){if(b){b.style.background=inact;b.style.color=inactC;}});
   if(tab === 'reserve'){
     paneReserve.style.display = 'block';
-    paneRate.style.display    = 'none';
-    tabReserve.style.background = 'var(--ocean)';
-    tabReserve.style.color      = '#fff';
-    tabRate.style.background    = 'var(--sand)';
-    tabRate.style.color         = 'var(--text2)';
+    tabReserve.style.background = act; tabReserve.style.color = actC;
     renderCalendar();
+  } else if(tab === 'clean'){
+    paneClean.style.display = 'block';
+    tabClean.style.background = act; tabClean.style.color = actC;
+    renderCleaningMonth();
   } else {
-    paneReserve.style.display = 'none';
-    paneRate.style.display    = 'block';
-    tabReserve.style.background = 'var(--sand)';
-    tabReserve.style.color      = 'var(--text2)';
-    tabRate.style.background    = 'var(--ocean)';
-    tabRate.style.color         = '#fff';
+    paneRate.style.display = 'block';
+    tabRate.style.background = act; tabRate.style.color = actC;
     renderRateCal();
   }
 }
@@ -3651,8 +3640,8 @@ function applyMealPlanToBilling(planName){
     return r.cat==='宿泊料金' && !r.is_ref && !/素泊まり/.test(r.item||'');
   });
   if(!targets.length) return;
-  // すでに食事行がある場合はスキップ
-  if(billingRows.some(function(r){return r.cat==='朝食'||r.cat==='夕食';})) return;
+  // すでに食事行がある場合はスキップ（ディナー=旧catも含む）
+  if(billingRows.some(function(r){return !r.is_ref&&(r.cat==='朝食'||r.cat==='夕食'||r.cat==='ディナー');})) return;
   if(!confirm('宿泊料金行を参考行に変換して、食事行を追加しますか？')) return;
   var newRows=[];
   billingRows.forEach(function(r){
