@@ -1950,6 +1950,7 @@ function saveDinCoursePresets(){/* Supabase保存に移行 - saveDinCourses()を
 let currentEditId=null, editType=null;
 let common={bf_adult:2200,bf_child:2200,bf_infant:2200,din_adult:7700,din_child_rate:0.65,din_child_price:null,din_infant:3300};
 var _pins={owner:'1234',staff:'5678'}; // Supabaseから起動時に読み込む
+var _cancelPolicy=''; // キャンセルポリシー（price_commonから読み込む）
 var _pinsReady=false; // true になるまで checkPin() は待機する
 let prices={}, ranges={super_high:[],high:[],regular:[],low:[]};
 let rateCalYear=new Date().getFullYear(), rateCalMonth=new Date().getMonth();
@@ -2127,6 +2128,8 @@ async function loadRateData(){
       if(Array.isArray(c.din_courses) && c.din_courses.length>0){
         dinCoursePresets = c.din_courses;
       }
+      // キャンセルポリシー
+      if(c.cancel_policy) _cancelPolicy=c.cancel_policy;
     }
     prices={};for(const s of SEASONS)prices[s]={sup:{},dlx:{}};
     for(const row of pm){const p=prices[row.season]?.[row.room];if(!p)continue;if(row.pax_type==='adult')p[row.pax]=row.price;else if(row.pax_type==='child')p.child=row.price;else if(row.pax_type==='infant')p.infant=row.price;else if(row.pax_type==='infant_futon')p.infant_futon=row.price;else if(row.pax_type==='infant_no_futon')p.infant_no_futon=row.price;}
@@ -7942,15 +7945,18 @@ function buildQuoteHtmlCore(guest,today,validity,rows,total,roomHeader,totalSuff
         +'</div>'
       +'</div>'
     +'</div>'
-    // ── 部屋名・プラン名（明細テーブル直上）
+    // ── 部屋名（明細テーブル直上）
     +(roomHeader||'')
-    +(planName?'<div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px;padding:4px 0;border-bottom:1px dashed var(--sand2)">'+escHtml(planName)+'</div>':'')
     // ── 明細テーブル
     +'<table class="quote-tbl"><thead><tr><th>日付</th><th>内容</th><th>金額</th></tr></thead><tbody>'+rows+'</tbody></table>'
     +(function(){var _disc=parseInt((document.getElementById('q-discount')||{}).value)||0;var _net=Math.max(0,total-_disc);return(_disc>0?'<div style="text-align:right;font-size:12px;color:var(--coral);padding:4px 16px 8px;margin-top:-8px">割引　▲'+fmtPrice(_disc)+'</div>':'')+('<div class="quote-total"><span class="label">お見積り合計金額（税込）</span><span class="amount">'+fmtPrice(_disc>0?_net:total)+'</span></div>');})()
 
     +(totalSuffix||'')
     +'<div class="quote-note"><p>・ご不明な点はお気軽にお問い合わせください。</p></div>'
+    +((_cancelPolicy)?'<div style="margin:16px 0 8px;padding:14px 16px;border:1px solid #ccc;border-radius:6px;background:#fafafa">'
+      +'<div style="font-size:11px;font-weight:700;letter-spacing:.15em;color:var(--ocean);margin-bottom:8px;text-align:center">CANCEL POLICY　キャンセルポリシー</div>'
+      +'<div style="font-size:11px;color:var(--text2);line-height:1.8;white-space:pre-wrap">'+escHtml(_cancelPolicy)+'</div>'
+      +'</div>':'')
     +'<div class="quote-footer">海と星空の小さな宿 WASSA WASSA<br>ご予約・お問い合わせ：wassa@wassa-okinawa.com</div>';
 }
 
@@ -8514,6 +8520,12 @@ function renderMgr(){
   html+='<div class="opt-row" style="margin-bottom:0"><label>スタッフPIN</label><input type="tel" inputmode="numeric" pattern="[0-9]{4}" id="pin-staff-inp" value="'+(_pins.staff||'5678')+'" maxlength="4" style="width:90px;letter-spacing:.18em;font-size:15px;text-align:center" oninput="this.value=this.value.replace(/\\D/g,\'\').slice(0,4)"></div>';
   html+='<div style="font-size:11px;color:var(--text3);margin:8px 0 14px 0">スタッフPINでログインすると：見積もり・顧客DB・CSVタブが非表示になり、予約・請求・食事・対応履歴・清掃を<strong>閲覧のみ</strong>（編集不可）で表示します</div>';
   html+='<button class="save-btn" onclick="savePins()">保存</button><span class="saved-msg" id="msg-pins">保存しました ✓</span></div>';
+  // ━━ キャンセルポリシー設定 ━━
+  html+='<div class="section-card"><div class="section-title">キャンセルポリシー（見積書に表示）</div>';
+  html+='<p style="font-size:12px;color:var(--text3);margin-bottom:8px">見積書の下部に掲載するキャンセルポリシーです。空白にすると表示されません。</p>';
+  html+='<textarea id="cancel-policy-txt" rows="5" style="width:100%;font-size:12px;padding:8px;border:1px solid var(--border);border-radius:6px;box-sizing:border-box;line-height:1.7">'+escHtml(_cancelPolicy)+'</textarea>';
+  html+='<div style="margin-top:8px"><button class="save-btn" onclick="saveCancelPolicy()">保存</button><span class="saved-msg" id="msg-cancel-policy">保存しました ✓</span></div>';
+  html+='</div>';
   // ━━ メール文章設定 ━━
   var et=getEmailTemplates();
   html+='<div class="section-card"><div class="section-title">メール文章設定</div>';
@@ -8559,6 +8571,14 @@ var _defaultEmailTemplates={
   confirmation_winter:{subject:'【WASSA WASSA】ご予約ありがとうございます',body:'{{guest}} 様\n\n海と星空の小さな宿　WASSA WASSAの溝川です。\nこの度はご予約いただき、ありがとうございます。\n\n当宿は3部屋だけの小さな宿で、目の前は手つかずの海、背後は山といった自然あふれる環境の中にあります。\n沖縄の中でも観光地化があまりされていない地域なので、ゆったりと過ごすのがおすすめです。\n\n車で5分ほどのところにコンビニエンスストアがありますが、\nスーパーはないので必要なものがあれば、途中の名護のイオン等に立ち寄られることをお勧めします。\n\n冬の沖縄は一番寒い時期でも日中平均気温１５度以上！\n暖かい沖縄でいっぱい楽しんでください。\n私たちの個人的なおすすめは…\n\nアクティブ派なら\n・亜熱帯の山を散策！\n　涼しい季節は山歩きに最適です！ネイチャーガイドさんをつけて、生物多様性の沖縄の山を散策するのもおすすめです。\n\n・カヌーでリバートレッキング\n\n・ホエールウォッチング（１２月下旬から４月上旬）\n　９９パーセントの確率でクジラに会えるツアーもあります。\n\n・体験フィッシング\n　色とりどりの魚が釣れます。お子様も楽しめます！\n\n・パワースポット巡り\n　北部には沖縄最古の聖地　大石林山　\n　信仰の要点　備瀬崎などがあります。\n\nのんびりしたい方には\n・やちむん（沖縄の陶芸）工房めぐり\n　冬こそ沖縄の工芸品などじっくり見てみるチャンスです。忙しくない時期だと人気工房の親方さんとも喋れたりするかも。\n\n・山カフェ・森カフェ巡り\n\n・夜には北部周辺のリゾートホテルでイルミネーションも楽しめます。\n\n・やっぱり何もしないのも贅沢です。。。\n\n周辺スポット↓\nhttp://wassa-okinawa.com/spot/index.html\n\n宿のチェックインは１６時からです。\n当宿は（駐車場のみ利用を含む）１６時以前のアーリーチェックインはお受けできませんのでご注意下さい。\n\nチェックインの時間に変更があったり、食事・その他ご要望などあれば、お気軽にメールください。\nお会いできるのを楽しみにしています\n\n---\n海と星空の小さな宿 WASSA WASSA　溝川 祐次・理佐\nTEL: 0980-50-2500  wassa@wassa-okinawa.com'},
   thankyou:{subject:'【WASSA WASSA】ご宿泊ありがとうございました！',body:'{{guest}} 様\n\nこんにちは。WASSA WASSAの溝川です。先日はご利用いただき誠にありがとうございました。\n\nお時間がございましたら、Googleレビューをいただけると嬉しいです。\nhttps://g.page/r/CVP0Hn007oC0EBE/review\n\nまたのお越しをお待ちしております。\n\n---\n海と星空の小さな宿 WASSA WASSA　溝川 祐次・理佐\nTEL: 0980-50-2500  wassa@wassa-okinawa.com'}
 };
+async function saveCancelPolicy(){
+  var txt=document.getElementById('cancel-policy-txt').value;
+  try{
+    await supa('price_common?id=eq.1','PATCH',{cancel_policy:txt});
+    _cancelPolicy=txt;
+    showMsg('msg-cancel-policy');
+  }catch(e){alert('保存に失敗しました: '+e.message);}
+}
 async function savePins(){
   var op=String(document.getElementById('pin-owner-inp').value).replace(/\D/g,'');
   var sp=String(document.getElementById('pin-staff-inp').value).replace(/\D/g,'');
