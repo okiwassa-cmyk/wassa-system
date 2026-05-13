@@ -5800,7 +5800,33 @@ function renderMgmtStats(year){
     +card('経路別売上',tbl(['経路','売上','比率'],srcRows,'<td colspan="2" style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700">合計</td><td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700;text-align:right">'+fmtY(srcTotal)+'</td>'))
     +card('月次売上・宿泊者数',tbl(['月','売上','泊数','大人','子供','幼児'],monthRows,'<td colspan="2" style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700">年計 '+fmtY(totalRev)+'</td><td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700;text-align:right">'+totalNights+'泊</td><td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700;text-align:right">'+paxAdult+'</td><td style="padding:6px 8px;border-top:2px solid var(--ocean);text-align:right">'+paxChild+'</td><td style="padding:6px 8px;border-top:2px solid var(--ocean);text-align:right">'+paxInfant+'</td>'))
     +(taxTotal>0?card('宿泊税年次集計',tbl(['月','徴収額'],taxRows,'<td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700">年計</td><td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700;text-align:right">'+fmtY(taxTotal)+'</td>')):'')
-    +((mealBfTotal||mealDinTotal)?card('食事数集計',tbl(['月','朝食','夕食'],mealRows,'<td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700">年計</td><td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700;text-align:right">'+mealBfTotal+'食</td><td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700;text-align:right">'+mealDinTotal+'食</td>')):'');
+    +((mealBfTotal||mealDinTotal)?card('食事数集計',tbl(['月','朝食','夕食'],mealRows,'<td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700">年計</td><td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700;text-align:right">'+mealBfTotal+'食</td><td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700;text-align:right">'+mealDinTotal+'食</td>')):'')
+    +(function(){
+      // ── OTA入金予定 ──
+      var OTA_CYCLES={
+        '楽天':function(co){var d=new Date(co.slice(0,7)+'-01');return new Date(d.getFullYear(),d.getMonth()+1,10);},
+        'じゃらん':function(co){var d=new Date(co.slice(0,7)+'-01');return new Date(d.getFullYear(),d.getMonth()+2,0);},
+        '一休':function(co){var d=new Date(co.slice(0,7)+'-01');return new Date(d.getFullYear(),d.getMonth()+2,0);},
+        'Booking.com':function(co){var d=new Date(co.slice(0,7)+'-01');return new Date(d.getFullYear(),d.getMonth()+2,1);},
+        'Agoda':function(co){var d=new Date(co);d.setDate(d.getDate()+37);return d;}
+      };
+      var otaRsvs=rsvs.filter(function(r){return OTA_CYCLES[r.source]&&r.check_out;});
+      if(!otaRsvs.length)return '';
+      // 入金予定日ごとにまとめる
+      var byPayDate={};
+      otaRsvs.forEach(function(r){
+        var pd=OTA_CYCLES[r.source](r.check_out);
+        var key=pd.toISOString().slice(0,10)+'__'+r.source;
+        if(!byPayDate[key])byPayDate[key]={payDate:pd,source:r.source,count:0,total:0};
+        byPayDate[key].count++;byPayDate[key].total+=(parseFloat(r.total_amount)||0);
+      });
+      var otaRows=Object.values(byPayDate).sort(function(a,b){return a.payDate-b.payDate;}).map(function(v){
+        return'<tr><td>'+v.payDate.toISOString().slice(0,10)+'</td><td>'+escHtml(v.source)+'</td><td style="text-align:right">'+v.count+'件</td><td style="text-align:right">'+fmtY(v.total)+'</td></tr>';
+      }).join('');
+      var otaTotal=otaRsvs.reduce(function(s,r){return s+(parseFloat(r.total_amount)||0);},0);
+      return card('OTA入金予定表',tbl(['入金予定日','OTA','件数','金額'],otaRows,'<td colspan="3" style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700">年計</td><td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700;text-align:right">'+fmtY(otaTotal)+'</td>')
+        +'<div style="font-size:11px;color:var(--text3);margin-top:6px">※ 楽天：楽天銀行利用→翌月10日 / 楽天銀行以外→当月末払い（手動確認）<br>※ Booking.com：末締め翌月1日払い　※ Agoda：CO後30日経過後に請求→約37日後を目安表示</div>');
+    })();
 }
 
 function printMgmtStats(year){
