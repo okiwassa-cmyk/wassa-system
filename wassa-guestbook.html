@@ -3139,7 +3139,7 @@ function openGmailSearch(){
   var q=[];
   if(r.guest_name) q.push(r.guest_name.replace(/\s/g,'+'));
   if(r.reservation_no) q.push(r.reservation_no);
-  var url='https://mail.google.com/mail/u/0/#search/'+encodeURIComponent(q.join(' '));
+  var url='https://mail.google.com/mail/?authuser=yoyaku@wassa-okinawa.com#search/'+q.join('+');
   window.open(url,'_blank');
 }
 async function deleteReservation(){
