@@ -908,9 +908,21 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
 <!-- ═══ CSV ═══ -->
 <section class="sec" id="sec-csv">
   <div class="page-title">データダウンロード</div>
+
+  <!-- 自動バックアップリンク -->
+  <div class="card" style="margin-bottom:16px;padding:16px 20px;background:var(--ocean-light);border:1px solid var(--seafoam)">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+      <div>
+        <div style="font-size:14px;font-weight:600;color:var(--ocean2);margin-bottom:3px">☁️ 自動バックアップ（Googleスプレッドシート）</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.6">毎週月曜 7:00 に自動同期。予約・顧客・食事記録・対応履歴・見積書・設定を保存。</div>
+      </div>
+      <a href="https://docs.google.com/spreadsheets/d/1Tknk8Agv9QJRYFe1Gsm_Mn98xYGyL7BbO988mAd9BH0" target="_blank" class="btn btn-sm" style="background:var(--ocean2);color:#fff;white-space:nowrap;text-decoration:none">📊 開く</a>
+    </div>
+  </div>
+
   <div class="card">
     <div class="card-title">CSVエクスポート</div>
-    <p style="font-size:13px;color:var(--text2);margin-bottom:20px;line-height:1.7">定期的なバックアップをお勧めします。ファイルはExcelで開けます。</p>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:20px;line-height:1.7">手動でダウンロードしたい場合はこちら。ファイルはExcelで開けます。</p>
     <div style="display:flex;flex-direction:column;gap:12px">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:16px;background:var(--sand);border-radius:10px">
         <div><div style="font-size:14px;font-weight:500">予約データ</div><div style="font-size:11px;color:var(--text2);margin-top:2px">チェックイン・プラン・請求情報など</div></div>
