@@ -7238,7 +7238,6 @@ function sendConfirmationEmail(guestName, email, checkIn){
                      .replace(/\{\{check_in\}\}/g, checkIn||'');
   fetch(GAS_URL, {
     method: 'POST',
-    mode: 'no-cors',
     headers: {'Content-Type': 'text/plain'},
     body: JSON.stringify({
       action: 'sendMail',
@@ -7246,7 +7245,16 @@ function sendConfirmationEmail(guestName, email, checkIn){
       subject: tpl.subject,
       body: body
     })
-  }).catch(function(){});
+  }).then(function(r){
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return r.json().catch(function(){return null;});
+  }).then(function(d){
+    if(!d||!d.ok) throw new Error((d&&d.error)||'GASエラー');
+    toast('✅ 予約確定メールを送信しました');
+  }).catch(function(err){
+    console.error('確認メール送信エラー:', err);
+    toast('⚠️ 確認メール送信エラー: '+err.message);
+  });
 }
 
 // 見積もりタブをデフォルト状態にリセット
@@ -7824,8 +7832,8 @@ async function _doSendQuoteEmail(email, guest, quoteHtml, quoteId, urlLines, cus
         body: JSON.stringify(gasPayload)
       });
       if(!gasRes.ok) throw new Error('HTTP ' + gasRes.status);
-      var gasData = await gasRes.json().catch(function(){return {};});
-      if(gasData.ok === false) throw new Error(gasData.error || 'GASエラー');
+      var gasData = await gasRes.json().catch(function(){return null;});
+      if(!gasData || !gasData.ok) throw new Error((gasData&&gasData.error) || 'GASエラー（レスポンス確認要）');
       toast('✅ メールを送付しました');
     } catch(fetchErr) {
       console.error('GAS fetch error:', fetchErr);
