@@ -8496,7 +8496,32 @@ function renderMgr(){
     html+='<button onclick="setRateRangeYear('+item.y+')" style="padding:5px 12px;border-radius:16px;border:1px solid '+(active?'var(--ocean)':'var(--border)')+';background:'+(active?'var(--ocean)':'transparent')+';color:'+(active?'var(--white)':'var(--text2)')+';font-size:13px;cursor:pointer;white-space:nowrap">'+item.l+'（'+item.y+'）</button>';
   });
   html+='<button onclick="copyAllRangesFromPrevYear()" style="margin-left:auto;padding:5px 14px;border-radius:16px;border:1px solid var(--border);background:var(--sand);color:var(--text2);font-size:12px;cursor:pointer;white-space:nowrap">前年からコピー</button>';
-  html+='</div>';}
+  html+='</div>';
+  // ── パターン自動生成パネル ──
+  var _agY=rateRangeYear;
+  html+='<div style="margin-bottom:16px">';
+  html+='<button onclick="var p=document.getElementById(\'auto-gen-panel\');p.style.display=p.style.display===\'none\'?\'block\':\'none\'" style="padding:5px 14px;border-radius:16px;border:1px solid var(--ocean);background:transparent;color:var(--ocean);font-size:12px;cursor:pointer">パターンから自動生成</button>';
+  html+='<div id="auto-gen-panel" style="display:none;margin-top:10px;padding:14px 16px;background:var(--sand);border-radius:8px;border:1px solid var(--sand2)">';
+  html+='<div style="font-size:12px;font-weight:700;color:var(--ocean);margin-bottom:10px">SH期間（編集可）</div>';
+  [['GW','ag-gw',_agY+'-04-27',_agY+'-05-06'],['お盆','ag-obon',_agY+'-08-10',_agY+'-08-18'],['年末年始','ag-newyear',_agY+'-12-28',(_agY+1)+'-01-05']].forEach(function(r){
+    html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">';
+    html+='<span style="font-size:12px;color:var(--text2);min-width:60px">'+r[0]+'</span>';
+    html+='<input type="date" id="'+r[1]+'-from" value="'+r[2]+'" style="font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:4px">';
+    html+='<span style="font-size:11px">〜</span>';
+    html+='<input type="date" id="'+r[1]+'-to" value="'+r[3]+'" style="font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:4px">';
+    html+='</div>';
+  });
+  html+='<div style="font-size:12px;font-weight:700;color:var(--ocean);margin:10px 0 8px">夏休み期間（H扱い）</div>';
+  html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">';
+  html+='<span style="font-size:12px;color:var(--text2);min-width:60px">夏休み</span>';
+  html+='<input type="date" id="ag-summer-from" value="'+_agY+'-07-21" style="font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:4px">';
+  html+='<span style="font-size:11px">〜</span>';
+  html+='<input type="date" id="ag-summer-to" value="'+_agY+'-08-31" style="font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:4px">';
+  html+='</div>';
+  html+='<div style="font-size:11px;color:var(--text3);margin-bottom:12px">H: 7〜8月の金・土＋夏休み期間　R: 7〜8月以外の金・土　L: 7〜8月の日〜木（夏休み期間外）　上記以外: 設定なし</div>';
+  html+='<button onclick="autoGenerateSeasons()" style="padding:7px 20px;background:var(--ocean);color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-weight:600">この設定で自動生成する</button>';
+  html+='</div></div>';
+  }
   for(const s of SEASONS){
     const sp=prices[s]?.sup||{},dp=prices[s]?.dlx||{};
     const yearStr=String(rateRangeYear);
@@ -8784,6 +8809,44 @@ function updatePrice(s,room,key,val){if(!prices[s])prices[s]={sup:{},dlx:{}};if(
 function updateRange(s,i,field,val){if(!ranges[s])ranges[s]=[];ranges[s][i][field]=val;renderRateCal();}
 function addRange(s){if(!ranges[s])ranges[s]=[];var y=String(rateRangeYear);ranges[s].push({from:y+'-01-01',to:y+'-01-31'});renderMgr();}
 function setRateRangeYear(y){rateRangeYear=y;renderMgr();}
+async function autoGenerateSeasons(){
+  var year=rateRangeYear;
+  var g=function(id){var el=document.getElementById(id);return el?el.value:'';};
+  var shPeriods=[
+    {from:g('ag-gw-from'),to:g('ag-gw-to')},
+    {from:g('ag-obon-from'),to:g('ag-obon-to')},
+    {from:g('ag-newyear-from'),to:g('ag-newyear-to')}
+  ].filter(function(p){return p.from&&p.to;});
+  var sumFrom=g('ag-summer-from'), sumTo=g('ag-summer-to');
+  if(!confirm(year+'年のシーズン設定を自動生成します。\n現在の設定は上書きされます。よろしいですか？'))return;
+  var paintMap={};
+  // 対象年の全日をループ
+  var d=new Date(year+'-01-01'), end=new Date(year+'-12-31');
+  while(d<=end){
+    var ds=d.toISOString().slice(0,10);
+    var mo=d.getMonth()+1, dow=d.getDay();
+    var isFriSat=dow===5||dow===6;
+    var isJulAug=mo===7||mo===8;
+    var inSumVac=sumFrom&&sumTo&&ds>=sumFrom&&ds<=sumTo;
+    var season=null;
+    if(isJulAug&&!isFriSat&&!inSumVac) season='low';
+    if(!isJulAug&&isFriSat) season='regular';
+    if(isJulAug&&isFriSat) season='high';
+    if(inSumVac) season='high';
+    for(var pi=0;pi<shPeriods.length;pi++){var p=shPeriods[pi];if(ds>=p.from&&ds<=p.to){season='super_high';break;}}
+    paintMap[ds]=season;
+    d.setDate(d.getDate()+1);
+  }
+  // 年末年始が翌年1月にまたがる場合
+  var nyTo=g('ag-newyear-to');
+  if(nyTo&&nyTo.startsWith(String(year+1))){
+    var d2=new Date(String(year+1)+'-01-01'), end2=new Date(nyTo);
+    while(d2<=end2){paintMap[d2.toISOString().slice(0,10)]='super_high';d2.setDate(d2.getDate()+1);}
+  }
+  _ratePaintMap=paintMap;
+  await saveRatePaint();
+  document.getElementById('auto-gen-panel').style.display='none';
+}
 function applyMonthToRange(s,i,m){
   if(!m)return;
   var y=rateRangeYear,mo=parseInt(m),ld=new Date(y,mo,0).getDate();
