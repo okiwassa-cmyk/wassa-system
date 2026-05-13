@@ -3137,10 +3137,15 @@ function openGmailSearch(){
   var r=allReservations.find(function(x){return x.id===currentEditId;});
   if(!r) return;
   var q=[];
-  if(r.guest_name) q.push(r.guest_name.replace(/\s/g,'+'));
+  if(r.guest_name) q.push(r.guest_name.replace(/[\s\u3000]+/g,'+'));
   if(r.reservation_no) q.push(r.reservation_no);
-  var url='https://mail.google.com/mail/?authuser=yoyaku@wassa-okinawa.com#search/'+q.join('+');
-  window.open(url,'_blank');
+  var query=q.join('+');
+  var isIOS=/iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if(isIOS){
+    window.location.href='googlegmail:///search?q='+query;
+  }else{
+    window.open('https://mail.google.com/mail/?authuser=yoyaku@wassa-okinawa.com#search/'+query,'_blank');
+  }
 }
 async function deleteReservation(){
   if(!confirm('この予約を削除しますか？'))return;
