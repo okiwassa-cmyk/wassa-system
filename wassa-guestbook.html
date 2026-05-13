@@ -8216,33 +8216,20 @@ function showQuotePreview(ids){
 // 一覧から印刷（IDを直接受け取る版）
 function printQuoteById(ids){
   if(!Array.isArray(ids)) ids=[ids];
-  var closeBtn='<div class="quote-actions" style="text-align:right;margin-bottom:12px">'
-    +'<button onclick="var o=document.getElementById(\'quote-print-overlay\');if(o)o.style.display=\'none\';document.body.classList.remove(\'printing-quote\');" '
-    +'style="padding:7px 18px;background:var(--ocean2);color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-family:\'Noto Sans JP\',sans-serif">✕ 閉じる</button>'
-    +'</div>';
-  var sheetsHtml=ids.map(function(id, idx){
+  var sheetsHtml=ids.map(function(id){
     var q=allQuotes.find(function(x){return x.id===parseInt(id);});
     if(!q) return '';
-    var pb = ids.length>1 && idx<ids.length-1 ? 'style="page-break-after:always"' : '';
-    return '<div class="quote-sheet" '+pb+' style="max-width:700px;margin:0 auto;padding-bottom:40px">'+buildQuoteHtmlFromData(q)+'</div>';
+    return '<div class="quote-sheet">'+buildQuoteHtmlFromData(q)+'</div>';
   }).filter(Boolean).join('');
-  var overlay=document.getElementById('quote-print-overlay');
-  if(!overlay){
-    overlay=document.createElement('div');
-    overlay.id='quote-print-overlay';
-    overlay.style.cssText='display:none;position:fixed;inset:0;background:#fff;z-index:9999;overflow:auto;padding:20px';
-    document.body.appendChild(overlay);
-  }
-  overlay.innerHTML=_quoteStyleTag()+closeBtn+sheetsHtml;
-  overlay.style.display='block';
-  document.body.classList.add('printing-quote');
-  function _cleanupPrint(){
-    overlay.style.display='none';
-    document.body.classList.remove('printing-quote');
-    window.removeEventListener('afterprint', _cleanupPrint);
-  }
-  window.addEventListener('afterprint', _cleanupPrint);
-  setTimeout(function(){ window.print(); }, 300);
+  if(!sheetsHtml){toast('印刷データがありません');return;}
+  var html='<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">'
+    +'<title>見積書 — WASSA WASSA</title>'
+    +_quoteStyleTag()
+    +'</head><body>'+sheetsHtml+'<script>window.onload=function(){window.print();window.onafterprint=function(){window.close();};};<\/script></body></html>';
+  var pw=window.open('','_blank','width=860,height=1000');
+  if(!pw){toast('ポップアップがブロックされています。ブラウザの設定でこのサイトのポップアップを許可してください。');return;}
+  pw.document.write(html);
+  pw.document.close();
 }
 // 後方互換（計算画面からの呼び出し用）
 function printQuoteFromList(){
