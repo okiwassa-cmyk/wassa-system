@@ -1305,6 +1305,7 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
       <button class="btn btn-sm" id="checkin-start-btn-en" onclick="(function(){var r=allReservations.find(function(x){return x.id===currentEditId;});if(r&&r.group_id)openGroupCheckinSheets('en');else openCheckinSheet('en');})()" style="background:var(--ocean2);color:var(--white);display:none">🌐 English Check-in</button>
       <button class="btn btn-sm" id="quick-checkin-btn" onclick="quickCheckin(currentEditId)" style="background:var(--ocean3);color:#fff;display:none">✅ CI済にする</button>
       <button class="btn btn-sm" id="lodger-print-btn" onclick="printLodgerCard(currentEditId)" style="background:var(--sand2);color:var(--text);display:none">🖨 宿泊台帳</button>
+      <button class="btn btn-sm owner-only" id="gmail-search-btn" onclick="openGmailSearch()" style="background:#fff;border:1px solid var(--border);color:var(--text2)">📧 メール検索</button>
       <button class="btn btn-danger btn-sm" id="del-res-btn" onclick="deleteReservation()" style="margin-left:auto">削除</button>
     </div>
 
@@ -3131,6 +3132,15 @@ function checkResDraft(){
     }
     toast('📋 下書きを復元しました');
   }catch(e){ console.warn('draft restore error:',e); }
+}
+function openGmailSearch(){
+  var r=allReservations.find(function(x){return x.id===currentEditId;});
+  if(!r) return;
+  var q=[];
+  if(r.guest_name) q.push(r.guest_name.replace(/\s/g,'+'));
+  if(r.reservation_no) q.push(r.reservation_no);
+  var url='https://mail.google.com/mail/u/0/#search/'+encodeURIComponent(q.join(' '));
+  window.open(url,'_blank');
 }
 async function deleteReservation(){
   if(!confirm('この予約を削除しますか？'))return;
