@@ -7719,6 +7719,7 @@ async function openMailPreviewModal(email, guest, quoteIds){
   document.getElementById('mp-send-btn').onclick = async function(){
     var toEmail = document.getElementById('mp-email').value.trim();
     if(!toEmail){toast('メールアドレスを入力してください');return;}
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(toEmail)){toast('⚠️ メールアドレスの形式が正しくありません: '+toEmail);return;}
     var customSubject = document.getElementById('mp-subject').value.trim();
     var customBody    = document.getElementById('mp-body').value;
     closeModal('mail-preview-modal');
