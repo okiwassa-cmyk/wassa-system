@@ -3142,7 +3142,10 @@ function openGmailSearch(){
   var query=q.join('+');
   var isIOS=/iPhone|iPad|iPod/i.test(navigator.userAgent);
   if(isIOS){
-    window.location.href='googlegmail:///search?q='+query;
+    var searchWord=q.join(' ');
+    navigator.clipboard.writeText(searchWord).catch(function(){});
+    toast('「'+searchWord+'」をコピーしました。Gmailの検索欄に貼り付けてください');
+    setTimeout(function(){window.location.href='googlegmail://';},800);
   }else{
     window.open('https://mail.google.com/mail/?authuser=yoyaku@wassa-okinawa.com#search/'+query,'_blank');
   }
