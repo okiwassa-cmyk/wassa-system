@@ -7228,9 +7228,22 @@ async function saveDirectReservation(){
   } catch(err){toast('エラー: '+err.message);}
 }
 
+// ━━ メールアドレス検証ヘルパー ━━
+function _validEmail(e){
+  return e&&/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e.trim());
+}
+function _emailWarning(e){
+  if(!e) return '';
+  if(/(?:gmail|yahoo|icloud|hotmail|outlook)\.co$/i.test(e.trim()))
+    return 'メールアドレスが「.co」で終わっています。「.com」の打ち間違いではないか確認してください。\nこのまま送信しますか？';
+  return '';
+}
+
 // ━━ 予約確定メール自動送信 ━━
 function sendConfirmationEmail(guestName, email, checkIn){
   if(!email) return; // メールアドレスがなければスキップ
+  if(!_validEmail(email)){toast('メールアドレスの形式が正しくありません: '+email);return;}
+  var _w=_emailWarning(email); if(_w&&!confirm(_w)) return;
   // チェックイン月で夏冬判定（4〜10月=夏、11〜3月=冬）
   var month = checkIn ? parseInt((checkIn+'').slice(5,7)) : new Date().getMonth()+1;
   var season = (month >= 4 && month <= 10) ? 'summer' : 'winter';
@@ -7664,6 +7677,8 @@ async function sendQuoteEmailFromList(quoteId, allIds){
   if(!q){toast('見積もりが見つかりません');return;}
   const email = document.getElementById('qd-email')?.value || q.email || '';
   if(!email){toast('メールアドレスを入力してください');return;}
+  if(!_validEmail(email)){toast('メールアドレスの形式が正しくありません: '+email);return;}
+  var _w=_emailWarning(email); if(_w&&!confirm(_w)) return;
   // 貸切グループの全IDを使う（allIdsが渡された場合）
   var ids = (allIds && allIds.length > 0) ? allIds : [quoteId];
   openMailPreviewModal(email, q.guest_name||'お客様', ids);
