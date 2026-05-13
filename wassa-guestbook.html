@@ -8226,15 +8226,15 @@ function printQuoteById(ids){
     +'<title>見積書 — WASSA WASSA</title>'
     +_quoteStyleTag()
     +'</head><body>'+sheetsHtml+'</body></html>';
-  var pw=window.open('','_blank','width=860,height=1000');
-  if(!pw){toast('ポップアップがブロックされています。ブラウザの設定でこのサイトのポップアップを許可してください。');return;}
-  pw.document.write(html);
-  pw.document.close();
-  pw.focus();
-  setTimeout(function(){
-    try{ pw.print(); }catch(e){}
-    pw.addEventListener('afterprint',function(){ pw.close(); });
-  }, 800);
+  var blob=new Blob([html],{type:'text/html'});
+  var url=URL.createObjectURL(blob);
+  var pw=window.open(url,'_blank');
+  if(!pw){URL.revokeObjectURL(url);toast('ポップアップがブロックされています。ブラウザの設定でこのサイトのポップアップを許可してください。');return;}
+  pw.addEventListener('load',function(){
+    pw.focus();
+    pw.print();
+    pw.addEventListener('afterprint',function(){ pw.close(); URL.revokeObjectURL(url); });
+  });
 }
 // 後方互換（計算画面からの呼び出し用）
 function printQuoteFromList(){
