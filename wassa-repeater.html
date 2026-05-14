@@ -193,7 +193,6 @@
       position:relative;
     }
     .hero-sub{font-size:13px;opacity:0.8;letter-spacing:0.04em;position:relative}
-    .hero-ojisan{position:absolute;right:12px;bottom:0;height:150px;opacity:0.22;pointer-events:none;filter:brightness(10) saturate(0)}
 
     section.content-sec{max-width:700px;margin:0 auto;padding:36px 16px}
 
@@ -400,23 +399,10 @@
   </header>
 
   <div class="hero">
-    <img class="hero-ojisan" src="イラスト/icon_ojisan.png" alt="">
-    <div class="hero-badge">Repeat Guest</div>
+<div class="hero-badge">Repeat Guest</div>
     <div class="hero-title">リピーター専用ページ</div>
     <div class="hero-sub">いつもありがとうございます。またのお越しをお待ちしております。</div>
   </div>
-
-  <!-- 空室確認リンク -->
-  <section class="content-sec">
-    <a href="wassa-availability.html" class="avail-link">
-      <div class="avail-link-icon"><img src="イラスト/icon_mongara.png" alt=""></div>
-      <div>
-        <div class="avail-link-title">空室カレンダー</div>
-        <div class="avail-link-sub">部屋別の空室状況を確認する</div>
-      </div>
-      <div class="avail-link-arrow">›</div>
-    </a>
-  </section>
 
   <!-- 予約フォーム -->
   <section class="content-sec" style="padding-top:0">
@@ -429,24 +415,18 @@
         <label class="form-label">お名前<span class="req">*</span></label>
         <input class="form-input" id="f-name" type="text" placeholder="山田 花子" autocomplete="name">
       </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">電話番号<span class="req">*</span></label>
-          <input class="form-input" id="f-phone" type="tel" placeholder="090-0000-0000" autocomplete="tel">
-        </div>
-        <div class="form-group">
-          <label class="form-label">メールアドレス</label>
-          <input class="form-input" id="f-email" type="email" placeholder="example@mail.com" autocomplete="email">
-        </div>
+      <div class="form-group">
+        <label class="form-label">電話番号<span class="req">*</span></label>
+        <input class="form-input" id="f-phone" type="tel" placeholder="090-0000-0000" autocomplete="tel">
       </div>
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">チェックイン<span class="req">*</span></label>
-          <input class="form-input" id="f-cin" type="date">
+          <input class="form-input" id="f-cin" type="date" style="-webkit-appearance:none;appearance:none">
         </div>
         <div class="form-group">
           <label class="form-label">チェックアウト<span class="req">*</span></label>
-          <input class="form-input" id="f-cout" type="date">
+          <input class="form-input" id="f-cout" type="date" style="-webkit-appearance:none;appearance:none">
         </div>
       </div>
       <div class="form-row">
@@ -478,7 +458,7 @@
           <label class="form-label">お食事プラン<span class="req">*</span></label>
           <div class="form-select-wrap">
             <select class="form-select" id="f-meal" onchange="updateEstimate()">
-              <option value="both">朝夕食付き</option>
+              <option value="both" selected>朝夕食付き</option>
               <option value="din">夕食付き</option>
               <option value="bf">朝食付き</option>
               <option value="none">素泊まり</option>
@@ -497,7 +477,7 @@
       </div>
 
       <!-- 料金見積もり -->
-      <div id="estimate-wrap" style="display:none;margin-bottom:20px">
+      <div id="estimate-wrap" style="margin-bottom:20px">
         <div class="estimate-card">
           <div class="estimate-title">料金見積もり（税込）</div>
           <div id="estimate-rows"></div>
@@ -751,7 +731,6 @@ async function initMain() {
 async function submitBooking() {
   const name    = document.getElementById('f-name').value.trim();
   const phone   = document.getElementById('f-phone').value.trim();
-  const email   = document.getElementById('f-email').value.trim();
   const cin     = document.getElementById('f-cin').value;
   const cout    = document.getElementById('f-cout').value;
   const adults  = parseInt(document.getElementById('f-adults').value) || 2;
@@ -776,7 +755,7 @@ async function submitBooking() {
     const body = {
       customer_name: name,
       phone:         phone,
-      email:         email || null,
+      email:         null,
       check_in:      cin,
       check_out:     cout,
       adults:        adults,
