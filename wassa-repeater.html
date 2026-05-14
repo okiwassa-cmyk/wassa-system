@@ -1089,7 +1089,7 @@ async function submitBooking() {
       })
     }).catch(() => {});
   } catch(e) {
-    errEl.textContent = '送信に失敗しました。お手数ですがお電話にてご連絡ください。';
+    errEl.textContent = '送信に失敗しました。お手数ですがLINEにてご連絡ください。';
     btn.disabled = false;
     btn.textContent = '予約リクエストを送る';
   }
