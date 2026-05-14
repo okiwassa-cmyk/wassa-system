@@ -936,10 +936,46 @@ async function submitBooking() {
     });
 
     if (!r.ok) throw new Error('送信に失敗しました (HTTP ' + r.status + ')');
+    const newRsv = await r.json().catch(()=>null);
+    const newRsvId = newRsv && newRsv[0] && newRsv[0].id;
 
     document.getElementById('booking-form-wrap').style.display = 'none';
     document.getElementById('success-msg').style.display = 'block';
     document.getElementById('success-msg').scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    // 既存顧客マッチング（電話番号で照合）
+    let customerInfo = '（顧客照合できませんでした）';
+    try {
+      const phoneNorm = phone.replace(/[\-\s]/g, '');
+      // mobile または tel で検索
+      const [mRes, tRes] = await Promise.all([
+        fetch(`${SB_URL}/rest/v1/wassa_customers?mobile=eq.${encodeURIComponent(phone)}&select=id,sei,mei&limit=1`, { headers: SB_H }),
+        fetch(`${SB_URL}/rest/v1/wassa_customers?tel=eq.${encodeURIComponent(phone)}&select=id,sei,mei&limit=1`, { headers: SB_H })
+      ]);
+      const mData = await mRes.json();
+      const tData = await tRes.json();
+      const cust = (mData && mData[0]) || (tData && tData[0]);
+      if (cust) {
+        // 過去の確定済み予約数を取得
+        const histRes = await fetch(
+          `${SB_URL}/rest/v1/reservations?customer_id=eq.${cust.id}&status=not.in.(cancelled,tentative)&select=id`,
+          { headers: SB_H }
+        );
+        const hist = await histRes.json();
+        const count = Array.isArray(hist) ? hist.length : 0;
+        customerInfo = `✅ 既存顧客: ${cust.sei||''} ${cust.mei||''}様（過去 ${count} 回のご宿泊）`;
+        // 予約にcustomer_idを紐付け
+        if (newRsvId) {
+          fetch(`${SB_URL}/rest/v1/reservations?id=eq.${newRsvId}`, {
+            method: 'PATCH',
+            headers: { ...SB_H, Prefer: 'return=minimal' },
+            body: JSON.stringify({ customer_id: cust.id })
+          }).catch(() => {});
+        }
+      } else {
+        customerInfo = '⚠️ 顧客マスタに一致なし（新規の可能性あり）';
+      }
+    } catch(e) {}
 
     // スタッフ通知メール（fire-and-forget）
     const mealLabel = {both:'朝夕食付き', din:'夕食付き', bf:'朝食付き', none:'素泊まり'};
@@ -967,6 +1003,8 @@ async function submitBooking() {
       'お部屋　　: ' + roomLabel,
       '料金見積もり: ' + estTotal,
       notes ? '\nご要望:\n' + notes : '',
+      '',
+      '顧客照合: ' + customerInfo,
       '',
       '管理画面で内容を確認し、お客様へご連絡ください。',
     ].filter(l => l !== '').join('\n');
