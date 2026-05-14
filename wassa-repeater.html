@@ -455,9 +455,9 @@
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">幼児（布団あり）</label>
+          <label class="form-label">幼児（食事・布団あり）</label>
           <div class="form-select-wrap">
-            <select class="form-select" id="f-inf-bed">
+            <select class="form-select" id="f-inf-meal-bed">
               <option value="0" selected>0名</option>
               <option value="1">1名</option>
               <option value="2">2名</option>
@@ -466,7 +466,31 @@
           </div>
         </div>
         <div class="form-group">
-          <label class="form-label">幼児（布団なし）</label>
+          <label class="form-label">幼児（食事あり・布団なし）</label>
+          <div class="form-select-wrap">
+            <select class="form-select" id="f-inf-meal-only">
+              <option value="0" selected>0名</option>
+              <option value="1">1名</option>
+              <option value="2">2名</option>
+              <option value="3">3名</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">幼児（布団あり・食事なし）</label>
+          <div class="form-select-wrap">
+            <select class="form-select" id="f-inf-bed-only">
+              <option value="0" selected>0名</option>
+              <option value="1">1名</option>
+              <option value="2">2名</option>
+              <option value="3">3名</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">幼児（布団・食事なし）</label>
           <div class="form-select-wrap">
             <select class="form-select" id="f-inf-none">
               <option value="0" selected>0名</option>
@@ -783,7 +807,9 @@ async function submitBooking() {
       check_out:     cout,
       adults:        adults,
       children:      children,
-      inf_bed_only:  parseInt(document.getElementById('f-inf-bed').value)||0,
+      inf_meal_bed:  parseInt(document.getElementById('f-inf-meal-bed').value)||0,
+      inf_meal_only: parseInt(document.getElementById('f-inf-meal-only').value)||0,
+      inf_bed_only:  parseInt(document.getElementById('f-inf-bed-only').value)||0,
       inf_none:      parseInt(document.getElementById('f-inf-none').value)||0,
       meal:          meal,
       notes:         '【リピーターページより】' + (notes ? '\n' + notes : ''),
