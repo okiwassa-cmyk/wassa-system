@@ -453,9 +453,9 @@
           </div>
         </div>
       </div>
-      <div class="form-row">
+      <div class="form-row" id="inf-meal-row">
         <div class="form-group">
-          <label class="form-label">幼児（食事・布団あり）</label>
+          <label class="form-label" id="lbl-inf-meal-bed">幼児（食事・布団あり）</label>
           <div class="form-select-wrap">
             <select class="form-select" id="f-inf-meal-bed">
               <option value="0" selected>0名</option>
@@ -477,9 +477,9 @@
           </div>
         </div>
       </div>
-      <div class="form-row">
+      <div class="form-row" id="inf-noml-row">
         <div class="form-group">
-          <label class="form-label">幼児（布団あり・食事なし）</label>
+          <label class="form-label" id="lbl-inf-bed-only">幼児（布団あり・食事なし）</label>
           <div class="form-select-wrap">
             <select class="form-select" id="f-inf-bed-only">
               <option value="0" selected>0名</option>
@@ -490,7 +490,7 @@
           </div>
         </div>
         <div class="form-group">
-          <label class="form-label">幼児（布団・食事なし）</label>
+          <label class="form-label" id="lbl-inf-none">幼児（布団・食事なし）</label>
           <div class="form-select-wrap">
             <select class="form-select" id="f-inf-none">
               <option value="0" selected>0名</option>
@@ -505,7 +505,7 @@
         <div class="form-group">
           <label class="form-label">お食事プラン<span class="req">*</span></label>
           <div class="form-select-wrap">
-            <select class="form-select" id="f-meal" onchange="updateEstimate()">
+            <select class="form-select" id="f-meal" onchange="updateInfantFields();updateEstimate();">
               <option value="both" selected>朝夕食付き</option>
               <option value="din">夕食付き</option>
               <option value="bf">朝食付き</option>
@@ -661,6 +661,22 @@ function getRoomRate(season, room, adults) {
   return sorted.length ? sorted[0].price : 0;
 }
 
+function updateInfantFields() {
+  const meal = document.getElementById('f-meal').value;
+  const hasFood = meal !== 'none';
+  const mealRow = document.getElementById('inf-meal-row');
+  const nomlRow = document.getElementById('inf-noml-row');
+  mealRow.style.display = hasFood ? '' : 'none';
+  // 食事なし行のラベル切り替え
+  document.getElementById('lbl-inf-bed-only').textContent = hasFood ? '幼児（布団あり・食事なし）' : '幼児（布団あり）';
+  document.getElementById('lbl-inf-none').textContent     = hasFood ? '幼児（布団・食事なし）'    : '幼児（布団なし）';
+  // 素泊まり時は食事あり幼児をリセット
+  if (!hasFood) {
+    document.getElementById('f-inf-meal-bed').value  = '0';
+    document.getElementById('f-inf-meal-only').value = '0';
+  }
+}
+
 function updateEstimate() {
   if (!_priceData) return;
   const cin     = document.getElementById('f-cin').value;
@@ -772,6 +788,7 @@ async function initMain() {
   document.getElementById('f-cout').addEventListener('change', updateEstimate);
   document.getElementById('f-adults').addEventListener('change', updateEstimate);
   document.getElementById('f-children').addEventListener('change', updateEstimate);
+  updateInfantFields();
 }
 
 // ── 予約送信 ──
