@@ -431,6 +431,28 @@
       </div>
       <div class="form-row">
         <div class="form-group">
+          <label class="form-label">お食事プラン<span class="req">*</span></label>
+          <div class="form-select-wrap">
+            <select class="form-select" id="f-meal" onchange="updateInfantFields();updateEstimate();">
+              <option value="both" selected>朝夕食付き</option>
+              <option value="din">夕食付き</option>
+              <option value="bf">朝食付き</option>
+              <option value="none">素泊まり</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">お部屋タイプ<span class="req">*</span></label>
+          <div class="form-select-wrap">
+            <select class="form-select" id="f-room" onchange="updateEstimate()">
+              <option value="sup">スーペリアツイン</option>
+              <option value="dlx">デラックス</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
           <label class="form-label">大人<span class="req">*</span></label>
           <div class="form-select-wrap">
             <select class="form-select" id="f-adults">
@@ -497,28 +519,6 @@
               <option value="1">1名</option>
               <option value="2">2名</option>
               <option value="3">3名</option>
-            </select>
-          </div>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">お食事プラン<span class="req">*</span></label>
-          <div class="form-select-wrap">
-            <select class="form-select" id="f-meal" onchange="updateInfantFields();updateEstimate();">
-              <option value="both" selected>朝夕食付き</option>
-              <option value="din">夕食付き</option>
-              <option value="bf">朝食付き</option>
-              <option value="none">素泊まり</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">お部屋タイプ<span class="req">*</span></label>
-          <div class="form-select-wrap">
-            <select class="form-select" id="f-room" onchange="updateEstimate()">
-              <option value="sup">スーペリアツイン</option>
-              <option value="dlx">デラックス</option>
             </select>
           </div>
         </div>
