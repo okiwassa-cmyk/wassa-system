@@ -670,6 +670,12 @@ function getRoomRate(season, room, adults) {
   return sorted.length ? sorted[0].price : 0;
 }
 
+function getChildRoomRate(season, room) {
+  if (!_priceData || !_priceData.master.length) return 0;
+  const row = _priceData.master.find(r => r.season === season && r.room === room && r.pax_type === 'child');
+  return row ? row.price : 0;
+}
+
 async function refreshClosedDays() {
   try {
     const r = await fetch(`${SB_URL}/rest/v1/price_common?id=eq.1&select=closed_weekdays,open_exceptions,closed_exceptions`, { headers: SB_H });
@@ -740,14 +746,15 @@ function updateEstimate() {
   let d = new Date(cin + 'T00:00:00');
   const end = new Date(cout + 'T00:00:00');
   while (d < end) {
-    const ds     = d.toISOString().slice(0, 10);
-    const season = getSeasonForDate(ds);
-    const rate   = getRoomRate(season, room, adults);
-    nights.push({ ds, season, rate });
+    const ds        = d.toISOString().slice(0, 10);
+    const season    = getSeasonForDate(ds);
+    const rate      = getRoomRate(season, room, adults);
+    const childRate = getChildRoomRate(season, room);
+    nights.push({ ds, season, rate, childRate });
     d.setDate(d.getDate() + 1);
   }
 
-  const roomTotal = nights.reduce((s, n) => s + n.rate * adults, 0);
+  const roomTotal = nights.reduce((s, n) => s + n.rate * adults + n.childRate * children, 0);
 
   let mealTotal = 0;
   const hasBf  = meal === 'bf'   || meal === 'both';
@@ -755,33 +762,43 @@ function updateEstimate() {
   if (hasBf)  mealTotal += _priceData.bf     * (adults + children) * nights.length;
   if (hasBf  && infMeal > 0) mealTotal += _priceData.bf_inf  * infMeal * nights.length;
   if (hasDin) mealTotal += _priceData.din    * adults * nights.length;
-  if (hasDin && children > 0) mealTotal += Math.round(_priceData.din * 0.65) * children * nights.length;
+  if (hasDin && children > 0) mealTotal += _priceData.din_inf * children * nights.length;
   if (hasDin && infMeal > 0)  mealTotal += _priceData.din_inf * infMeal * nights.length;
 
   const total = roomTotal + mealTotal;
 
   // 行を生成
   let rows = '';
-  // 同シーズンをまとめる
+  // 同シーズン・同レートをまとめる
   const grouped = [];
   nights.forEach(n => {
     const last = grouped[grouped.length - 1];
-    if (last && last.season === n.season && last.rate === n.rate) {
+    if (last && last.season === n.season && last.rate === n.rate && last.childRate === n.childRate) {
       last.count++;
     } else {
-      grouped.push({ season: n.season, rate: n.rate, count: 1 });
+      grouped.push({ season: n.season, rate: n.rate, childRate: n.childRate, count: 1 });
     }
   });
 
   grouped.forEach(g => {
-    const sub = g.rate * adults * g.count;
+    const subA = g.rate * adults * g.count;
     rows += `<div class="estimate-row">
       <span class="estimate-row-label">
-        室料 ${g.count}泊 × 大人${adults}名
+        大人室料 ${g.count}泊 × ${adults}名
         <span class="estimate-row-season">${SEASON_LABEL[g.season] || g.season}</span>
       </span>
-      <span class="estimate-row-price">¥${fmt(sub)}</span>
+      <span class="estimate-row-price">¥${fmt(subA)}</span>
     </div>`;
+    if (children > 0 && g.childRate > 0) {
+      const subC = g.childRate * children * g.count;
+      rows += `<div class="estimate-row">
+        <span class="estimate-row-label">
+          小学生室料 ${g.count}泊 × ${children}名
+          <span class="estimate-row-season">${SEASON_LABEL[g.season] || g.season}</span>
+        </span>
+        <span class="estimate-row-price">¥${fmt(subC)}</span>
+      </div>`;
+    }
   });
 
   if (hasBf) {
@@ -798,9 +815,9 @@ function updateEstimate() {
       <span class="estimate-row-price">¥${fmt(subA)}</span>
     </div>`;
     if (children > 0) {
-      const subC = Math.round(_priceData.din * 0.65) * children * nights.length;
+      const subC = _priceData.din_inf * children * nights.length;
       rows += `<div class="estimate-row">
-        <span class="estimate-row-label">夕食 ${nights.length}泊 × お子様${children}名（65%）</span>
+        <span class="estimate-row-label">夕食 ${nights.length}泊 × お子様${children}名</span>
         <span class="estimate-row-price">¥${fmt(subC)}</span>
       </div>`;
     }
