@@ -3446,7 +3446,7 @@ function autoGenBillingRows(){
     var couponEl=document.getElementById('bill-coupon'); if(couponEl) couponEl.value=billingMeta.coupon||0;
     var pointsEl=document.getElementById('bill-points'); if(pointsEl) pointsEl.value=billingMeta.points||0;
     renderBillingRows();
-    toast('予約取り込み時の明細を復元しました。');
+    toast(r.source==='直予約'?'お客様にご提示した料金を復元しました。':'予約取り込み時の明細を復元しました。');
     return;
   }
 

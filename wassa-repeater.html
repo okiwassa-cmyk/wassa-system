@@ -874,6 +874,38 @@ async function initMain() {
   checkCapacity();
 }
 
+// ── お客様提示見積もりと同じ billing 行を生成 ──
+function buildBillingRows(cin, cout, adults, children, meal, room, infMeal) {
+  if (!_priceData) return [];
+  const pay = '現地精算';
+  const hasBf  = meal === 'bf'  || meal === 'both';
+  const hasDin = meal === 'din' || meal === 'both';
+  const rows = [];
+  let d = new Date(cin + 'T00:00:00');
+  const end = new Date(cout + 'T00:00:00');
+  while (d < end) {
+    const ds        = d.toISOString().slice(0, 10);
+    const season    = getSeasonForDate(ds);
+    const rate      = getRoomRate(season, room, adults);
+    const childRate = getChildRoomRate(season, room);
+    if (hasBf) {
+      rows.push({cat:'宿泊料金', date:ds, item:'大人（朝食付き）', qty:adults, discount:0, price:rate + _priceData.bf, payment:pay});
+      if (children > 0) rows.push({cat:'宿泊料金', date:ds, item:'小学生（朝食付き）', qty:children, discount:0, price:childRate + _priceData.bf, payment:pay});
+      if (infMeal > 0) rows.push({cat:'宿泊料金', date:ds, item:'幼児（朝食付き）', qty:infMeal, discount:0, price:_priceData.bf_inf, payment:pay});
+    } else {
+      rows.push({cat:'宿泊料金', date:ds, item:'大人宿泊', qty:adults, discount:0, price:rate, payment:pay});
+      if (children > 0 && childRate > 0) rows.push({cat:'宿泊料金', date:ds, item:'小学生宿泊', qty:children, discount:0, price:childRate, payment:pay});
+    }
+    if (hasDin) {
+      rows.push({cat:'夕食', date:ds, item:'夕食（大人）', qty:adults, discount:0, price:_priceData.din, payment:pay});
+      if (children > 0) rows.push({cat:'夕食', date:ds, item:'夕食（お子様）', qty:children, discount:0, price:_priceData.din_inf, payment:pay});
+      if (infMeal > 0) rows.push({cat:'夕食', date:ds, item:'夕食（幼児）', qty:infMeal, discount:0, price:_priceData.din_inf, payment:pay});
+    }
+    d.setDate(d.getDate() + 1);
+  }
+  return rows;
+}
+
 // ── 予約送信 ──
 async function submitBooking() {
   const name    = document.getElementById('f-name').value.trim();
@@ -927,6 +959,10 @@ async function submitBooking() {
   btn.textContent = '送信中...';
 
   try {
+    const infMealBed  = parseInt(document.getElementById('f-inf-meal-bed').value)||0;
+    const infMealOnly = parseInt(document.getElementById('f-inf-meal-only').value)||0;
+    const infMeal     = infMealBed + infMealOnly;
+    const billingRows = buildBillingRows(cin, cout, adults, children, meal, roomKey, infMeal);
     const body = {
       customer_name: name,
       phone:         phone,
@@ -935,8 +971,8 @@ async function submitBooking() {
       check_out:     cout,
       adults:        adults,
       children:      children,
-      inf_meal_bed:  parseInt(document.getElementById('f-inf-meal-bed').value)||0,
-      inf_meal_only: parseInt(document.getElementById('f-inf-meal-only').value)||0,
+      inf_meal_bed:  infMealBed,
+      inf_meal_only: infMealOnly,
       inf_bed_only:  parseInt(document.getElementById('f-inf-bed-only').value)||0,
       inf_none:      parseInt(document.getElementById('f-inf-none').value)||0,
       meal:          meal,
@@ -946,6 +982,7 @@ async function submitBooking() {
       room_type:     roomKey === 'dlx' ? 'デラックス' : 'スーペリアツイン02',
       payment:       '現地精算',
       plan_name:     { none:'素泊まりプラン', bf:'朝食付きプラン', din:'夕食付きプラン', both:'2食付きプラン' }[meal] || '',
+      billing:       billingRows,
     };
 
     const r = await fetch(`${SB_URL}/rest/v1/reservations`, {
