@@ -921,10 +921,12 @@ async function initMain() {
     updateEstimate();
   });
   document.getElementById('f-cout').addEventListener('change', updateEstimate);
-  document.getElementById('f-adults').addEventListener('change', checkCapacity);
-  document.getElementById('f-children').addEventListener('change', checkCapacity);
-  document.getElementById('f-inf-meal-bed').addEventListener('change', checkCapacity);
-  document.getElementById('f-inf-meal-only').addEventListener('change', updateEstimate);
+  ['f-adults','f-children','f-meal','f-room'].forEach(id => {
+    document.getElementById(id).addEventListener('change', () => { checkCapacity(); updateEstimate(); });
+  });
+  ['f-inf-meal-bed','f-inf-meal-only','f-inf-bed-only','f-inf-none'].forEach(id => {
+    document.getElementById(id).addEventListener('change', () => { checkCapacity(); updateEstimate(); });
+  });
   updateInfantFields();
   checkCapacity();
   updateEstimate();
