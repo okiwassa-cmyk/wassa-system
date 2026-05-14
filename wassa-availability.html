@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>空室カレンダー | WASSA WASSA</title>
+  <title>空室確認 | WASSA WASSA</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
@@ -32,294 +32,130 @@
       color:var(--text);
       line-height:1.7;
       -webkit-font-smoothing:antialiased;
+      min-height:100vh;
     }
 
-    /* ── Header ── */
     header{
       background:#fff;
       border-bottom:1px solid var(--border);
-      padding:28px 24px 22px;
+      padding:24px 24px 18px;
       text-align:center;
-      position:sticky;
-      top:0;
-      z-index:100;
       box-shadow:0 1px 12px rgba(0,0,0,0.04);
     }
-    .hdr-logo{
-      height:44px;
-      object-fit:contain;
-      display:block;
-      margin:0 auto 10px;
-    }
-    .hdr-name{
-      font-family:'Cormorant Garamond',serif;
-      font-size:24px;
-      font-weight:400;
-      letter-spacing:0.22em;
-      color:var(--ocean2);
-    }
-    .hdr-sub{
-      font-size:10px;
-      color:var(--text3);
-      letter-spacing:0.14em;
-      margin-top:3px;
-      text-transform:uppercase;
-    }
+    .hdr-logo{height:40px;object-fit:contain;display:block;margin:0 auto 10px}
+    .hdr-name{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;letter-spacing:0.22em;color:var(--ocean2)}
+    .hdr-sub{font-size:10px;color:var(--text3);letter-spacing:0.14em;margin-top:3px;text-transform:uppercase}
 
-    /* ── Hero ── */
     .hero{
       background:linear-gradient(160deg, var(--ocean2) 0%, #2a8a9a 100%);
-      color:#fff;
-      text-align:center;
-      padding:52px 20px 44px;
-      position:relative;
-      overflow:hidden;
+      color:#fff;text-align:center;padding:44px 20px 38px;position:relative;overflow:hidden;
     }
     .hero::before{
-      content:'';
-      position:absolute;
-      inset:0;
+      content:'';position:absolute;inset:0;
       background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-      opacity:0.5;
     }
-    .hero-title{
-      font-family:'Cormorant Garamond',serif;
-      font-size:30px;
-      font-weight:400;
-      letter-spacing:0.1em;
-      margin-bottom:8px;
-      position:relative;
-    }
-    .hero-sub{
-      font-size:13px;
-      opacity:0.8;
-      letter-spacing:0.06em;
-      position:relative;
-    }
+    .hero-title{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:400;letter-spacing:0.1em;margin-bottom:6px;position:relative}
+    .hero-sub{font-size:13px;opacity:0.8;letter-spacing:0.04em;position:relative}
 
-    /* ── Main ── */
-    main{max-width:700px;margin:0 auto;padding:36px 16px 80px}
+    main{max-width:560px;margin:0 auto;padding:36px 16px 80px}
 
-    /* ── Legend ── */
-    .legend{
-      display:flex;
-      gap:16px;
-      justify-content:center;
-      margin-bottom:32px;
-      flex-wrap:wrap;
+    /* ── Form card ── */
+    .form-card{
+      background:#fff;border-radius:20px;padding:28px 24px;
+      box-shadow:0 2px 18px rgba(26,107,122,0.07);margin-bottom:20px;
     }
-    .leg-item{
-      display:flex;
-      align-items:center;
-      gap:7px;
-      font-size:12px;
-      color:var(--text2);
+    .form-card-title{
+      font-family:'Cormorant Garamond',serif;font-size:19px;font-weight:500;
+      color:var(--ocean2);margin-bottom:20px;letter-spacing:0.04em;
     }
-    .leg-dot{
-      width:30px;height:30px;border-radius:50%;
-      display:flex;align-items:center;justify-content:center;
-      font-size:13px;font-weight:700;flex-shrink:0;
+    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    @media(max-width:400px){.form-row{grid-template-columns:1fr}}
+    .form-group{margin-bottom:16px}
+    .form-label{display:block;font-size:12px;font-weight:500;color:var(--text2);letter-spacing:0.04em;margin-bottom:7px}
+    .form-input{
+      width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:10px;
+      font-size:15px;font-family:inherit;color:var(--text);background:#fff;outline:none;
+      transition:border-color .2s,box-shadow .2s;
     }
-    .dot-avail{background:var(--green-lt);color:var(--green)}
-    .dot-full {background:var(--rose-lt); color:var(--rose) }
+    .form-input:focus{border-color:var(--ocean);box-shadow:0 0 0 3px rgba(26,107,122,0.1)}
+    .check-btn{
+      width:100%;padding:15px;background:var(--ocean);color:#fff;border:none;
+      border-radius:12px;font-size:14px;font-family:inherit;font-weight:500;
+      letter-spacing:0.08em;cursor:pointer;transition:background .2s,transform .15s;margin-top:4px;
+    }
+    .check-btn:hover{background:var(--ocean2);transform:translateY(-1px)}
+    .check-btn:active{transform:none}
+    .check-btn:disabled{background:var(--text3);cursor:not-allowed;transform:none}
 
-    /* ── Room section ── */
-    .room-section{margin-bottom:40px}
-    .room-header{
-      display:flex;
-      align-items:center;
-      gap:12px;
-      margin-bottom:16px;
-      padding:14px 18px;
-      background:#fff;
-      border-radius:14px;
-      box-shadow:0 2px 12px rgba(26,107,122,0.06);
-      border-left:4px solid var(--ocean);
+    /* ── Result ── */
+    #result{display:none}
+    .result-card{
+      background:#fff;border-radius:20px;padding:24px;
+      box-shadow:0 2px 18px rgba(26,107,122,0.07);margin-bottom:16px;
     }
+    .result-period{
+      font-size:13px;color:var(--text3);text-align:center;margin-bottom:20px;
+    }
+    .result-period strong{color:var(--text);font-weight:500}
+    .room-row{
+      display:flex;align-items:center;gap:14px;
+      padding:16px 0;border-bottom:1px solid var(--border);
+    }
+    .room-row:last-child{border-bottom:none;padding-bottom:0}
+    .room-row:first-child{padding-top:0}
     .room-badge{
-      background:var(--ocean);
-      color:#fff;
-      font-size:11px;
-      font-weight:700;
-      letter-spacing:0.06em;
-      padding:4px 10px;
-      border-radius:8px;
-      white-space:nowrap;
+      background:var(--ocean);color:#fff;font-size:11px;font-weight:700;
+      letter-spacing:0.06em;padding:5px 11px;border-radius:8px;white-space:nowrap;flex-shrink:0;
     }
-    .room-name{
-      font-family:'Cormorant Garamond',serif;
-      font-size:18px;
-      font-weight:500;
-      color:var(--ocean2);
-      letter-spacing:0.04em;
+    .room-name{font-size:14px;font-weight:500;color:var(--text);flex:1}
+    .room-status{
+      font-size:22px;font-weight:700;letter-spacing:0.02em;white-space:nowrap;
     }
-
-    /* ── Month card ── */
-    .month-card{
-      background:#fff;
-      border-radius:20px;
-      padding:24px 20px 20px;
-      margin-bottom:16px;
-      box-shadow:0 2px 18px rgba(26,107,122,0.07);
-    }
-    .month-title{
-      font-family:'Cormorant Garamond',serif;
-      font-size:20px;
-      font-weight:500;
-      color:var(--ocean2);
-      text-align:center;
-      margin-bottom:18px;
-      letter-spacing:0.06em;
-    }
-    .cal-grid{
-      display:grid;
-      grid-template-columns:repeat(7,1fr);
-      gap:4px;
-    }
-    .dow{
-      text-align:center;
-      font-size:10px;
-      font-weight:500;
-      color:var(--text3);
-      padding-bottom:10px;
-      letter-spacing:0.04em;
-    }
-    .dow-sun{color:#d97070}
-    .dow-sat{color:#7090d9}
-    .day-cell{
-      aspect-ratio:1;
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      justify-content:center;
-      border-radius:50%;
-    }
-    .d-num {font-size:13px;line-height:1}
-    .d-st  {font-size:9px;font-weight:700;margin-top:3px;line-height:1}
-    .c-avail{background:var(--green-lt)}
-    .c-avail .d-num,.c-avail .d-st{color:var(--green)}
-    .c-one  {background:var(--amber-lt)}
-    .c-one .d-num,.c-one .d-st  {color:var(--amber)}
-    .c-full {background:var(--rose-lt)}
-    .c-full .d-num,.c-full .d-st{color:var(--rose)}
-    .c-past .d-num{color:#ccc}
-    .is-sun .d-num{color:#d97070}
-    .is-sat .d-num{color:#7090d9}
-    .c-avail .d-num,.c-one .d-num,.c-full .d-num{color:inherit}
+    .status-avail{color:var(--green)}
+    .status-one  {color:var(--amber)}
+    .status-full {color:var(--rose)}
+    .room-detail{font-size:11px;margin-top:2px}
+    .detail-avail{color:var(--green)}
+    .detail-one  {color:var(--amber)}
+    .detail-full {color:var(--rose)}
 
     /* ── Divider ── */
-    .divider{
-      display:flex;
-      align-items:center;
-      gap:14px;
-      margin:44px 0 32px;
-    }
-    .divider::before,.divider::after{
-      content:'';flex:1;height:1px;background:var(--border);
-    }
-    .divider span{
-      font-family:'Cormorant Garamond',serif;
-      font-size:14px;
-      color:var(--text3);
-      letter-spacing:0.1em;
-      white-space:nowrap;
-    }
+    .divider{display:flex;align-items:center;gap:14px;margin:32px 0 24px}
+    .divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
+    .divider span{font-family:'Cormorant Garamond',serif;font-size:13px;color:var(--text3);letter-spacing:0.1em;white-space:nowrap}
 
-    /* ── CTA cards ── */
-    .cta-grid{
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:16px;
-    }
-    @media(max-width:480px){.cta-grid{grid-template-columns:1fr}}
+    /* ── CTA ── */
+    .cta-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    @media(max-width:400px){.cta-grid{grid-template-columns:1fr}}
     .cta-card{
-      background:#fff;
-      border-radius:20px;
-      padding:30px 20px 24px;
-      text-align:center;
-      box-shadow:0 2px 18px rgba(26,107,122,0.07);
-      text-decoration:none;
-      color:inherit;
-      display:block;
-      border:2px solid transparent;
-      transition:transform .22s, box-shadow .22s, border-color .22s;
+      background:#fff;border-radius:18px;padding:24px 18px;text-align:center;
+      box-shadow:0 2px 18px rgba(26,107,122,0.07);text-decoration:none;color:inherit;
+      display:block;border:2px solid transparent;transition:transform .2s,box-shadow .2s,border-color .2s;
     }
-    .cta-card:hover{
-      transform:translateY(-4px);
-      box-shadow:0 10px 28px rgba(26,107,122,0.13);
-    }
+    .cta-card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(26,107,122,0.13)}
     .cta-card.accent{border-color:var(--ocean)}
-    .cta-icon {font-size:34px;margin-bottom:12px}
-    .cta-label{
-      font-size:10px;
-      color:var(--text3);
-      letter-spacing:0.14em;
-      text-transform:uppercase;
-      margin-bottom:6px;
-    }
-    .cta-title{
-      font-family:'Cormorant Garamond',serif;
-      font-size:20px;
-      font-weight:500;
-      color:var(--ocean2);
-      margin-bottom:10px;
-      letter-spacing:0.03em;
-    }
-    .cta-desc{font-size:12px;color:var(--text2);line-height:1.8}
-    .cta-btn{
-      display:inline-block;
-      margin-top:18px;
-      padding:10px 24px;
-      border-radius:24px;
-      font-size:12px;
-      font-weight:500;
-      letter-spacing:0.06em;
-      transition:opacity .18s;
-    }
+    .cta-icon{font-size:30px;margin-bottom:10px}
+    .cta-label{font-size:10px;color:var(--text3);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:5px}
+    .cta-title{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:500;color:var(--ocean2);margin-bottom:8px}
+    .cta-desc{font-size:11px;color:var(--text2);line-height:1.7}
+    .cta-btn{display:inline-block;margin-top:14px;padding:9px 20px;border-radius:22px;font-size:12px;font-weight:500;letter-spacing:0.04em;transition:opacity .18s}
     .cta-btn:hover{opacity:.85}
     .btn-fill{background:var(--ocean);color:#fff}
-    .btn-out {border:1.5px solid var(--ocean);color:var(--ocean)}
+    .btn-out{border:1.5px solid var(--ocean);color:var(--ocean)}
 
-    /* ── Notice ── */
     .notice{
-      background:var(--ocean-lt);
-      border-radius:14px;
-      padding:16px 20px;
-      font-size:12px;
-      color:var(--ocean2);
-      line-height:1.8;
-      margin-top:20px;
+      background:var(--ocean-lt);border-radius:12px;padding:14px 18px;
+      font-size:12px;color:var(--ocean2);line-height:1.8;margin-top:16px;
       border-left:3px solid var(--ocean);
     }
 
-    /* ── Footer ── */
-    footer{
-      text-align:center;
-      padding:36px 16px 48px;
-      font-size:12px;
-      color:var(--text3);
-      line-height:2.2;
-      border-top:1px solid var(--border);
-    }
+    footer{text-align:center;padding:32px 16px 48px;font-size:12px;color:var(--text3);line-height:2.2;border-top:1px solid var(--border)}
     footer a{color:var(--ocean);text-decoration:none}
 
-    .loading{
-      text-align:center;
-      padding:60px 20px;
-      color:var(--text3);
-      font-size:13px;
-    }
-    .spin{
-      display:inline-block;
-      width:20px;height:20px;
-      border:2px solid var(--border);
-      border-top-color:var(--ocean);
-      border-radius:50%;
-      animation:spin .8s linear infinite;
-      margin-bottom:10px;
-      vertical-align:middle;
-    }
+    .spin{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,0.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
     @keyframes spin{to{transform:rotate(360deg)}}
+
+    .error-msg{font-size:13px;color:var(--rose);margin-top:10px;min-height:18px}
   </style>
 </head>
 <body>
@@ -327,52 +163,66 @@
 <header>
   <img class="hdr-logo" src="logo.png" alt="WASSA WASSA" onerror="this.style.display='none'">
   <div class="hdr-name">WASSA WASSA</div>
-  <div class="hdr-sub">Availability Calendar</div>
+  <div class="hdr-sub">Availability Check</div>
 </header>
 
 <div class="hero">
-  <div class="hero-title">空室カレンダー</div>
-  <div class="hero-sub">最新の空室状況をご確認いただけます</div>
+  <div class="hero-title">空室確認</div>
+  <div class="hero-sub">ご希望の日程の空室状況をお調べします</div>
 </div>
 
 <main>
-  <div class="legend">
-    <div class="leg-item"><div class="leg-dot dot-avail">〇</div>空室あり</div>
-    <div class="leg-item"><div class="leg-dot dot-full">×</div>満室</div>
+  <div class="form-card">
+    <div class="form-card-title">日程を入力してください</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">チェックイン</label>
+        <input class="form-input" type="date" id="f-cin">
+      </div>
+      <div class="form-group">
+        <label class="form-label">チェックアウト</label>
+        <input class="form-input" type="date" id="f-cout">
+      </div>
+    </div>
+    <div class="error-msg" id="form-err"></div>
+    <button class="check-btn" id="check-btn" onclick="checkAvailability()">空室を確認する</button>
   </div>
 
-  <div id="cal-wrap">
-    <div class="loading"><span class="spin"></span><br>読み込み中...</div>
-  </div>
+  <!-- 結果 -->
+  <div id="result">
+    <div class="result-card">
+      <div class="result-period" id="result-period"></div>
+      <div id="result-rooms"></div>
+    </div>
 
-  <div class="divider"><span>ご予約について</span></div>
+    <div class="divider"><span>ご予約はこちら</span></div>
 
-  <div class="cta-grid">
-    <a href="https://wassa-okinawa.com/" class="cta-card" target="_blank" rel="noopener">
-      <div class="cta-icon">🌺</div>
-      <div class="cta-label">New Guest</div>
-      <div class="cta-title">はじめての方</div>
-      <div class="cta-desc">公式サイトよりご予約・お問い合わせいただけます</div>
-      <div class="cta-btn btn-fill">公式サイトへ</div>
-    </a>
-    <a href="wassa-repeater.html" class="cta-card accent">
-      <div class="cta-icon">🤝</div>
-      <div class="cta-label">Repeat Guest</div>
-      <div class="cta-title">ご宿泊経験のある方</div>
-      <div class="cta-desc">リピーター専用ページよりリピーター料金でご予約いただけます</div>
-      <div class="cta-btn btn-out">リピーター専用ページへ</div>
-    </a>
-  </div>
+    <div class="cta-grid">
+      <a href="https://wassa-okinawa.com/" class="cta-card" target="_blank" rel="noopener">
+        <div class="cta-icon">🌺</div>
+        <div class="cta-label">New Guest</div>
+        <div class="cta-title">はじめての方</div>
+        <div class="cta-desc">公式サイトよりご予約いただけます</div>
+        <div class="cta-btn btn-fill">公式サイトへ</div>
+      </a>
+      <a href="wassa-repeater.html" class="cta-card accent">
+        <div class="cta-icon">🤝</div>
+        <div class="cta-label">Repeat Guest</div>
+        <div class="cta-title">ご宿泊経験のある方</div>
+        <div class="cta-desc">リピーター専用ページより料金確認・ご予約できます</div>
+        <div class="cta-btn btn-out">リピーター専用ページへ</div>
+      </a>
+    </div>
 
-  <div class="notice">
-    ご不明な点はLINEまたはお電話（0980-50-2500）にてお気軽にお問い合わせください。<br>
-    チェックイン 15:00〜 ／ チェックアウト 〜11:00
+    <div class="notice">
+      ご不明な点はLINEまたはお電話（0980-50-2500）にてお気軽にどうぞ。<br>
+      チェックイン 15:00〜 ／ チェックアウト 〜11:00
+    </div>
   </div>
 </main>
 
 <footer>
-  WASSA WASSA<br>
-  沖縄県国頭郡大宜味村根路銘<br>
+  WASSA WASSA｜沖縄県国頭郡大宜味村根路銘<br>
   TEL: <a href="tel:0980502500">0980-50-2500</a>
   ｜ <a href="https://wassa-okinawa.com/" target="_blank">wassa-okinawa.com</a>
 </footer>
@@ -380,124 +230,115 @@
 <script>
 const SB_URL = 'https://mtsdhheqddrckksiqlim.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10c2RoaGVxZGRyY2trc2lxbGltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1OTc5NDgsImV4cCI6MjA4ODE3Mzk0OH0.c18ExSxNHBOani7CN4QAqaerhvpr5ZCYA0GGkUg0mlc';
-const MONTHS = 3;
+const SB_H  = { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY };
 
-// 部屋定義
 const ROOM_DEFS = [
   {
-    key: 'stp',
-    badge: 'STP',
-    name: 'スーペリアツイン',
-    total: 2,
+    key: 'stp', badge: 'STP', name: 'スーペリアツイン', total: 2,
     match: rt => rt && (rt.indexOf('01') !== -1 || rt.indexOf('02') !== -1) && rt.indexOf('デラックス') === -1 && rt !== 'DX'
   },
   {
-    key: 'dx',
-    badge: 'DX',
-    name: 'デラックス',
-    total: 1,
+    key: 'dx', badge: 'DX', name: 'デラックス', total: 1,
     match: rt => rt && (rt.indexOf('デラックス') !== -1 || rt === 'DX')
   }
 ];
 
-async function fetchReservations() {
-  const today = new Date();
-  const from  = today.toISOString().slice(0,10);
-  const end   = new Date(today.getFullYear(), today.getMonth() + MONTHS + 1, 1).toISOString().slice(0,10);
-  const r = await fetch(
-    `${SB_URL}/rest/v1/reservations?status=neq.cancelled&check_in=lt.${end}&check_out=gt.${from}&select=check_in,check_out,room_type`,
-    { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY } }
-  );
-  return r.json();
+// 日付初期値
+const today = new Date();
+const fmtD  = d => d.toISOString().slice(0,10);
+const cin0  = new Date(today); cin0.setDate(cin0.getDate() + 1);
+const cout0 = new Date(cin0);  cout0.setDate(cout0.getDate() + 1);
+document.getElementById('f-cin').value  = fmtD(cin0);
+document.getElementById('f-cout').value = fmtD(cout0);
+document.getElementById('f-cin').min    = fmtD(today);
+document.getElementById('f-cout').min   = fmtD(cin0);
+document.getElementById('f-cin').addEventListener('change', function() {
+  const nc = new Date(this.value + 'T00:00:00');
+  nc.setDate(nc.getDate() + 1);
+  document.getElementById('f-cout').min = this.value;
+  if (document.getElementById('f-cout').value <= this.value)
+    document.getElementById('f-cout').value = fmtD(nc);
+  document.getElementById('result').style.display = 'none';
+});
+document.getElementById('f-cout').addEventListener('change', function() {
+  document.getElementById('result').style.display = 'none';
+});
+
+// 日付フォーマット（表示用）
+function dispDate(ds) {
+  const d = new Date(ds + 'T00:00:00');
+  return `${d.getMonth()+1}月${d.getDate()}日（${'日月火水木金土'[d.getDay()]}）`;
 }
 
-// 特定部屋定義に対するその日の空き室数を返す
-function availCount(ds, rsvs, def) {
-  const booked = rsvs.filter(r => def.match(r.room_type) && r.check_in <= ds && r.check_out > ds).length;
-  return def.total - booked;
-}
+async function checkAvailability() {
+  const cin  = document.getElementById('f-cin').value;
+  const cout = document.getElementById('f-cout').value;
+  const errEl = document.getElementById('form-err');
+  errEl.textContent = '';
 
-// 日付セルのステータス: 'past' | 'full' | 'one' | 'avail'
-function dayStatus(ds, rsvs, def) {
-  const today = new Date(); today.setHours(0,0,0,0);
-  const d     = new Date(ds); d.setHours(0,0,0,0);
-  if (d < today) return 'past';
-  const n = availCount(ds, rsvs, def);
-  if (n <= 0)            return 'full';
-  if (n < def.total)     return 'one';   // スーペリアのみ: 1室残り
-  return 'avail';
-}
+  if (!cin || !cout)     { errEl.textContent = '日程を入力してください。'; return; }
+  if (cin >= cout)       { errEl.textContent = 'チェックアウトはチェックインより後の日付を選択してください。'; return; }
 
-function renderMonth(y, m, rsvs, def) {
-  const labels = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
-  const first  = new Date(y, m, 1).getDay();
-  const last   = new Date(y, m + 1, 0).getDate();
+  const btn = document.getElementById('check-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span>確認中...';
 
-  // ステータス → 表示文字
-  function stChar(st, n) {
-    if (st === 'past')  return '';
-    if (st === 'full')  return '×';
-    if (st === 'one')   return '1室';   // スーペリアのみ該当
-    return def.total === 1 ? '〇' : '2室';
-  }
-
-  let h = `<div class="month-card">
-    <div class="month-title">${y}年 ${labels[m]}</div>
-    <div class="cal-grid">
-      <div class="dow dow-sun">日</div>
-      <div class="dow">月</div><div class="dow">火</div>
-      <div class="dow">水</div><div class="dow">木</div><div class="dow">金</div>
-      <div class="dow dow-sat">土</div>`;
-
-  for (let i = 0; i < first; i++) h += '<div></div>';
-
-  for (let d = 1; d <= last; d++) {
-    const ds  = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const dow = (first + d - 1) % 7;
-    const n   = availCount(ds, rsvs, def);
-    const st  = dayStatus(ds, rsvs, def);
-    // 1室残りはamber, 満室はrose, 空きはgreen
-    const cls = st === 'past' ? 'c-past' : st === 'full' ? 'c-full' : st === 'one' ? 'c-one' : 'c-avail';
-    const dc  = dow === 0 ? ' is-sun' : dow === 6 ? ' is-sat' : '';
-    const sc  = stChar(st, n);
-    // 1室残りはフォントサイズを小さく
-    const stStyle = st === 'one' ? ' style="font-size:8px"' : '';
-    h += `<div class="day-cell ${cls}${dc}">
-      <span class="d-num">${d}</span>
-      ${sc ? `<span class="d-st"${stStyle}>${sc}</span>` : ''}
-    </div>`;
-  }
-  return h + '</div></div>';
-}
-
-function renderRoomSection(def, rsvs) {
-  const now = new Date();
-  let months = '';
-  for (let i = 0; i < MONTHS; i++) {
-    const t = new Date(now.getFullYear(), now.getMonth() + i, 1);
-    months += renderMonth(t.getFullYear(), t.getMonth(), rsvs, def);
-  }
-  return `<div class="room-section">
-    <div class="room-header">
-      <span class="room-badge">${def.badge}</span>
-      <span class="room-name">${def.name}</span>
-    </div>
-    ${months}
-  </div>`;
-}
-
-async function init() {
   try {
-    const rsvs = await fetchReservations();
-    let h = '';
-    for (const def of ROOM_DEFS) h += renderRoomSection(def, rsvs);
-    document.getElementById('cal-wrap').innerHTML = h;
+    const r = await fetch(
+      `${SB_URL}/rest/v1/reservations?status=neq.cancelled&check_in=lt.${cout}&check_out=gt.${cin}&select=check_in,check_out,room_type`,
+      { headers: SB_H }
+    );
+    const rsvs = await r.json();
+
+    // 各部屋の最小空き室数を計算（全泊分）
+    const nights = [];
+    let d = new Date(cin + 'T00:00:00');
+    const end = new Date(cout + 'T00:00:00');
+    while (d < end) { nights.push(fmtD(d)); d.setDate(d.getDate()+1); }
+
+    let roomsHtml = '';
+    for (const def of ROOM_DEFS) {
+      // 全泊中の最小空き室数
+      const minAvail = Math.min(...nights.map(ds => {
+        const booked = rsvs.filter(rv => def.match(rv.room_type) && rv.check_in <= ds && rv.check_out > ds).length;
+        return def.total - booked;
+      }));
+
+      let statusHtml = '';
+      if (minAvail <= 0) {
+        statusHtml = `<div class="room-status status-full">×</div>
+          <div class="room-detail detail-full">満室</div>`;
+      } else if (def.total > 1 && minAvail < def.total) {
+        statusHtml = `<div class="room-status status-one">△</div>
+          <div class="room-detail detail-one">残り${minAvail}室</div>`;
+      } else {
+        const label = def.total > 1 ? `${minAvail}室空き` : '空室あり';
+        statusHtml = `<div class="room-status status-avail">〇</div>
+          <div class="room-detail detail-avail">${label}</div>`;
+      }
+
+      roomsHtml += `<div class="room-row">
+        <span class="room-badge">${def.badge}</span>
+        <div style="flex:1"><div class="room-name">${def.name}</div></div>
+        <div style="text-align:right">${statusHtml}</div>
+      </div>`;
+    }
+
+    // 泊数
+    const nights_n = nights.length;
+    document.getElementById('result-period').innerHTML =
+      `<strong>${dispDate(cin)}</strong> チェックイン ／ <strong>${dispDate(cout)}</strong> チェックアウト（${nights_n}泊）`;
+    document.getElementById('result-rooms').innerHTML = roomsHtml;
+    document.getElementById('result').style.display = 'block';
+    document.getElementById('result').scrollIntoView({ behavior:'smooth', block:'start' });
+
   } catch(e) {
-    document.getElementById('cal-wrap').innerHTML =
-      '<div class="loading">データを読み込めませんでした。<br>しばらく後にお試しください。</div>';
+    errEl.textContent = 'データの取得に失敗しました。しばらく後にお試しください。';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '空室を確認する';
   }
 }
-init();
 </script>
 </body>
 </html>
