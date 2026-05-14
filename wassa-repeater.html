@@ -240,6 +240,16 @@
       font-size:24px;font-weight:600;color:var(--ocean2);
     }
     .estimate-note{font-size:11px;color:var(--text3);margin-top:10px;line-height:1.6}
+    .est-title{font-size:14px;font-weight:500;color:var(--ocean);margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid rgba(26,107,122,0.15);line-height:1.6}
+    .night-block{margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(26,107,122,0.12)}
+    .night-block:last-of-type{border-bottom:none;margin-bottom:0;padding-bottom:0}
+    .night-header{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:500;color:var(--text);margin-bottom:5px}
+    .est-detail{display:flex;justify-content:space-between;font-size:12px;color:var(--text2);padding:2px 0 2px 10px}
+    .est-badge{display:inline-flex;align-items:center;padding:1px 7px;border-radius:20px;font-size:10px;font-weight:500;letter-spacing:.04em;margin-left:6px}
+    .est-badge.sh{background:#fff0ef;color:#d32f2f;border:1px solid #ffcdd2}
+    .est-badge.hi{background:#fff8e1;color:#ef6c00;border:1px solid #ffe082}
+    .est-badge.re{background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7}
+    .est-badge.lo{background:#e3f2fd;color:#1565c0;border:1px solid #90caf9}
 
     /* ── Availability link card ── */
     .avail-link{
@@ -727,19 +737,25 @@ function updateInfantFields() {
 
 function updateEstimate() {
   if (!_priceData) return;
-  const cin     = document.getElementById('f-cin').value;
-  const cout    = document.getElementById('f-cout').value;
-  const adults  = parseInt(document.getElementById('f-adults').value) || 2;
-  const children= parseInt(document.getElementById('f-children').value) || 0;
-  const meal    = document.getElementById('f-meal').value;
-  const room    = document.getElementById('f-room').value;
-  const infMeal = (parseInt(document.getElementById('f-inf-meal-bed').value)||0)
-                + (parseInt(document.getElementById('f-inf-meal-only').value)||0);
+  const cin      = document.getElementById('f-cin').value;
+  const cout     = document.getElementById('f-cout').value;
+  const adults   = parseInt(document.getElementById('f-adults').value) || 2;
+  const children = parseInt(document.getElementById('f-children').value) || 0;
+  const meal     = document.getElementById('f-meal').value;
+  const room     = document.getElementById('f-room').value;
+  const infMeal  = (parseInt(document.getElementById('f-inf-meal-bed').value)||0)
+                 + (parseInt(document.getElementById('f-inf-meal-only').value)||0);
 
   if (!cin || !cout || cin >= cout) {
     document.getElementById('estimate-wrap').style.display = 'none';
     return;
   }
+
+  const hasBf  = meal === 'bf'  || meal === 'both';
+  const hasDin = meal === 'din' || meal === 'both';
+  const MEAL_LABEL = { none:'素泊まり', bf:'朝食付き', din:'夕食付き', both:'朝夕食付き' };
+  const ROOM_LABEL = { sup:'スーペリアツイン', dlx:'デラックス' };
+  const SEASON_CLS = { super_high:'sh', high:'hi', regular:'re', low:'lo' };
 
   // 泊数分ループ
   const nights = [];
@@ -754,91 +770,76 @@ function updateEstimate() {
     d.setDate(d.getDate() + 1);
   }
 
-  const roomTotal = nights.reduce((s, n) => s + n.rate * adults + n.childRate * children, 0);
+  // 日別ブロック（ゲストブック見積もりと同仕様）
+  let total = 0;
+  let nightHtml = '';
+  for (const n of nights) {
+    const dt    = new Date(n.ds + 'T00:00:00');
+    const label = `${dt.getMonth()+1}/${dt.getDate()}`;
+    const sc    = SEASON_CLS[n.season] || '';
+    const badge = sc ? `<span class="est-badge ${sc}">${SEASON_LABEL[n.season]}</span>` : '';
 
-  let mealTotal = 0;
-  const hasBf  = meal === 'bf'   || meal === 'both';
-  const hasDin = meal === 'din'  || meal === 'both';
-  if (hasBf)  mealTotal += _priceData.bf     * (adults + children) * nights.length;
-  if (hasBf  && infMeal > 0) mealTotal += _priceData.bf_inf  * infMeal * nights.length;
-  if (hasDin) mealTotal += _priceData.din    * adults * nights.length;
-  if (hasDin && children > 0) mealTotal += _priceData.din_inf * children * nights.length;
-  if (hasDin && infMeal > 0)  mealTotal += _priceData.din_inf * infMeal * nights.length;
+    let dayTotal = 0;
+    let details  = '';
 
-  const total = roomTotal + mealTotal;
-
-  // 行を生成
-  let rows = '';
-  // 同シーズン・同レートをまとめる
-  const grouped = [];
-  nights.forEach(n => {
-    const last = grouped[grouped.length - 1];
-    if (last && last.season === n.season && last.rate === n.rate && last.childRate === n.childRate) {
-      last.count++;
+    if (hasBf) {
+      // 朝食付き：室料＋朝食を1行に統合（ゲストブックと同仕様）
+      const adultAmt = (n.rate + _priceData.bf) * adults;
+      dayTotal += adultAmt;
+      details += `<div class="est-detail"><span>大人（朝食付き）× ${adults}名</span><span>¥${fmt(adultAmt)}</span></div>`;
+      if (children > 0) {
+        const childAmt = (n.childRate + _priceData.bf) * children;
+        dayTotal += childAmt;
+        details += `<div class="est-detail"><span>小学生（朝食付き）× ${children}名</span><span>¥${fmt(childAmt)}</span></div>`;
+      }
+      if (infMeal > 0) {
+        const infAmt = _priceData.bf_inf * infMeal;
+        dayTotal += infAmt;
+        details += `<div class="est-detail"><span>幼児（朝食付き）× ${infMeal}名</span><span>¥${fmt(infAmt)}</span></div>`;
+      }
     } else {
-      grouped.push({ season: n.season, rate: n.rate, childRate: n.childRate, count: 1 });
+      // 素泊まり or 夕食のみ：室料を別行
+      const adultAmt = n.rate * adults;
+      dayTotal += adultAmt;
+      details += `<div class="est-detail"><span>大人宿泊料金 × ${adults}名</span><span>¥${fmt(adultAmt)}</span></div>`;
+      if (children > 0 && n.childRate > 0) {
+        const childAmt = n.childRate * children;
+        dayTotal += childAmt;
+        details += `<div class="est-detail"><span>小学生宿泊料金 × ${children}名</span><span>¥${fmt(childAmt)}</span></div>`;
+      }
     }
-  });
+    if (hasDin) {
+      const dinAdultAmt = _priceData.din * adults;
+      dayTotal += dinAdultAmt;
+      details += `<div class="est-detail"><span>夕食（大人）× ${adults}名</span><span>¥${fmt(dinAdultAmt)}</span></div>`;
+      if (children > 0) {
+        const dinChildAmt = _priceData.din_inf * children;
+        dayTotal += dinChildAmt;
+        details += `<div class="est-detail"><span>夕食（お子様）× ${children}名</span><span>¥${fmt(dinChildAmt)}</span></div>`;
+      }
+      if (infMeal > 0) {
+        const dinInfAmt = _priceData.din_inf * infMeal;
+        dayTotal += dinInfAmt;
+        details += `<div class="est-detail"><span>夕食（幼児）× ${infMeal}名</span><span>¥${fmt(dinInfAmt)}</span></div>`;
+      }
+    }
 
-  grouped.forEach(g => {
-    const subA = g.rate * adults * g.count;
-    rows += `<div class="estimate-row">
-      <span class="estimate-row-label">
-        大人室料 ${g.count}泊 × ${adults}名
-        <span class="estimate-row-season">${SEASON_LABEL[g.season] || g.season}</span>
-      </span>
-      <span class="estimate-row-price">¥${fmt(subA)}</span>
+    total += dayTotal;
+    nightHtml += `<div class="night-block">
+      <div class="night-header"><span>${label}${badge}</span><span>¥${fmt(dayTotal)}</span></div>
+      ${details}
     </div>`;
-    if (children > 0 && g.childRate > 0) {
-      const subC = g.childRate * children * g.count;
-      rows += `<div class="estimate-row">
-        <span class="estimate-row-label">
-          小学生室料 ${g.count}泊 × ${children}名
-          <span class="estimate-row-season">${SEASON_LABEL[g.season] || g.season}</span>
-        </span>
-        <span class="estimate-row-price">¥${fmt(subC)}</span>
-      </div>`;
-    }
-  });
+  }
 
-  if (hasBf) {
-    const sub = _priceData.bf * (adults + children) * nights.length;
-    rows += `<div class="estimate-row">
-      <span class="estimate-row-label">朝食 ${nights.length}泊 × ${adults + children}名</span>
-      <span class="estimate-row-price">¥${fmt(sub)}</span>
-    </div>`;
-  }
-  if (hasDin) {
-    const subA = _priceData.din * adults * nights.length;
-    rows += `<div class="estimate-row">
-      <span class="estimate-row-label">夕食 ${nights.length}泊 × 大人${adults}名</span>
-      <span class="estimate-row-price">¥${fmt(subA)}</span>
-    </div>`;
-    if (children > 0) {
-      const subC = _priceData.din_inf * children * nights.length;
-      rows += `<div class="estimate-row">
-        <span class="estimate-row-label">夕食 ${nights.length}泊 × お子様${children}名</span>
-        <span class="estimate-row-price">¥${fmt(subC)}</span>
-      </div>`;
-    }
-    if (infMeal > 0) {
-      const subI = _priceData.din_inf * infMeal * nights.length;
-      rows += `<div class="estimate-row">
-        <span class="estimate-row-label">夕食 ${nights.length}泊 × 幼児${infMeal}名</span>
-        <span class="estimate-row-price">¥${fmt(subI)}</span>
-      </div>`;
-    }
-  }
-  if (hasBf && infMeal > 0) {
-    const subI = _priceData.bf_inf * infMeal * nights.length;
-    rows += `<div class="estimate-row">
-      <span class="estimate-row-label">朝食 ${nights.length}泊 × 幼児${infMeal}名</span>
-      <span class="estimate-row-price">¥${fmt(subI)}</span>
-    </div>`;
-  }
+  // タイトル行
+  let paxDesc = `大人${adults}名`;
+  if (children > 0) paxDesc += `・小学生${children}名`;
+  if (infMeal > 0)  paxDesc += `・食事あり幼児${infMeal}名`;
+  const roomLabel = ROOM_LABEL[room] || room;
+  const titleHtml = `<div class="est-title">${roomLabel}　${nights.length}泊　${MEAL_LABEL[meal]||''}<br><span style="font-size:12px;font-weight:400;color:var(--text2)">${paxDesc}</span></div>`;
 
   const closedWarn = isClosedDay(cin) ? '<div style="color:var(--rose);font-size:12px;margin-bottom:8px">⚠️ チェックイン日は定休日です</div>' : '';
-  document.getElementById('estimate-rows').innerHTML = closedWarn + rows;
+  document.getElementById('estimate-rows').innerHTML = closedWarn + titleHtml + nightHtml;
   document.getElementById('estimate-total').textContent = total > 0 ? `¥${fmt(total)}` : '—';
   document.getElementById('estimate-wrap').style.display = total > 0 ? 'block' : 'none';
 }
