@@ -456,7 +456,7 @@
         <div class="form-group">
           <label class="form-label">大人<span class="req">*</span></label>
           <div class="form-select-wrap">
-            <select class="form-select" id="f-adults">
+            <select class="form-select" id="f-adults" onchange="checkCapacity();updateEstimate();">
               <option value="1">1名</option>
               <option value="2" selected>2名</option>
               <option value="3">3名</option>
@@ -467,7 +467,7 @@
         <div class="form-group">
           <label class="form-label">お子様（小学生）</label>
           <div class="form-select-wrap">
-            <select class="form-select" id="f-children">
+            <select class="form-select" id="f-children" onchange="checkCapacity();updateEstimate();">
               <option value="0" selected>0名</option>
               <option value="1">1名</option>
               <option value="2">2名</option>
@@ -480,7 +480,7 @@
         <div class="form-group">
           <label class="form-label" id="lbl-inf-meal-bed">幼児（食事・布団あり）</label>
           <div class="form-select-wrap">
-            <select class="form-select" id="f-inf-meal-bed">
+            <select class="form-select" id="f-inf-meal-bed" onchange="checkCapacity();updateEstimate();">
               <option value="0" selected>0名</option>
               <option value="1">1名</option>
               <option value="2">2名</option>
@@ -504,7 +504,7 @@
         <div class="form-group">
           <label class="form-label" id="lbl-inf-bed-only">幼児（布団あり・食事なし）</label>
           <div class="form-select-wrap">
-            <select class="form-select" id="f-inf-bed-only">
+            <select class="form-select" id="f-inf-bed-only" onchange="checkCapacity();updateEstimate();">
               <option value="0" selected>0名</option>
               <option value="1">1名</option>
               <option value="2">2名</option>
@@ -524,6 +524,8 @@
           </div>
         </div>
       </div>
+
+      <div id="cap-badge" class="cap-badge">🛏 寝具利用 2 / 4名</div>
 
       <!-- 料金見積もり -->
       <div id="estimate-wrap" style="display:none;margin-bottom:20px">
@@ -662,6 +664,19 @@ function getRoomRate(season, room, adults) {
   if (exact) return exact.price;
   const sorted = rows.filter(r => r.pax !== null).sort((a, b) => b.pax - a.pax);
   return sorted.length ? sorted[0].price : 0;
+}
+
+function checkCapacity() {
+  const adults   = parseInt(document.getElementById('f-adults').value)||0;
+  const children = parseInt(document.getElementById('f-children').value)||0;
+  const infBed   = (parseInt(document.getElementById('f-inf-meal-bed').value)||0)
+                 + (parseInt(document.getElementById('f-inf-bed-only').value)||0);
+  const used = adults + children + infBed;
+  const badge = document.getElementById('cap-badge');
+  badge.textContent = `🛏 寝具利用 ${used} / 4名`;
+  const over = used > 4;
+  badge.className = 'cap-badge' + (over ? ' over' : '');
+  document.getElementById('submit-btn').disabled = over;
 }
 
 function updateInfantFields() {
@@ -807,11 +822,12 @@ async function initMain() {
     updateEstimate();
   });
   document.getElementById('f-cout').addEventListener('change', updateEstimate);
-  document.getElementById('f-adults').addEventListener('change', updateEstimate);
-  document.getElementById('f-children').addEventListener('change', updateEstimate);
-  document.getElementById('f-inf-meal-bed').addEventListener('change', updateEstimate);
+  document.getElementById('f-adults').addEventListener('change', checkCapacity);
+  document.getElementById('f-children').addEventListener('change', checkCapacity);
+  document.getElementById('f-inf-meal-bed').addEventListener('change', checkCapacity);
   document.getElementById('f-inf-meal-only').addEventListener('change', updateEstimate);
   updateInfantFields();
+  checkCapacity();
 }
 
 // ── 予約送信 ──
@@ -829,6 +845,10 @@ async function submitBooking() {
 
   errEl.textContent = '';
 
+  const adults2  = parseInt(document.getElementById('f-adults').value)||0;
+  const children2= parseInt(document.getElementById('f-children').value)||0;
+  const infBed2  = (parseInt(document.getElementById('f-inf-meal-bed').value)||0)+(parseInt(document.getElementById('f-inf-bed-only').value)||0);
+  if (adults2+children2+infBed2 > 4) { errEl.textContent = '寝具利用は4名までです。人数をご確認ください。'; return; }
   if (!name)              { errEl.textContent = 'お名前を入力してください。'; return; }
   if (!phone)             { errEl.textContent = '電話番号を入力してください。'; return; }
   if (!cin || !cout)      { errEl.textContent = 'チェックイン・チェックアウト日を選択してください。'; return; }
