@@ -962,7 +962,6 @@ async function submitBooking() {
     const infMealBed  = parseInt(document.getElementById('f-inf-meal-bed').value)||0;
     const infMealOnly = parseInt(document.getElementById('f-inf-meal-only').value)||0;
     const infMeal     = infMealBed + infMealOnly;
-    const billingRows = buildBillingRows(cin, cout, adults, children, meal, roomKey, infMeal);
     const body = {
       customer_name: name,
       phone:         phone,
@@ -982,7 +981,6 @@ async function submitBooking() {
       room_type:     roomKey === 'dlx' ? 'デラックス' : 'スーペリアツイン02',
       payment:       '現地精算',
       plan_name:     { none:'素泊まりプラン', bf:'朝食付きプラン', din:'夕食付きプラン', both:'2食付きプラン' }[meal] || '',
-      billing:       billingRows,
     };
 
     const r = await fetch(`${SB_URL}/rest/v1/reservations`, {
@@ -994,6 +992,20 @@ async function submitBooking() {
     if (!r.ok) throw new Error('送信に失敗しました (HTTP ' + r.status + ')');
     const newRsv = await r.json().catch(()=>null);
     const newRsvId = newRsv && newRsv[0] && newRsv[0].id;
+
+    // billing を別途 PATCH（失敗しても予約自体はキャンセルしない）
+    if (newRsvId) {
+      try {
+        const billingRows = buildBillingRows(cin, cout, adults, children, meal, roomKey, infMeal);
+        if (billingRows.length > 0) {
+          await fetch(`${SB_URL}/rest/v1/reservations?id=eq.${newRsvId}`, {
+            method: 'PATCH',
+            headers: { ...SB_H, Prefer: 'return=minimal' },
+            body: JSON.stringify({ billing: { rows: billingRows, plan_name: body.plan_name, coupon: 0, points: 0 } })
+          });
+        }
+      } catch(e) { /* billing保存失敗は無視 */ }
+    }
 
     document.getElementById('booking-form-wrap').style.display = 'none';
     document.getElementById('success-msg').style.display = 'block';
