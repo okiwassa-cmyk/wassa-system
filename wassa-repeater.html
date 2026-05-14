@@ -570,7 +570,8 @@
 </div><!-- /#main -->
 
 <script>
-const SB_URL = 'https://mtsdhheqddrckksiqlim.supabase.co';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzr846aUMNHRidDGzactMHwIgpVjYeDkjmq0DrUM5S4DFLKzL5Z-s2h1MM8YLs6By1Lfg/exec';
+  const SB_URL = 'https://mtsdhheqddrckksiqlim.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10c2RoaGVxZGRyY2trc2lxbGltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1OTc5NDgsImV4cCI6MjA4ODE3Mzk0OH0.c18ExSxNHBOani7CN4QAqaerhvpr5ZCYA0GGkUg0mlc';
 const SB_H   = { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' };
 
@@ -939,6 +940,46 @@ async function submitBooking() {
     document.getElementById('booking-form-wrap').style.display = 'none';
     document.getElementById('success-msg').style.display = 'block';
     document.getElementById('success-msg').scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    // スタッフ通知メール（fire-and-forget）
+    const mealLabel = {both:'朝夕食付き', din:'夕食付き', bf:'朝食付き', none:'素泊まり'};
+    const roomLabel = document.getElementById('f-room').value === 'dlx' ? 'デラックス' : 'スーペリアツイン';
+    const infMealBed  = parseInt(document.getElementById('f-inf-meal-bed').value)||0;
+    const infMealOnly = parseInt(document.getElementById('f-inf-meal-only').value)||0;
+    const infBedOnly  = parseInt(document.getElementById('f-inf-bed-only').value)||0;
+    const infNone     = parseInt(document.getElementById('f-inf-none').value)||0;
+    const totalEl     = document.getElementById('estimate-total');
+    const estTotal    = totalEl ? totalEl.textContent : '—';
+    const notifyBody  = [
+      '【リピーター様専用ページより予約リクエストが届きました】',
+      '',
+      'お名前　　: ' + name,
+      '電話番号　: ' + phone,
+      'チェックイン　: ' + cin,
+      'チェックアウト: ' + cout,
+      '大人　　　: ' + adults + '名',
+      children > 0 ? 'お子様　　: ' + children + '名' : '',
+      infMealBed  > 0 ? '幼児（食事・布団あり）: ' + infMealBed  + '名' : '',
+      infMealOnly > 0 ? '幼児（食事あり・布団なし）: ' + infMealOnly + '名' : '',
+      infBedOnly  > 0 ? '幼児（布団あり・食事なし）: ' + infBedOnly  + '名' : '',
+      infNone     > 0 ? '幼児（布団・食事なし）: ' + infNone     + '名' : '',
+      '食事プラン: ' + (mealLabel[meal] || meal),
+      'お部屋　　: ' + roomLabel,
+      '料金見積もり: ' + estTotal,
+      notes ? '\nご要望:\n' + notes : '',
+      '',
+      '管理画面で内容を確認し、お客様へご連絡ください。',
+    ].filter(l => l !== '').join('\n');
+    fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: 'sendMail',
+        to: 'wassa@wassa-okinawa.com',
+        subject: '【予約リクエスト】' + name + '様 ' + cin + '〜' + cout,
+        body: notifyBody
+      })
+    }).catch(() => {});
   } catch(e) {
     errEl.textContent = '送信に失敗しました。お手数ですがお電話にてご連絡ください。';
     btn.disabled = false;
