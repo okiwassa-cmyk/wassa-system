@@ -882,6 +882,29 @@ async function submitBooking() {
 
   const btn = document.getElementById('submit-btn');
   btn.disabled = true;
+  btn.textContent = '空室確認中...';
+
+  try {
+    // 送信直前に空室を再確認
+    const chkRes = await fetch(
+      `${SB_URL}/rest/v1/reservations?status=neq.cancelled&check_in=lt.${cout}&check_out=gt.${cin}&select=room_type`,
+      { headers: SB_H }
+    );
+    const booked = await chkRes.json();
+    const roomKey = document.getElementById('f-room').value;
+    const isSupMatch = rt => rt && (rt.indexOf('01')!==-1||rt.indexOf('02')!==-1) && rt.indexOf('デラックス')===-1 && rt!=='DX';
+    const isDlxMatch = rt => rt && (rt.indexOf('デラックス')!==-1||rt==='DX');
+    const matchFn = roomKey === 'dlx' ? isDlxMatch : isSupMatch;
+    const total   = roomKey === 'dlx' ? 1 : 2;
+    const bookedCount = booked.filter(r => matchFn(r.room_type)).length;
+    if (bookedCount >= total) {
+      errEl.textContent = '申し訳ありません。送信中にご希望のお部屋が埋まってしまいました。日程・お部屋をご確認ください。';
+      btn.disabled = false;
+      btn.textContent = '予約リクエストを送る';
+      return;
+    }
+  } catch(e) { /* 確認失敗時はそのまま続行 */ }
+
   btn.textContent = '送信中...';
 
   try {
