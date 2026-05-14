@@ -945,6 +945,7 @@ async function submitBooking() {
       source:        '直予約',
       room_type:     roomKey === 'dlx' ? 'デラックス' : 'スーペリアツイン02',
       payment:       '現地精算',
+      plan_name:     { none:'素泊まりプラン', bf:'朝食付きプラン', din:'夕食付きプラン', both:'2食付きプラン' }[meal] || '',
     };
 
     const r = await fetch(`${SB_URL}/rest/v1/reservations`, {
