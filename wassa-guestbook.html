@@ -1191,6 +1191,7 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
       <div id="billing-rows"></div>
       <button class="btn btn-ghost btn-sm owner-only" onclick="addBillingRow()" style="margin-top:8px">＋ 行を追加</button>
       <button class="btn btn-ghost btn-sm owner-only" onclick="addLodgingTax()" style="margin-top:8px;margin-left:6px">🏛 宿泊税を追加</button>
+      <button class="btn btn-sm owner-only" onclick="genQuoteUrlForLine()" style="margin-top:8px;margin-left:6px;background:var(--green);color:#fff;border:none">🔗 LINE用見積書URLを生成</button>
 
       <!-- 集計パネル -->
       <div style="margin-top:16px;border:1px solid var(--sand2);border-radius:10px;overflow:hidden">
@@ -3725,6 +3726,48 @@ function applyMealPlanToBilling(planName){
   billingRows=newRows;
   renderBillingRows();
   recalcBilling();
+}
+
+async function genQuoteUrlForLine(){
+  var r=allReservations.find(function(x){return x.id===currentEditId;});
+  if(!r){toast('予約を開いてください');return;}
+  if(!billingRows||billingRows.length===0){toast('先に明細を生成してください');return;}
+  // 合計計算（参考行除外）
+  var total=billingRows.filter(function(row){return !row.is_ref;})
+    .reduce(function(s,row){return s+((row.price||0)-(row.discount||0))*(row.qty||1);},0);
+  total-=(billingMeta.coupon||0)+(billingMeta.points||0);
+  var validUntil=new Date();validUntil.setDate(validUntil.getDate()+7);
+  var roomKey=(r.room_type||'').indexOf('デラックス')!==-1?'dlx':'sup';
+  var payload={
+    guest_name:r.guest_name||'未入力',
+    check_in:r.check_in,check_out:r.check_out,
+    room_type:r.room_type||'',room:roomKey,
+    adults:String(r.adults||0),children:r.children||0,
+    infants:(r.inf_meal_bed||0)+(r.inf_meal_only||0)+(r.inf_bed_only||0)+(r.inf_none||0),
+    meal:r.meal||'none',
+    total_amount:String(Math.round(total)),
+    valid_until:validUntil.toISOString().slice(0,10),
+    status:'作成済み',
+    plan_name:billingMeta.plan_name||r.plan_name||'',
+    notes:r.notes||'',
+    billing:billingRows
+  };
+  try{
+    var res=await sbPost('quotes',payload);
+    if(!res||!res[0]){toast('保存に失敗しました');return;}
+    allQuotes.unshift(res[0]);
+    var qid=res[0].id;
+    var tRes=await fetch(SB_URL+'/rest/v1/quotes?id=eq.'+qid+'&select=token',{headers:{'apikey':SB_KEY,'Authorization':SB_HEADERS['Authorization']}});
+    var tData=await tRes.json();
+    if(!tData||!tData[0]||!tData[0].token){toast('URL取得に失敗しました');return;}
+    var url='https://okiwassa-cmyk.github.io/wassa-system/wassa-quote-view.html?token='+tData[0].token;
+    if(navigator.clipboard){
+      await navigator.clipboard.writeText(url);
+      toast('✅ URLをコピーしました。LINEに貼り付けてください。');
+    } else {
+      prompt('以下のURLをコピーしてLINEに貼り付けてください：',url);
+    }
+  }catch(e){toast('エラー: '+e.message);}
 }
 
 function recalcBilling(){
