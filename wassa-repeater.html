@@ -1048,8 +1048,6 @@ async function submitBooking() {
     // スタッフ通知メール（fire-and-forget）
     const mealLabel = {both:'朝夕食付き', din:'夕食付き', bf:'朝食付き', none:'素泊まり'};
     const roomLabel = document.getElementById('f-room').value === 'dlx' ? 'デラックス' : 'スーペリアツイン';
-    const infMealBed  = parseInt(document.getElementById('f-inf-meal-bed').value)||0;
-    const infMealOnly = parseInt(document.getElementById('f-inf-meal-only').value)||0;
     const infBedOnly  = parseInt(document.getElementById('f-inf-bed-only').value)||0;
     const infNone     = parseInt(document.getElementById('f-inf-none').value)||0;
     const totalEl     = document.getElementById('estimate-total');
