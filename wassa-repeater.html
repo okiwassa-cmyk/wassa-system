@@ -477,7 +477,7 @@
       </div>
 
       <!-- 料金見積もり -->
-      <div id="estimate-wrap" style="margin-bottom:20px">
+      <div id="estimate-wrap" style="display:none;margin-bottom:20px">
         <div class="estimate-card">
           <div class="estimate-title">料金見積もり（税込）</div>
           <div id="estimate-rows"></div>
@@ -724,7 +724,6 @@ async function initMain() {
   document.getElementById('f-cout').addEventListener('change', updateEstimate);
   document.getElementById('f-adults').addEventListener('change', updateEstimate);
   document.getElementById('f-children').addEventListener('change', updateEstimate);
-  updateEstimate();
 }
 
 // ── 予約送信 ──
