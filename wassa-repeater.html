@@ -993,7 +993,11 @@ async function submitBooking() {
       body: JSON.stringify(body)
     });
 
-    if (!r.ok) throw new Error('送信に失敗しました (HTTP ' + r.status + ')');
+    if (!r.ok) {
+      const errBody = await r.text().catch(()=>'');
+      console.error('POST failed:', r.status, errBody);
+      throw new Error('送信に失敗しました (HTTP ' + r.status + '): ' + errBody.slice(0,200));
+    }
     const newRsv = await r.json().catch(()=>null);
     const newRsvId = newRsv && newRsv[0] && newRsv[0].id;
 
@@ -1089,7 +1093,7 @@ async function submitBooking() {
       })
     }).catch(() => {});
   } catch(e) {
-    errEl.textContent = '送信に失敗しました。お手数ですがLINEにてご連絡ください。';
+    errEl.textContent = e.message + '　お手数ですがLINEにてご連絡ください。';
     btn.disabled = false;
     btn.textContent = '予約リクエストを送る';
   }
