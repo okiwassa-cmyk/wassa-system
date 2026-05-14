@@ -193,6 +193,7 @@
       position:relative;
     }
     .hero-sub{font-size:13px;opacity:0.8;letter-spacing:0.04em;position:relative}
+    .hero-ojisan{position:absolute;right:12px;bottom:0;height:150px;opacity:0.22;pointer-events:none;filter:brightness(10) saturate(0)}
 
     section.content-sec{max-width:700px;margin:0 auto;padding:36px 16px}
 
@@ -256,7 +257,8 @@
       transition:border-color .2s, transform .2s;
     }
     .avail-link:hover{border-color:var(--ocean);transform:translateY(-2px)}
-    .avail-link-icon{font-size:30px;flex-shrink:0}
+    .avail-link-icon{flex-shrink:0;width:44px;height:44px;display:flex;align-items:center;justify-content:center}
+    .avail-link-icon img{width:40px;height:40px;object-fit:contain}
     .avail-link-title{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:500;color:var(--ocean2)}
     .avail-link-sub{font-size:12px;color:var(--text3);margin-top:2px}
     .avail-link-arrow{margin-left:auto;color:var(--ocean);font-size:18px;flex-shrink:0}
@@ -395,6 +397,7 @@
   </header>
 
   <div class="hero">
+    <img class="hero-ojisan" src="イラスト/icon_ojisan.png" alt="">
     <div class="hero-badge">Repeat Guest</div>
     <div class="hero-title">リピーター専用ページ</div>
     <div class="hero-sub">いつもありがとうございます。またのお越しをお待ちしております。</div>
@@ -403,7 +406,7 @@
   <!-- 空室確認リンク -->
   <section class="content-sec">
     <a href="wassa-availability.html" class="avail-link">
-      <div class="avail-link-icon">📅</div>
+      <div class="avail-link-icon"><img src="イラスト/icon_mongara.png" alt=""></div>
       <div>
         <div class="avail-link-title">空室カレンダー</div>
         <div class="avail-link-sub">部屋別の空室状況を確認する</div>

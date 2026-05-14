@@ -54,6 +54,7 @@
       content:'';position:absolute;inset:0;
       background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
     }
+    .hero-plant{position:absolute;right:0;bottom:0;height:170px;opacity:0.15;pointer-events:none;filter:brightness(10) saturate(0)}
     .hero-title{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:400;letter-spacing:0.1em;margin-bottom:6px;position:relative}
     .hero-sub{font-size:13px;opacity:0.8;letter-spacing:0.04em;position:relative}
 
@@ -104,7 +105,8 @@
     }
     .room-row:last-child{border-bottom:none;padding-bottom:0}
     .room-row:first-child{padding-top:0}
-    .room-icon{font-size:22px;flex-shrink:0;width:30px;text-align:center}
+    .room-icon{flex-shrink:0;width:60px;display:flex;align-items:center;justify-content:center}
+    .room-icon img{width:54px;height:54px;object-fit:contain}
     .room-info{flex:1}
     .room-name{font-size:15px;font-weight:500;color:var(--text)}
     .room-avail-label{
@@ -131,7 +133,8 @@
     }
     .cta-card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(26,107,122,0.13)}
     .cta-card.accent{border-color:var(--ocean)}
-    .cta-icon{font-size:30px;margin-bottom:10px}
+    .cta-icon{height:96px;margin-bottom:14px;display:flex;align-items:flex-end;justify-content:center}
+    .cta-icon img{max-height:96px;width:auto;object-fit:contain}
     .cta-label{font-size:10px;color:var(--text3);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:5px}
     .cta-title{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:500;color:var(--ocean2);margin-bottom:8px}
     .cta-desc{font-size:11px;color:var(--text2);line-height:1.7}
@@ -164,6 +167,7 @@
 </header>
 
 <div class="hero">
+  <img class="hero-plant" src="イラスト/icon_shida.png" alt="">
   <div class="hero-title">空室確認</div>
   <div class="hero-sub">ご希望の日程の空室状況をお調べします</div>
 </div>
@@ -196,14 +200,14 @@
 
     <div class="cta-grid">
       <a href="https://wassa-okinawa.com/" class="cta-card" target="_blank" rel="noopener">
-        <div class="cta-icon">🌺</div>
+        <div class="cta-icon"><img src="イラスト/icon_new.png" alt=""></div>
         <div class="cta-label">New Guest</div>
         <div class="cta-title">はじめての方</div>
         <div class="cta-desc">公式サイトよりご予約いただけます</div>
         <div class="cta-btn btn-fill">公式サイトへ</div>
       </a>
       <a href="wassa-repeater.html" class="cta-card accent">
-        <div class="cta-icon">🤝</div>
+        <div class="cta-icon"><img src="イラスト/icon_repeat.png" alt=""></div>
         <div class="cta-label">Repeat Guest</div>
         <div class="cta-title">ご宿泊経験のある方</div>
         <div class="cta-desc">リピーター専用ページより料金確認・ご予約できます</div>
@@ -231,11 +235,11 @@ const SB_H  = { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY };
 
 const ROOM_DEFS = [
   {
-    key: 'stp', icon: '🛏', name: 'スーペリアツイン', total: 2,
+    key: 'stp', icon: '<img src="イラスト/icon_stp.png" alt="" style="width:54px;height:54px;object-fit:contain">', name: 'スーペリアツイン', total: 2,
     match: rt => rt && (rt.indexOf('01') !== -1 || rt.indexOf('02') !== -1) && rt.indexOf('デラックス') === -1 && rt !== 'DX'
   },
   {
-    key: 'dx', icon: '✨', name: 'デラックス', total: 1,
+    key: 'dx', icon: '<img src="イラスト/icon_dlx.png" alt="" style="width:54px;height:54px;object-fit:contain">', name: 'デラックス', total: 1,
     match: rt => rt && (rt.indexOf('デラックス') !== -1 || rt === 'DX')
   }
 ];
