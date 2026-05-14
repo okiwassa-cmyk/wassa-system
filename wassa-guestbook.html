@@ -3450,6 +3450,60 @@ function autoGenBillingRows(){
     return;
   }
 
+  // ── 直予約（リピーターページ）: meal がある場合はシーズン料金まで自動計算 ──
+  if(r.meal && r.source==='直予約'){
+    var _room=(r.room_type||'').indexOf('デラックス')!==-1?'dlx':'sup';
+    var _meal=r.meal;
+    var _hasBf=_meal==='bf'||_meal==='both';
+    var _hasDin=_meal==='din'||_meal==='both';
+    var _adults=parseInt(r.adults)||1;
+    var _children=parseInt(r.children)||0;
+    var _infMealBed=parseInt(r.inf_meal_bed)||0;
+    var _infMealOnly=parseInt(r.inf_meal_only)||0;
+    var _infBedOnly=parseInt(r.inf_bed_only)||0;
+    var _infFuton=_room==='sup'?_infMealBed:0;
+    var _infNoFuton=_room==='sup'?_infMealOnly:0;
+    var _infDlx=_room==='dlx'?(_infMealBed+_infMealOnly):0;
+    var _dinChild=common.din_infant||3300; // 小学生夕食=幼児同額
+    var _est=calcEstimateOneRoom(_room,ci,co,_adults,_children,_infFuton,_infNoFuton,_infDlx,_meal);
+    for(var _i=0;_i<_est.rows.length;_i++){
+      var _er=_est.rows[_i];var _ds=_er.date;
+      if(_hasBf){
+        if(_adults>0) rows.push({cat:'宿泊料金',date:_ds,item:'大人（朝食付き）',qty:_adults,discount:0,price:_er.baseUnit+Math.round((_er.bfAdultAmt||0)/(_adults||1)),payment:pay});
+        if(_children>0) rows.push({cat:'宿泊料金',date:_ds,item:'小学生（朝食付き）',qty:_children,discount:0,price:_er.childUnit+Math.round((_er.bfChildAmt||0)/(_children||1)),payment:pay});
+        if(_infMealBed>0) rows.push({cat:'宿泊料金',date:_ds,item:'幼児・布団あり（朝食付き）',qty:_infMealBed,discount:0,price:_er.infFutonUnit+common.bf_infant,payment:pay});
+        if(_infMealOnly>0) rows.push({cat:'宿泊料金',date:_ds,item:'幼児・布団なし（朝食付き）',qty:_infMealOnly,discount:0,price:_er.infNoFutonUnit+common.bf_infant,payment:pay});
+        if(_infDlx>0) rows.push({cat:'宿泊料金',date:_ds,item:'幼児（朝食付き）',qty:_infDlx,discount:0,price:_er.infDlxUnit+common.bf_infant,payment:pay});
+      } else {
+        if(_adults>0) rows.push({cat:'宿泊料金',date:_ds,item:'大人宿泊',qty:_adults,discount:0,price:_er.baseUnit,payment:pay});
+        if(_children>0&&_er.childUnit>0) rows.push({cat:'宿泊料金',date:_ds,item:'小学生宿泊',qty:_children,discount:0,price:_er.childUnit,payment:pay});
+        if(_infMealBed>0) rows.push({cat:'宿泊料金',date:_ds,item:'幼児（布団あり）',qty:_infMealBed,discount:0,price:_er.infFutonUnit,payment:pay});
+        if(_infMealOnly>0) rows.push({cat:'宿泊料金',date:_ds,item:'幼児（布団なし）',qty:_infMealOnly,discount:0,price:_er.infNoFutonUnit,payment:pay});
+        if(_infDlx>0) rows.push({cat:'宿泊料金',date:_ds,item:'幼児宿泊',qty:_infDlx,discount:0,price:_er.infDlxUnit,payment:pay});
+      }
+      if(_infBedOnly>0) rows.push({cat:'宿泊料金',date:_ds,item:'幼児・布団あり（食なし）',qty:_infBedOnly,discount:0,price:_er.infFutonUnit,payment:pay});
+      if(_hasDin){
+        if(_adults>0) rows.push({cat:'夕食',date:_ds,item:'夕食（大人）',qty:_adults,discount:0,price:Math.round((_er.dinAdultAmt||0)/(_adults||1)),payment:pay});
+        if(_children>0) rows.push({cat:'夕食',date:_ds,item:'夕食（お子様）',qty:_children,discount:0,price:_dinChild,payment:pay});
+        if(_infMealBed+_infMealOnly+_infDlx>0) rows.push({cat:'夕食',date:_ds,item:'夕食（幼児）',qty:_infMealBed+_infMealOnly+_infDlx,discount:0,price:_dinChild,payment:pay});
+      }
+    }
+    billingRows=rows;
+    var _pn=r.plan_name||'';
+    if(!billingMeta.plan_name&&_pn){
+      if(_pn.indexOf('2食')!==-1||(_pn.indexOf('朝')!==-1&&_pn.indexOf('夕')!==-1)) billingMeta.plan_name='2食付き';
+      else if(_pn.indexOf('朝食')!==-1) billingMeta.plan_name='朝食付き';
+      else if(_pn.indexOf('夕食')!==-1) billingMeta.plan_name='夕食付き';
+      else if(_pn.indexOf('素泊')!==-1) billingMeta.plan_name='素泊まり';
+    }
+    var _planSel=document.getElementById('bill-plan-name'); if(_planSel) _planSel.value=billingMeta.plan_name||'';
+    var _couponEl=document.getElementById('bill-coupon'); if(_couponEl) _couponEl.value=billingMeta.coupon||0;
+    var _pointsEl=document.getElementById('bill-points'); if(_pointsEl) _pointsEl.value=billingMeta.points||0;
+    renderBillingRows();
+    toast('シーズン料金で自動計算しました。内容をご確認ください。');
+    return;
+  }
+
   // ── 手動入力予約：参考行＋空白行を生成 ──
   var adults=parseInt(r.adults)||1;
   var totalAmt=parseInt(r.total_amount)||0;
