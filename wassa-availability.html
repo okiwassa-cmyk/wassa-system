@@ -269,6 +269,13 @@ function dispDate(ds) {
   return `${d.getMonth()+1}月${d.getDate()}日（${'日月火水木金土'[d.getDay()]}）`;
 }
 
+function isClosedDay(ds) {
+  const wd = window._closedWd||[3], oe = window._openEx||[], ce = window._closedEx||[];
+  if (oe.includes(ds)) return false;
+  if (ce.includes(ds)) return true;
+  return wd.includes(new Date(ds+'T00:00:00').getDay());
+}
+
 async function checkAvailability() {
   const cin  = document.getElementById('f-cin').value;
   const cout = document.getElementById('f-cout').value;
@@ -295,6 +302,12 @@ async function checkAvailability() {
     const end = new Date(cout + 'T00:00:00');
     while (d < end) { nights.push(fmtD(d)); d.setDate(d.getDate()+1); }
 
+    if (isClosedDay(cin)) {
+      errEl.textContent = 'チェックイン日は定休日のためご利用いただけません。';
+      btn.disabled = false; btn.innerHTML = '空室を確認する';
+      document.getElementById('result').style.display = 'none';
+      return;
+    }
     let roomsHtml = '';
     for (const def of ROOM_DEFS) {
       const minAvail = Math.min(...nights.map(ds => {

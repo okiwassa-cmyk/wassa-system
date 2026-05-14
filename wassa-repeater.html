@@ -631,7 +631,7 @@ async function loadPriceData() {
     const [mRes, sRes, cRes] = await Promise.all([
       fetch(`${SB_URL}/rest/v1/price_master?select=season,room,pax,pax_type,price`, { headers: SB_H }),
       fetch(`${SB_URL}/rest/v1/season_ranges?select=from_date,to_date,season&order=from_date.asc`, { headers: SB_H }),
-      fetch(`${SB_URL}/rest/v1/price_common?id=eq.1&select=bf_adult,din_adult,bf_infant,din_infant`, { headers: SB_H })
+      fetch(`${SB_URL}/rest/v1/price_common?id=eq.1&select=bf_adult,din_adult,bf_infant,din_infant,closed_weekdays,open_exceptions,closed_exceptions`, { headers: SB_H })
     ]);
     const master  = await mRes.json();
     const seasons = await sRes.json();
@@ -641,8 +641,11 @@ async function loadPriceData() {
       seasons,
       bf:      (common && common[0] && common[0].bf_adult)   || 2200,
       din:     (common && common[0] && common[0].din_adult)  || 7700,
-      bf_inf:  (common && common[0] && common[0].bf_infant)  || 2200,
-      din_inf: (common && common[0] && common[0].din_infant) || 3300
+      bf_inf:    (common && common[0] && common[0].bf_infant)   || 2200,
+      din_inf:   (common && common[0] && common[0].din_infant)  || 3300,
+      closedWd:  (common && common[0] && common[0].closed_weekdays)  || [3],
+      openEx:    (common && common[0] && common[0].open_exceptions)  || [],
+      closedEx:  (common && common[0] && common[0].closed_exceptions)|| []
     };
   } catch(e) {
     // フォールバック: デフォルト値で動作継続
@@ -664,6 +667,14 @@ function getRoomRate(season, room, adults) {
   if (exact) return exact.price;
   const sorted = rows.filter(r => r.pax !== null).sort((a, b) => b.pax - a.pax);
   return sorted.length ? sorted[0].price : 0;
+}
+
+function isClosedDay(ds) {
+  if (!_priceData) return false;
+  const wd = _priceData.closedWd||[3], oe = _priceData.openEx||[], ce = _priceData.closedEx||[];
+  if (oe.includes(ds)) return false;
+  if (ce.includes(ds)) return true;
+  return wd.includes(new Date(ds+'T00:00:00').getDay());
 }
 
 function checkCapacity() {
@@ -796,7 +807,8 @@ function updateEstimate() {
     </div>`;
   }
 
-  document.getElementById('estimate-rows').innerHTML = rows;
+  const closedWarn = isClosedDay(cin) ? '<div style="color:var(--rose);font-size:12px;margin-bottom:8px">⚠️ チェックイン日は定休日です</div>' : '';
+  document.getElementById('estimate-rows').innerHTML = closedWarn + rows;
   document.getElementById('estimate-total').textContent = total > 0 ? `¥${fmt(total)}` : '—';
   document.getElementById('estimate-wrap').style.display = total > 0 ? 'block' : 'none';
 }
@@ -853,6 +865,7 @@ async function submitBooking() {
   if (!phone)             { errEl.textContent = '電話番号を入力してください。'; return; }
   if (!cin || !cout)      { errEl.textContent = 'チェックイン・チェックアウト日を選択してください。'; return; }
   if (cin >= cout)        { errEl.textContent = 'チェックアウトはチェックインより後の日付を選択してください。'; return; }
+  if (isClosedDay(cin))   { errEl.textContent = 'チェックイン日は定休日のためご利用いただけません。別の日程をお選びください。'; return; }
 
   const btn = document.getElementById('submit-btn');
   btn.disabled = true;
