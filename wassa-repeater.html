@@ -757,6 +757,8 @@ function updateEstimate() {
   const room     = document.getElementById('f-room').value;
   const infMealBed  = parseInt(document.getElementById('f-inf-meal-bed').value)||0;
   const infMealOnly = parseInt(document.getElementById('f-inf-meal-only').value)||0;
+  const infBedOnly  = parseInt(document.getElementById('f-inf-bed-only').value)||0;
+  const infNone     = parseInt(document.getElementById('f-inf-none').value)||0;
   const infMeal     = infMealBed + infMealOnly;
 
   if (!cin || !cout || cin >= cout) {
@@ -817,6 +819,17 @@ function updateEstimate() {
         dayTotal += infAmt;
         details += `<div class="est-detail"><span>幼児・布団なし（朝食付き）× ${infMealOnly}名</span><span>¥${fmt(infAmt)}</span></div>`;
       }
+      // 食事なし幼児の布団代（hasBf 時も加算）
+      if (infBedOnly > 0) {
+        const infAmt = n.infFutonRate * infBedOnly;
+        dayTotal += infAmt;
+        details += `<div class="est-detail"><span>幼児・布団あり（食事なし）× ${infBedOnly}名</span><span>¥${fmt(infAmt)}</span></div>`;
+      }
+      if (infNone > 0) {
+        const infAmt = n.infNoFutonRate * infNone;
+        dayTotal += infAmt;
+        details += `<div class="est-detail"><span>幼児・布団なし（食事なし）× ${infNone}名</span><span>¥${fmt(infAmt)}</span></div>`;
+      }
     } else {
       // 素泊まり or 夕食のみ：室料を別行
       const adultAmt = n.rate * adults;
@@ -826,6 +839,26 @@ function updateEstimate() {
         const childAmt = n.childRate * children;
         dayTotal += childAmt;
         details += `<div class="est-detail"><span>小学生宿泊料金 × ${children}名</span><span>¥${fmt(childAmt)}</span></div>`;
+      }
+      if (infMealBed > 0) {
+        const infAmt = n.infFutonRate * infMealBed;
+        dayTotal += infAmt;
+        details += `<div class="est-detail"><span>幼児・布団あり × ${infMealBed}名</span><span>¥${fmt(infAmt)}</span></div>`;
+      }
+      if (infMealOnly > 0) {
+        const infAmt = n.infNoFutonRate * infMealOnly;
+        dayTotal += infAmt;
+        details += `<div class="est-detail"><span>幼児・布団なし × ${infMealOnly}名</span><span>¥${fmt(infAmt)}</span></div>`;
+      }
+      if (infBedOnly > 0) {
+        const infAmt = n.infFutonRate * infBedOnly;
+        dayTotal += infAmt;
+        details += `<div class="est-detail"><span>幼児・布団あり（食事なし）× ${infBedOnly}名</span><span>¥${fmt(infAmt)}</span></div>`;
+      }
+      if (infNone > 0) {
+        const infAmt = n.infNoFutonRate * infNone;
+        dayTotal += infAmt;
+        details += `<div class="est-detail"><span>幼児・布団なし（食事なし）× ${infNone}名</span><span>¥${fmt(infAmt)}</span></div>`;
       }
     }
     if (hasDin) {
@@ -853,8 +886,10 @@ function updateEstimate() {
 
   // タイトル行
   let paxDesc = `大人${adults}名`;
-  if (children > 0) paxDesc += `・小学生${children}名`;
-  if (infMeal > 0)  paxDesc += `・食事あり幼児${infMeal}名`;
+  if (children > 0)  paxDesc += `・小学生${children}名`;
+  if (infMeal > 0)   paxDesc += `・食事あり幼児${infMeal}名`;
+  if (infBedOnly > 0) paxDesc += `・布団あり幼児${infBedOnly}名`;
+  if (infNone > 0)   paxDesc += `・布団なし幼児${infNone}名`;
   const roomLabel = ROOM_LABEL[room] || room;
   const titleHtml = `<div class="est-title">${roomLabel}　${nights.length}泊　${MEAL_LABEL[meal]||''}<br><span style="font-size:12px;font-weight:400;color:var(--text2)">${paxDesc}</span></div>`;
 
@@ -899,7 +934,7 @@ async function initMain() {
 }
 
 // ── お客様提示見積もりと同じ billing 行を生成 ──
-function buildBillingRows(cin, cout, adults, children, meal, room, infMealBed, infMealOnly) {
+function buildBillingRows(cin, cout, adults, children, meal, room, infMealBed, infMealOnly, infBedOnly, infNone) {
   if (!_priceData) return [];
   const pay    = '現地精算';
   const hasBf  = meal === 'bf'  || meal === 'both';
@@ -917,17 +952,22 @@ function buildBillingRows(cin, cout, adults, children, meal, room, infMealBed, i
     const infNoFutonRate = getInfantNoFutonRate(season, room);
     if (hasBf) {
       rows.push({cat:'宿泊料金', date:ds, item:'大人（朝食付き）', qty:adults, discount:0, price:rate + _priceData.bf, payment:pay});
-      if (children > 0) rows.push({cat:'宿泊料金', date:ds, item:'小学生（朝食付き）', qty:children, discount:0, price:childRate + _priceData.bf, payment:pay});
-      if (infMealBed  > 0) rows.push({cat:'宿泊料金', date:ds, item:'幼児・布団あり（朝食付き）', qty:infMealBed,  discount:0, price:infFutonRate   + _priceData.bf_inf, payment:pay});
+      if (children > 0)  rows.push({cat:'宿泊料金', date:ds, item:'小学生（朝食付き）',     qty:children,  discount:0, price:childRate + _priceData.bf,          payment:pay});
+      if (infMealBed > 0) rows.push({cat:'宿泊料金', date:ds, item:'幼児・布団あり（朝食付き）', qty:infMealBed,  discount:0, price:infFutonRate + _priceData.bf_inf,   payment:pay});
       if (infMealOnly > 0) rows.push({cat:'宿泊料金', date:ds, item:'幼児・布団なし（朝食付き）', qty:infMealOnly, discount:0, price:infNoFutonRate + _priceData.bf_inf, payment:pay});
     } else {
       rows.push({cat:'宿泊料金', date:ds, item:'大人宿泊', qty:adults, discount:0, price:rate, payment:pay});
       if (children > 0 && childRate > 0) rows.push({cat:'宿泊料金', date:ds, item:'小学生宿泊', qty:children, discount:0, price:childRate, payment:pay});
+      if (infMealBed > 0)  rows.push({cat:'宿泊料金', date:ds, item:'幼児・布団あり',      qty:infMealBed,  discount:0, price:infFutonRate,    payment:pay});
+      if (infMealOnly > 0) rows.push({cat:'宿泊料金', date:ds, item:'幼児・布団なし',      qty:infMealOnly, discount:0, price:infNoFutonRate,  payment:pay});
     }
+    // 食事なし幼児の布団代（全プラン共通）
+    if (infBedOnly > 0) rows.push({cat:'宿泊料金', date:ds, item:'幼児・布団あり（食事なし）', qty:infBedOnly, discount:0, price:infFutonRate,   payment:pay});
+    if (infNone    > 0) rows.push({cat:'宿泊料金', date:ds, item:'幼児・布団なし（食事なし）', qty:infNone,    discount:0, price:infNoFutonRate, payment:pay});
     if (hasDin) {
-      rows.push({cat:'夕食', date:ds, item:'夕食（大人）', qty:adults, discount:0, price:_priceData.din, payment:pay});
+      rows.push({cat:'夕食', date:ds, item:'夕食（大人）',   qty:adults,   discount:0, price:_priceData.din,     payment:pay});
       if (children > 0) rows.push({cat:'夕食', date:ds, item:'夕食（お子様）', qty:children, discount:0, price:_priceData.din_inf, payment:pay});
-      if (infMeal  > 0) rows.push({cat:'夕食', date:ds, item:'夕食（幼児）', qty:infMeal, discount:0, price:_priceData.din_inf, payment:pay});
+      if (infMeal  > 0) rows.push({cat:'夕食', date:ds, item:'夕食（幼児）',   qty:infMeal,  discount:0, price:_priceData.din_inf, payment:pay});
     }
     d.setDate(d.getDate() + 1);
   }
@@ -1028,7 +1068,7 @@ async function submitBooking() {
     // billing を別途 PATCH（失敗しても予約自体はキャンセルしない）
     if (newRsvId) {
       try {
-        const billingRows = buildBillingRows(cin, cout, adults, children, meal, roomKey, infMealBed, infMealOnly);
+        const billingRows = buildBillingRows(cin, cout, adults, children, meal, roomKey, infMealBed, infMealOnly, parseInt(document.getElementById('f-inf-bed-only').value)||0, parseInt(document.getElementById('f-inf-none').value)||0);
         if (billingRows.length > 0) {
           await fetch(`${SB_URL}/rest/v1/reservations?id=eq.${newRsvId}`, {
             method: 'PATCH',
