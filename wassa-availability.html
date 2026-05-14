@@ -50,10 +50,7 @@
       background:linear-gradient(160deg, var(--ocean2) 0%, #2a8a9a 100%);
       color:#fff;text-align:center;padding:44px 20px 38px;position:relative;overflow:hidden;
     }
-    .hero::before{
-      content:'';position:absolute;inset:0;
-      background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-    }
+
     .hero-title{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:400;letter-spacing:0.1em;margin-bottom:6px;position:relative}
     .hero-sub{font-size:13px;opacity:0.8;letter-spacing:0.04em;position:relative}
 
@@ -80,11 +77,11 @@
     }
     .form-input:focus{border-color:var(--ocean);box-shadow:0 0 0 3px rgba(26,107,122,0.1)}
     .check-btn{
-      width:100%;padding:15px;background:var(--ocean);color:#fff;border:none;
+      width:100%;padding:15px;background:var(--green);color:#fff;border:none;
       border-radius:12px;font-size:14px;font-family:inherit;font-weight:500;
       letter-spacing:0.08em;cursor:pointer;transition:background .2s,transform .15s;margin-top:4px;
     }
-    .check-btn:hover{background:var(--ocean2);transform:translateY(-1px)}
+    .check-btn:hover{background:#2e6650;transform:translateY(-1px)}
     .check-btn:active{transform:none}
     .check-btn:disabled{background:var(--text3);cursor:not-allowed;transform:none}
 
@@ -139,8 +136,8 @@
     .cta-desc{font-size:11px;color:var(--text2);line-height:1.7}
     .cta-btn{display:inline-block;margin-top:14px;padding:9px 20px;border-radius:22px;font-size:12px;font-weight:500;letter-spacing:0.04em;transition:opacity .18s}
     .cta-btn:hover{opacity:.85}
-    .btn-fill{background:var(--ocean);color:#fff}
-    .btn-out{border:1.5px solid var(--ocean);color:var(--ocean)}
+    .btn-fill{background:var(--green);color:#fff}
+    .btn-out{background:#fff;border:1.5px solid var(--green);color:var(--green)}
 
     .notice{
       background:var(--ocean-lt);border-radius:12px;padding:14px 18px;
