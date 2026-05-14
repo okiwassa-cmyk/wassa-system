@@ -68,15 +68,15 @@
       font-family:'Cormorant Garamond',serif;font-size:19px;font-weight:500;
       color:var(--ocean2);margin-bottom:20px;letter-spacing:0.04em;
     }
-    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;min-width:0}
     @media(max-width:400px){.form-row{grid-template-columns:1fr}}
-    .form-group{margin-bottom:16px}
+    .form-group{margin-bottom:16px;min-width:0;overflow:hidden}
     .form-label{display:block;font-size:12px;font-weight:500;color:var(--text2);letter-spacing:0.04em;margin-bottom:7px}
     .form-input{
       width:100%;padding:13px 14px;border:1.5px solid var(--border);border-radius:10px;
       font-size:15px;font-family:inherit;color:var(--text);background:#fff;outline:none;
       transition:border-color .2s,box-shadow .2s;
-      text-align:left;
+      text-align:center;box-sizing:border-box;min-width:0;
     }
     .form-input:focus{border-color:var(--ocean);box-shadow:0 0 0 3px rgba(26,107,122,0.1)}
     .check-btn{
