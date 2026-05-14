@@ -628,7 +628,7 @@ async function loadPriceData() {
     const [mRes, sRes, cRes] = await Promise.all([
       fetch(`${SB_URL}/rest/v1/price_master?select=season,room,pax,pax_type,price`, { headers: SB_H }),
       fetch(`${SB_URL}/rest/v1/season_ranges?select=from_date,to_date,season&order=from_date.asc`, { headers: SB_H }),
-      fetch(`${SB_URL}/rest/v1/price_common?id=eq.1&select=bf_adult,din_adult`, { headers: SB_H })
+      fetch(`${SB_URL}/rest/v1/price_common?id=eq.1&select=bf_adult,din_adult,bf_infant,din_infant`, { headers: SB_H })
     ]);
     const master  = await mRes.json();
     const seasons = await sRes.json();
@@ -636,12 +636,14 @@ async function loadPriceData() {
     _priceData = {
       master,
       seasons,
-      bf:  (common && common[0] && common[0].bf_adult)  || 2200,
-      din: (common && common[0] && common[0].din_adult) || 7700
+      bf:      (common && common[0] && common[0].bf_adult)   || 2200,
+      din:     (common && common[0] && common[0].din_adult)  || 7700,
+      bf_inf:  (common && common[0] && common[0].bf_infant)  || 2200,
+      din_inf: (common && common[0] && common[0].din_infant) || 3300
     };
   } catch(e) {
     // フォールバック: デフォルト値で動作継続
-    _priceData = { master: [], seasons: [], bf: 2200, din: 7700 };
+    _priceData = { master: [], seasons: [], bf: 2200, din: 7700, bf_inf: 2200, din_inf: 3300 };
   }
 }
 
@@ -685,6 +687,8 @@ function updateEstimate() {
   const children= parseInt(document.getElementById('f-children').value) || 0;
   const meal    = document.getElementById('f-meal').value;
   const room    = document.getElementById('f-room').value;
+  const infMeal = (parseInt(document.getElementById('f-inf-meal-bed').value)||0)
+                + (parseInt(document.getElementById('f-inf-meal-only').value)||0);
 
   if (!cin || !cout || cin >= cout) {
     document.getElementById('estimate-wrap').style.display = 'none';
@@ -708,9 +712,11 @@ function updateEstimate() {
   let mealTotal = 0;
   const hasBf  = meal === 'bf'   || meal === 'both';
   const hasDin = meal === 'din'  || meal === 'both';
-  if (hasBf)  mealTotal += _priceData.bf  * (adults + children) * nights.length;
-  if (hasDin) mealTotal += _priceData.din * adults * nights.length;
+  if (hasBf)  mealTotal += _priceData.bf     * (adults + children) * nights.length;
+  if (hasBf  && infMeal > 0) mealTotal += _priceData.bf_inf  * infMeal * nights.length;
+  if (hasDin) mealTotal += _priceData.din    * adults * nights.length;
   if (hasDin && children > 0) mealTotal += Math.round(_priceData.din * 0.65) * children * nights.length;
+  if (hasDin && infMeal > 0)  mealTotal += _priceData.din_inf * infMeal * nights.length;
 
   const total = roomTotal + mealTotal;
 
@@ -758,6 +764,20 @@ function updateEstimate() {
         <span class="estimate-row-price">¥${fmt(subC)}</span>
       </div>`;
     }
+    if (infMeal > 0) {
+      const subI = _priceData.din_inf * infMeal * nights.length;
+      rows += `<div class="estimate-row">
+        <span class="estimate-row-label">夕食 ${nights.length}泊 × 幼児${infMeal}名</span>
+        <span class="estimate-row-price">¥${fmt(subI)}</span>
+      </div>`;
+    }
+  }
+  if (hasBf && infMeal > 0) {
+    const subI = _priceData.bf_inf * infMeal * nights.length;
+    rows += `<div class="estimate-row">
+      <span class="estimate-row-label">朝食 ${nights.length}泊 × 幼児${infMeal}名</span>
+      <span class="estimate-row-price">¥${fmt(subI)}</span>
+    </div>`;
   }
 
   document.getElementById('estimate-rows').innerHTML = rows;
@@ -788,6 +808,8 @@ async function initMain() {
   document.getElementById('f-cout').addEventListener('change', updateEstimate);
   document.getElementById('f-adults').addEventListener('change', updateEstimate);
   document.getElementById('f-children').addEventListener('change', updateEstimate);
+  document.getElementById('f-inf-meal-bed').addEventListener('change', updateEstimate);
+  document.getElementById('f-inf-meal-only').addEventListener('change', updateEstimate);
   updateInfantFields();
 }
 
