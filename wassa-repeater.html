@@ -847,15 +847,18 @@ function updateEstimate() {
 // ── メイン初期化 ──
 async function initMain() {
   await loadPriceData();
-  // 日付デフォルト
+  // 日付デフォルト（空室確認ページからのパラメータを優先）
   const today = new Date();
   const fmtD  = d => d.toISOString().slice(0,10);
-  const cin   = new Date(today); cin.setDate(cin.getDate() + 7);
-  const cout  = new Date(cin);   cout.setDate(cout.getDate() + 1);
-  document.getElementById('f-cin').value  = fmtD(cin);
-  document.getElementById('f-cout').value = fmtD(cout);
+  const params = new URLSearchParams(location.search);
+  const paramCin  = params.get('cin');
+  const paramCout = params.get('cout');
+  const cinDef  = new Date(today); cinDef.setDate(cinDef.getDate() + 7);
+  const coutDef = new Date(cinDef); coutDef.setDate(coutDef.getDate() + 1);
+  document.getElementById('f-cin').value  = paramCin  || fmtD(cinDef);
+  document.getElementById('f-cout').value = paramCout || fmtD(coutDef);
   document.getElementById('f-cin').min    = fmtD(today);
-  document.getElementById('f-cout').min   = fmtD(cin);
+  document.getElementById('f-cout').min   = document.getElementById('f-cin').value;
   document.getElementById('f-cin').addEventListener('change', function() {
     refreshClosedDays();
     const newCin  = new Date(this.value + 'T00:00:00');

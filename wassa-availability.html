@@ -204,7 +204,7 @@
         <div class="cta-desc">公式サイトよりご予約いただけます</div>
         <div class="cta-btn btn-fill">公式サイトへ</div>
       </a>
-      <a href="wassa-repeater.html" class="cta-card accent">
+      <a href="wassa-repeater.html" class="cta-card accent" id="repeater-link">
         <div class="cta-icon"><img src="イラスト/icon_repeat.png" alt=""></div>
         <div class="cta-label">Repeat Guest</div>
         <div class="cta-title">ご宿泊経験のある方</div>
@@ -251,6 +251,12 @@ document.getElementById('f-cin').value  = fmtD(cin0);
 document.getElementById('f-cout').value = fmtD(cout0);
 document.getElementById('f-cin').min    = fmtD(today);
 document.getElementById('f-cout').min   = fmtD(cin0);
+function updateRepeaterLink() {
+  const cin  = document.getElementById('f-cin').value;
+  const cout = document.getElementById('f-cout').value;
+  const href = cin && cout ? `wassa-repeater.html?cin=${cin}&cout=${cout}` : 'wassa-repeater.html';
+  document.getElementById('repeater-link').href = href;
+}
 document.getElementById('f-cin').addEventListener('change', function() {
   const nc = new Date(this.value + 'T00:00:00');
   nc.setDate(nc.getDate() + 1);
@@ -258,10 +264,13 @@ document.getElementById('f-cin').addEventListener('change', function() {
   if (document.getElementById('f-cout').value <= this.value)
     document.getElementById('f-cout').value = fmtD(nc);
   document.getElementById('result').style.display = 'none';
+  updateRepeaterLink();
 });
 document.getElementById('f-cout').addEventListener('change', function() {
   document.getElementById('result').style.display = 'none';
+  updateRepeaterLink();
 });
+updateRepeaterLink();
 
 // 日付フォーマット（表示用）
 function dispDate(ds) {
