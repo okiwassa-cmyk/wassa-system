@@ -207,27 +207,25 @@
     }
     .sec-note{font-size:12px;color:var(--text3);margin-bottom:24px}
 
-    /* ── Calendar (same as availability page) ── */
-    .legend{display:flex;gap:16px;justify-content:center;margin-bottom:24px;flex-wrap:wrap}
-    .leg-item{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text2)}
-    .leg-dot{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0}
-    .dot-avail{background:var(--green-lt);color:var(--green)}
-    .dot-few  {background:var(--amber-lt);color:var(--amber)}
-    .dot-full {background:var(--rose-lt); color:var(--rose)}
-    .month-card{background:#fff;border-radius:20px;padding:22px 18px 18px;margin-bottom:14px;box-shadow:0 2px 18px rgba(26,107,122,0.07)}
-    .month-title{font-family:'Cormorant Garamond',serif;font-size:19px;font-weight:500;color:var(--ocean2);text-align:center;margin-bottom:16px;letter-spacing:0.06em}
-    .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
-    .dow{text-align:center;font-size:10px;font-weight:500;color:var(--text3);padding-bottom:8px;letter-spacing:0.04em}
-    .dow-sun{color:#d97070}.dow-sat{color:#7090d9}
-    .day-cell{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:50%}
-    .d-num{font-size:13px;line-height:1}
-    .d-st {font-size:9px;font-weight:700;margin-top:3px;line-height:1}
-    .c-avail{background:var(--green-lt)}.c-avail .d-num,.c-avail .d-st{color:var(--green)}
-    .c-few  {background:var(--amber-lt)}.c-few .d-num,.c-few .d-st{color:var(--amber)}
-    .c-full {background:var(--rose-lt)} .c-full .d-num,.c-full .d-st{color:var(--rose)}
-    .c-past .d-num{color:#ccc}
-    .is-sun .d-num{color:#d97070}.is-sat .d-num{color:#7090d9}
-    .c-avail .d-num,.c-few .d-num,.c-full .d-num{color:inherit}
+    /* ── Availability link card ── */
+    .avail-link{
+      display:flex;
+      align-items:center;
+      gap:16px;
+      background:#fff;
+      border-radius:16px;
+      padding:20px 22px;
+      text-decoration:none;
+      color:inherit;
+      box-shadow:0 2px 18px rgba(26,107,122,0.07);
+      border:2px solid var(--ocean-lt);
+      transition:border-color .2s, transform .2s;
+    }
+    .avail-link:hover{border-color:var(--ocean);transform:translateY(-2px)}
+    .avail-link-icon{font-size:30px;flex-shrink:0}
+    .avail-link-title{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:500;color:var(--ocean2)}
+    .avail-link-sub{font-size:12px;color:var(--text3);margin-top:2px}
+    .avail-link-arrow{margin-left:auto;color:var(--ocean);font-size:18px;flex-shrink:0}
 
     /* ── Pricing ── */
     .pricing-card{
@@ -362,12 +360,6 @@
     .spin{display:inline-block;width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--ocean);border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-bottom:8px}
     @keyframes spin{to{transform:rotate(360deg)}}
 
-    .back-link{
-      display:inline-flex;align-items:center;gap:6px;
-      font-size:12px;color:var(--text3);text-decoration:none;
-      margin-bottom:24px;
-    }
-    .back-link:hover{color:var(--ocean)}
   </style>
 </head>
 <body>
@@ -412,19 +404,16 @@
     <div class="hero-sub">いつもありがとうございます。またのお越しをお待ちしております。</div>
   </div>
 
-  <!-- 空室カレンダー -->
+  <!-- 空室確認リンク -->
   <section class="content-sec">
-    <a href="wassa-availability.html" class="back-link">← 空室カレンダーに戻る</a>
-    <div class="sec-title">空室カレンダー</div>
-    <div class="sec-note">ご希望の日程の空室状況をご確認ください</div>
-    <div class="legend">
-      <div class="leg-item"><div class="leg-dot dot-avail">〇</div>空室あり</div>
-      <div class="leg-item"><div class="leg-dot dot-few">△</div>残りわずか</div>
-      <div class="leg-item"><div class="leg-dot dot-full">×</div>満室</div>
-    </div>
-    <div id="cal-wrap">
-      <div class="loading"><span class="spin"></span><br>読み込み中...</div>
-    </div>
+    <a href="wassa-availability.html" class="avail-link">
+      <div class="avail-link-icon">📅</div>
+      <div>
+        <div class="avail-link-title">空室カレンダー</div>
+        <div class="avail-link-sub">部屋別の空室状況を確認する</div>
+      </div>
+      <div class="avail-link-arrow">›</div>
+    </a>
   </section>
 
   <!-- 料金 -->
@@ -559,8 +548,6 @@
 <script>
 const SB_URL = 'https://mtsdhheqddrckksiqlim.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10c2RoaGVxZGRyY2trc2lxbGltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1OTc5NDgsImV4cCI6MjA4ODE3Mzk0OH0.c18ExSxNHBOani7CN4QAqaerhvpr5ZCYA0GGkUg0mlc';
-const ROOMS  = 3;
-const MONTHS = 3;
 const SB_H   = { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' };
 
 let correctPass = 'WASSA2025'; // Supabaseから上書き
@@ -605,54 +592,6 @@ if (sessionStorage.getItem('rp_auth') === '1') {
   initMain();
 }
 
-// ── カレンダー ──
-async function fetchReservations() {
-  const today = new Date();
-  const from  = today.toISOString().slice(0,10);
-  const end   = new Date(today.getFullYear(), today.getMonth() + MONTHS + 1, 1).toISOString().slice(0,10);
-  const r = await fetch(
-    `${SB_URL}/rest/v1/reservations?status=neq.cancelled&check_in=lt.${end}&check_out=gt.${from}&select=check_in,check_out`,
-    { headers: SB_H }
-  );
-  return r.json();
-}
-
-function dayStatus(ds, rsvs) {
-  const today = new Date(); today.setHours(0,0,0,0);
-  const d     = new Date(ds); d.setHours(0,0,0,0);
-  if (d < today) return 'past';
-  const n = rsvs.filter(r => r.check_in <= ds && r.check_out > ds).length;
-  if (n >= ROOMS)      return 'full';
-  if (n >= ROOMS - 1)  return 'few';
-  return 'avail';
-}
-
-function renderMonth(y, m, rsvs) {
-  const labels = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
-  const first  = new Date(y, m, 1).getDay();
-  const last   = new Date(y, m + 1, 0).getDate();
-  const sc     = { avail:'〇', few:'△', full:'×', past:'' };
-  let h = `<div class="month-card">
-    <div class="month-title">${y}年 ${labels[m]}</div>
-    <div class="cal-grid">
-      <div class="dow dow-sun">日</div>
-      <div class="dow">月</div><div class="dow">火</div>
-      <div class="dow">水</div><div class="dow">木</div><div class="dow">金</div>
-      <div class="dow dow-sat">土</div>`;
-  for (let i = 0; i < first; i++) h += '<div></div>';
-  for (let d = 1; d <= last; d++) {
-    const ds  = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const dow = (first + d - 1) % 7;
-    const st  = dayStatus(ds, rsvs);
-    const dc  = dow === 0 ? ' is-sun' : dow === 6 ? ' is-sat' : '';
-    h += `<div class="day-cell c-${st}${dc}">
-      <span class="d-num">${d}</span>
-      ${sc[st] ? `<span class="d-st">${sc[st]}</span>` : ''}
-    </div>`;
-  }
-  return h + '</div></div>';
-}
-
 // ── 料金読み込み ──
 async function loadPricing() {
   try {
@@ -669,20 +608,6 @@ async function loadPricing() {
 
 // ── メイン初期化 ──
 async function initMain() {
-  // カレンダー
-  try {
-    const rsvs = await fetchReservations();
-    const now  = new Date();
-    let h = '';
-    for (let i = 0; i < MONTHS; i++) {
-      const t = new Date(now.getFullYear(), now.getMonth() + i, 1);
-      h += renderMonth(t.getFullYear(), t.getMonth(), rsvs);
-    }
-    document.getElementById('cal-wrap').innerHTML = h;
-  } catch(e) {
-    document.getElementById('cal-wrap').innerHTML =
-      '<div class="loading">データを読み込めませんでした。</div>';
-  }
   // 料金
   loadPricing();
   // 日付デフォルト
