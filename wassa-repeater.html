@@ -532,6 +532,9 @@
       </div>
 
       <div id="cap-badge" class="cap-badge">🛏 寝具利用 2 / 4名</div>
+      <div id="cap-warn" style="display:none;margin-top:8px;padding:10px 14px;background:#fff0f0;border:1px solid #ffcdd2;border-radius:8px;font-size:13px;color:#c62828">
+        ⚠️ 寝具をご利用いただける定員は4名までです。人数をご確認ください。
+      </div>
 
       <!-- 料金見積もり -->
       <div id="estimate-wrap" style="display:none;margin-bottom:20px">
@@ -725,6 +728,7 @@ function checkCapacity() {
   badge.textContent = `🛏 寝具利用 ${used} / 4名`;
   const over = used > 4;
   badge.className = 'cap-badge' + (over ? ' over' : '');
+  document.getElementById('cap-warn').style.display = over ? 'block' : 'none';
   document.getElementById('submit-btn').disabled = over;
 }
 
