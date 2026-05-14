@@ -669,6 +669,18 @@ function getRoomRate(season, room, adults) {
   return sorted.length ? sorted[0].price : 0;
 }
 
+async function refreshClosedDays() {
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/price_common?id=eq.1&select=closed_weekdays,open_exceptions,closed_exceptions`, { headers: SB_H });
+    const d = await r.json();
+    if (d && d[0]) {
+      _priceData.closedWd  = d[0].closed_weekdays   || [3];
+      _priceData.openEx    = d[0].open_exceptions   || [];
+      _priceData.closedEx  = d[0].closed_exceptions || [];
+    }
+  } catch(e) {}
+}
+
 function isClosedDay(ds) {
   if (!_priceData) return false;
   const wd = _priceData.closedWd||[3], oe = _priceData.openEx||[], ce = _priceData.closedEx||[];
@@ -826,6 +838,7 @@ async function initMain() {
   document.getElementById('f-cin').min    = fmtD(today);
   document.getElementById('f-cout').min   = fmtD(cin);
   document.getElementById('f-cin').addEventListener('change', function() {
+    refreshClosedDays();
     const newCin  = new Date(this.value + 'T00:00:00');
     const newCout = new Date(newCin); newCout.setDate(newCout.getDate() + 1);
     document.getElementById('f-cout').min = this.value;
