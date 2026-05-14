@@ -876,6 +876,7 @@ async function initMain() {
   document.getElementById('f-inf-meal-only').addEventListener('change', updateEstimate);
   updateInfantFields();
   checkCapacity();
+  updateEstimate();
 }
 
 // ── お客様提示見積もりと同じ billing 行を生成 ──
@@ -967,7 +968,7 @@ async function submitBooking() {
     const infMealOnly = parseInt(document.getElementById('f-inf-meal-only').value)||0;
     const infMeal     = infMealBed + infMealOnly;
     const body = {
-      customer_name: name,
+      guest_name: name,
       phone:         phone,
       email:         null,
       check_in:      cin,
