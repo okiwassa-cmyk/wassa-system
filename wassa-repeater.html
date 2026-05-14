@@ -207,6 +207,40 @@
     }
     .sec-note{font-size:12px;color:var(--text3);margin-bottom:24px}
 
+    /* ── Estimate card ── */
+    .estimate-card{
+      background:var(--ocean-lt);
+      border-radius:14px;
+      padding:18px 18px 14px;
+      border:1.5px solid rgba(26,107,122,0.2);
+    }
+    .estimate-title{
+      font-size:12px;font-weight:500;color:var(--ocean2);
+      letter-spacing:0.06em;margin-bottom:12px;text-transform:uppercase;
+    }
+    .estimate-row{
+      display:flex;justify-content:space-between;align-items:baseline;
+      font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,107,122,0.12);
+      gap:8px;
+    }
+    .estimate-row:last-of-type{border-bottom:none}
+    .estimate-row-label{color:var(--text2);flex:1}
+    .estimate-row-price{color:var(--text);font-weight:500;white-space:nowrap}
+    .estimate-row-season{
+      font-size:10px;padding:2px 6px;border-radius:6px;
+      background:var(--ocean);color:#fff;margin-left:6px;letter-spacing:0.04em;
+    }
+    .estimate-total-row{
+      display:flex;justify-content:space-between;align-items:baseline;
+      padding-top:12px;margin-top:4px;border-top:2px solid var(--ocean);
+    }
+    .estimate-total-row>span:first-child{font-size:13px;font-weight:500;color:var(--ocean2)}
+    .estimate-total-price{
+      font-family:'Cormorant Garamond',serif;
+      font-size:24px;font-weight:600;color:var(--ocean2);
+    }
+    .estimate-note{font-size:11px;color:var(--text3);margin-top:10px;line-height:1.6}
+
     /* ── Availability link card ── */
     .avail-link{
       display:flex;
@@ -226,44 +260,6 @@
     .avail-link-title{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:500;color:var(--ocean2)}
     .avail-link-sub{font-size:12px;color:var(--text3);margin-top:2px}
     .avail-link-arrow{margin-left:auto;color:var(--ocean);font-size:18px;flex-shrink:0}
-
-    /* ── Pricing ── */
-    .pricing-card{
-      background:#fff;
-      border-radius:20px;
-      padding:24px 22px;
-      box-shadow:0 2px 18px rgba(26,107,122,0.07);
-      margin-bottom:16px;
-    }
-    .pricing-row{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      padding:14px 0;
-      border-bottom:1px solid var(--border);
-      gap:12px;
-    }
-    .pricing-row:last-child{border-bottom:none;padding-bottom:0}
-    .pricing-row:first-child{padding-top:0}
-    .pr-label{font-size:14px;font-weight:500;color:var(--text)}
-    .pr-note {font-size:11px;color:var(--text3);margin-top:2px}
-    .pr-price{
-      font-family:'Cormorant Garamond',serif;
-      font-size:20px;
-      font-weight:500;
-      color:var(--ocean2);
-      white-space:nowrap;
-    }
-    .pr-unit{font-size:11px;color:var(--text3);font-family:'Noto Sans JP',sans-serif}
-    .pricing-note{
-      font-size:12px;
-      color:var(--text3);
-      line-height:1.8;
-      margin-top:12px;
-      padding:12px 16px;
-      background:var(--sand);
-      border-radius:10px;
-    }
 
     /* ── Form ── */
     .form-card{
@@ -416,40 +412,6 @@
     </a>
   </section>
 
-  <!-- 料金 -->
-  <section class="content-sec" style="padding-top:0">
-    <div class="divider"><span>リピーター料金</span></div>
-    <div class="sec-title">お食事料金</div>
-    <div class="sec-note">室料はシーズンによって異なります。ご予約後にご案内いたします。</div>
-    <div class="pricing-card">
-      <div class="pricing-row">
-        <div>
-          <div class="pr-label">朝食</div>
-          <div class="pr-note">大人・お子様共通</div>
-        </div>
-        <div style="text-align:right">
-          <div class="pr-price" id="price-bf">—</div>
-          <div class="pr-unit">円 / 名</div>
-        </div>
-      </div>
-      <div class="pricing-row">
-        <div>
-          <div class="pr-label">夕食（おまかせコース）</div>
-          <div class="pr-note">大人</div>
-        </div>
-        <div style="text-align:right">
-          <div class="pr-price" id="price-din">—</div>
-          <div class="pr-unit">円 / 名</div>
-        </div>
-      </div>
-    </div>
-    <div class="pricing-note">
-      ※ 室料はGW・夏休み・年末年始などシーズンにより異なります。<br>
-      ※ 表示金額はすべて税込です。<br>
-      ※ お子様の夕食料金は大人の65%となります。
-    </div>
-  </section>
-
   <!-- 予約フォーム -->
   <section class="content-sec" style="padding-top:0">
     <div class="divider"><span>ご予約</span></div>
@@ -505,17 +467,42 @@
           </div>
         </div>
       </div>
-      <div class="form-group">
-        <label class="form-label">お食事プラン<span class="req">*</span></label>
-        <div class="form-select-wrap">
-          <select class="form-select" id="f-meal">
-            <option value="both">朝夕食付き</option>
-            <option value="din">夕食付き</option>
-            <option value="bf">朝食付き</option>
-            <option value="none">素泊まり</option>
-          </select>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">お食事プラン<span class="req">*</span></label>
+          <div class="form-select-wrap">
+            <select class="form-select" id="f-meal" onchange="updateEstimate()">
+              <option value="both">朝夕食付き</option>
+              <option value="din">夕食付き</option>
+              <option value="bf">朝食付き</option>
+              <option value="none">素泊まり</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">お部屋タイプ<span class="req">*</span></label>
+          <div class="form-select-wrap">
+            <select class="form-select" id="f-room" onchange="updateEstimate()">
+              <option value="sup">スーペリアツイン</option>
+              <option value="dlx">デラックス</option>
+            </select>
+          </div>
         </div>
       </div>
+
+      <!-- 料金見積もり -->
+      <div id="estimate-wrap" style="display:none;margin-bottom:20px">
+        <div class="estimate-card">
+          <div class="estimate-title">料金見積もり（税込）</div>
+          <div id="estimate-rows"></div>
+          <div class="estimate-total-row">
+            <span>合計</span>
+            <span id="estimate-total" class="estimate-total-price">—</span>
+          </div>
+          <div class="estimate-note">※ 見積もりは参考金額です。確定料金はご予約確認時にご案内します。</div>
+        </div>
+      </div>
+
       <div class="form-group">
         <label class="form-label">ご要望・備考</label>
         <textarea class="form-textarea" id="f-notes" placeholder="アレルギー、到着時間のご連絡など、何でもお気軽にどうぞ。"></textarea>
@@ -592,40 +579,163 @@ if (sessionStorage.getItem('rp_auth') === '1') {
   initMain();
 }
 
-// ── 料金読み込み ──
-async function loadPricing() {
+// ── 料金データ ──
+let _priceData = null; // { master, seasons, bf, din }
+
+const SEASON_LABEL = { super_high:'SH', high:'H', regular:'R', low:'L' };
+const SEASON_NAME  = { super_high:'スーパーハイ', high:'ハイ', regular:'レギュラー', low:'ロー' };
+const fmt = n => Number(n).toLocaleString('ja-JP');
+
+async function loadPriceData() {
   try {
-    const r = await fetch(`${SB_URL}/rest/v1/price_common?id=eq.1&select=bf_adult,din_adult`,
-      { headers: SB_H });
-    const d = await r.json();
-    if (d && d[0]) {
-      const fmt = n => Number(n).toLocaleString('ja-JP');
-      document.getElementById('price-bf').textContent  = fmt(d[0].bf_adult  || 2200);
-      document.getElementById('price-din').textContent = fmt(d[0].din_adult || 7700);
+    const [mRes, sRes, cRes] = await Promise.all([
+      fetch(`${SB_URL}/rest/v1/price_master?select=season,room,pax,pax_type,price`, { headers: SB_H }),
+      fetch(`${SB_URL}/rest/v1/season_ranges?select=from_date,to_date,season&order=from_date.asc`, { headers: SB_H }),
+      fetch(`${SB_URL}/rest/v1/price_common?id=eq.1&select=bf_adult,din_adult`, { headers: SB_H })
+    ]);
+    const master  = await mRes.json();
+    const seasons = await sRes.json();
+    const common  = await cRes.json();
+    _priceData = {
+      master,
+      seasons,
+      bf:  (common && common[0] && common[0].bf_adult)  || 2200,
+      din: (common && common[0] && common[0].din_adult) || 7700
+    };
+  } catch(e) {
+    // フォールバック: デフォルト値で動作継続
+    _priceData = { master: [], seasons: [], bf: 2200, din: 7700 };
+  }
+}
+
+function getSeasonForDate(ds) {
+  if (!_priceData) return 'regular';
+  const range = _priceData.seasons.find(r => r.from_date <= ds && r.to_date >= ds);
+  return range ? range.season : 'regular';
+}
+
+function getRoomRate(season, room, adults) {
+  if (!_priceData || !_priceData.master.length) return 0;
+  const rows = _priceData.master.filter(r => r.season === season && r.room === room && r.pax_type === 'adult');
+  // pax が adults に一致する行を探す、なければ最大paxの行を使う
+  const exact = rows.find(r => r.pax === adults);
+  if (exact) return exact.price;
+  const sorted = rows.filter(r => r.pax !== null).sort((a, b) => b.pax - a.pax);
+  return sorted.length ? sorted[0].price : 0;
+}
+
+function updateEstimate() {
+  if (!_priceData) return;
+  const cin     = document.getElementById('f-cin').value;
+  const cout    = document.getElementById('f-cout').value;
+  const adults  = parseInt(document.getElementById('f-adults').value) || 2;
+  const children= parseInt(document.getElementById('f-children').value) || 0;
+  const meal    = document.getElementById('f-meal').value;
+  const room    = document.getElementById('f-room').value;
+
+  if (!cin || !cout || cin >= cout) {
+    document.getElementById('estimate-wrap').style.display = 'none';
+    return;
+  }
+
+  // 泊数分ループ
+  const nights = [];
+  let d = new Date(cin + 'T00:00:00');
+  const end = new Date(cout + 'T00:00:00');
+  while (d < end) {
+    const ds     = d.toISOString().slice(0, 10);
+    const season = getSeasonForDate(ds);
+    const rate   = getRoomRate(season, room, adults);
+    nights.push({ ds, season, rate });
+    d.setDate(d.getDate() + 1);
+  }
+
+  const roomTotal = nights.reduce((s, n) => s + n.rate * adults, 0);
+
+  let mealTotal = 0;
+  const hasBf  = meal === 'bf'   || meal === 'both';
+  const hasDin = meal === 'din'  || meal === 'both';
+  if (hasBf)  mealTotal += _priceData.bf  * (adults + children) * nights.length;
+  if (hasDin) mealTotal += _priceData.din * adults * nights.length;
+  if (hasDin && children > 0) mealTotal += Math.round(_priceData.din * 0.65) * children * nights.length;
+
+  const total = roomTotal + mealTotal;
+
+  // 行を生成
+  let rows = '';
+  // 同シーズンをまとめる
+  const grouped = [];
+  nights.forEach(n => {
+    const last = grouped[grouped.length - 1];
+    if (last && last.season === n.season && last.rate === n.rate) {
+      last.count++;
+    } else {
+      grouped.push({ season: n.season, rate: n.rate, count: 1 });
     }
-  } catch(e) {}
+  });
+
+  grouped.forEach(g => {
+    const sub = g.rate * adults * g.count;
+    rows += `<div class="estimate-row">
+      <span class="estimate-row-label">
+        室料 ${g.count}泊 × 大人${adults}名
+        <span class="estimate-row-season">${SEASON_LABEL[g.season] || g.season}</span>
+      </span>
+      <span class="estimate-row-price">¥${fmt(sub)}</span>
+    </div>`;
+  });
+
+  if (hasBf) {
+    const sub = _priceData.bf * (adults + children) * nights.length;
+    rows += `<div class="estimate-row">
+      <span class="estimate-row-label">朝食 ${nights.length}泊 × ${adults + children}名</span>
+      <span class="estimate-row-price">¥${fmt(sub)}</span>
+    </div>`;
+  }
+  if (hasDin) {
+    const subA = _priceData.din * adults * nights.length;
+    rows += `<div class="estimate-row">
+      <span class="estimate-row-label">夕食 ${nights.length}泊 × 大人${adults}名</span>
+      <span class="estimate-row-price">¥${fmt(subA)}</span>
+    </div>`;
+    if (children > 0) {
+      const subC = Math.round(_priceData.din * 0.65) * children * nights.length;
+      rows += `<div class="estimate-row">
+        <span class="estimate-row-label">夕食 ${nights.length}泊 × お子様${children}名（65%）</span>
+        <span class="estimate-row-price">¥${fmt(subC)}</span>
+      </div>`;
+    }
+  }
+
+  document.getElementById('estimate-rows').innerHTML = rows;
+  document.getElementById('estimate-total').textContent = total > 0 ? `¥${fmt(total)}` : '—';
+  document.getElementById('estimate-wrap').style.display = total > 0 ? 'block' : 'none';
 }
 
 // ── メイン初期化 ──
 async function initMain() {
-  // 料金
-  loadPricing();
+  await loadPriceData();
   // 日付デフォルト
   const today = new Date();
-  const fmt   = d => d.toISOString().slice(0,10);
+  const fmtD  = d => d.toISOString().slice(0,10);
   const cin   = new Date(today); cin.setDate(cin.getDate() + 7);
   const cout  = new Date(cin);   cout.setDate(cout.getDate() + 1);
-  document.getElementById('f-cin').value  = fmt(cin);
-  document.getElementById('f-cout').value = fmt(cout);
-  document.getElementById('f-cin').min    = fmt(today);
-  document.getElementById('f-cout').min   = fmt(cin);
+  document.getElementById('f-cin').value  = fmtD(cin);
+  document.getElementById('f-cout').value = fmtD(cout);
+  document.getElementById('f-cin').min    = fmtD(today);
+  document.getElementById('f-cout').min   = fmtD(cin);
   document.getElementById('f-cin').addEventListener('change', function() {
-    const newCin  = new Date(this.value);
+    const newCin  = new Date(this.value + 'T00:00:00');
     const newCout = new Date(newCin); newCout.setDate(newCout.getDate() + 1);
-    document.getElementById('f-cout').min   = this.value;
+    document.getElementById('f-cout').min = this.value;
     if (document.getElementById('f-cout').value <= this.value)
-      document.getElementById('f-cout').value = fmt(newCout);
+      document.getElementById('f-cout').value = fmtD(newCout);
+    updateEstimate();
   });
+  document.getElementById('f-cout').addEventListener('change', updateEstimate);
+  document.getElementById('f-adults').addEventListener('change', updateEstimate);
+  document.getElementById('f-children').addEventListener('change', updateEstimate);
+  updateEstimate();
 }
 
 // ── 予約送信 ──
@@ -638,6 +748,7 @@ async function submitBooking() {
   const adults  = parseInt(document.getElementById('f-adults').value) || 2;
   const children= parseInt(document.getElementById('f-children').value) || 0;
   const meal    = document.getElementById('f-meal').value;
+  const roomKey = document.getElementById('f-room').value;
   const notes   = document.getElementById('f-notes').value.trim();
   const errEl   = document.getElementById('form-error');
 
@@ -666,7 +777,7 @@ async function submitBooking() {
       notes:         '【リピーターページより】' + (notes ? '\n' + notes : ''),
       status:        'tentative',
       source:        '直予約',
-      room_type:     'スーペリアツイン02',
+      room_type:     roomKey === 'dlx' ? 'デラックス' : 'スーペリアツイン02',
       payment:       '現地精算',
     };
 
