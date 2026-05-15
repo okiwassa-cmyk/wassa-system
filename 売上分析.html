@@ -551,11 +551,13 @@ function processReservations(reservations) {
   const todayIso = new Date().toISOString().slice(0, 10);
 
   // Filter by room
+  // room_type values: 'スーペリアツイン01', 'スーペリアツイン02', 'デラックスツイン' (or 'DX')
+  const isDx  = r => (r.room_type || '').includes('デラックス') || r.room_type === 'DX';
+  const isSup = r => !isDx(r) && !!(r.room_type);
   const filtered = reservations.filter(r => {
-    const rid = (r.room_id || '').toUpperCase();
-    if (currentFilter === 'wassa')   return rid === 'S01' || rid === 'S02';
-    if (currentFilter === 'routine') return rid === 'DX';
-    return true;
+    if (currentFilter === 'wassa')   return isSup(r);
+    if (currentFilter === 'routine') return isDx(r);
+    return !!(r.room_type); // 部屋不明は除外
   });
 
   const otaMonthly     = {}; // { ym: { source: count } }
@@ -571,7 +573,7 @@ function processReservations(reservations) {
     const ym     = toYm(ci);
     const nights = nightsBetween(ci, co);
     const src    = r.source || '直予約';
-    const isW    = (r.room_id || '').toUpperCase() === 'S01' || (r.room_id || '').toUpperCase() === 'S02';
+    const isW    = !((r.room_type || '').includes('デラックス') || r.room_type === 'DX');
     const isFut  = ci >= todayIso;
     const btotal = calcBillingTotal(r.billing);
 
