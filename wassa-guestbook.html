@@ -612,8 +612,8 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
   <div class="card" style="padding:14px 16px">
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
       <div style="display:flex;align-items:center;gap:4px">
-        <select id="res-year" onchange="filterReservations()" style="padding:7px 8px;border:1px solid var(--sand2);border-radius:8px;font-size:13px;font-family:inherit;color:var(--text);background:var(--white)"><option value="">全年</option></select>
-        <select id="res-month-sel" onchange="filterReservations()" style="padding:7px 8px;border:1px solid var(--sand2);border-radius:8px;font-size:13px;font-family:inherit;color:var(--text);background:var(--white)">
+        <select id="res-year" onchange="onResYearMonthChange()" style="padding:7px 8px;border:1px solid var(--sand2);border-radius:8px;font-size:13px;font-family:inherit;color:var(--text);background:var(--white)"><option value="">全年</option></select>
+        <select id="res-month-sel" onchange="onResYearMonthChange()" style="padding:7px 8px;border:1px solid var(--sand2);border-radius:8px;font-size:13px;font-family:inherit;color:var(--text);background:var(--white)">
           <option value="">全月</option>
           <option value="01">1月</option><option value="02">2月</option><option value="03">3月</option>
           <option value="04">4月</option><option value="05">5月</option><option value="06">6月</option>
@@ -2356,6 +2356,10 @@ function debounceFilter(){
 async function onResFilterChange(){
   const f=document.getElementById('res-filter').value;
   if(f==='past' && !_allResLoaded) await ensureAllReservations();
+  filterReservations();
+}
+async function onResYearMonthChange(){
+  if(!_allResLoaded) await ensureAllReservations();
   filterReservations();
 }
 
