@@ -339,11 +339,13 @@ function getMonthSales(ym) {
 }
 
 function roomCap(ym) {
-  // 対象フィルターに応じた室数×日数
+  // Yambaru Routine (DX) は 2024/07 開業
   const d = daysInMonth(ym);
+  const routineOpen = ym >= '2024/07';
   if (currentFilter === 'wassa')   return d * 2;
-  if (currentFilter === 'routine') return d * 1;
-  return d * 3;
+  if (currentFilter === 'routine') return routineOpen ? d * 1 : 0; // 開業前は計算不可
+  // 2室合計: 開業前は2室、開業後は3室
+  return routineOpen ? d * 3 : d * 2;
 }
 
 function asunaroAnnotation() {
