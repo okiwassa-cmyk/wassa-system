@@ -120,8 +120,8 @@
     .divider span{font-family:'Cormorant Garamond',serif;font-size:13px;color:var(--text3);letter-spacing:0.1em;white-space:nowrap}
 
     /* ── CTA ── */
-    .cta-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-    @media(max-width:400px){.cta-grid{grid-template-columns:1fr}}
+    .cta-grid{display:flex;justify-content:center}
+    .cta-card{max-width:280px;width:100%}
     .cta-card{
       background:#fff;border-radius:18px;padding:24px 18px;text-align:center;
       box-shadow:0 2px 18px rgba(26,107,122,0.07);text-decoration:none;color:inherit;
@@ -196,8 +196,6 @@
     <div class="cta-grid">
       <a href="https://site.reservation.liberty-service.com/cc5f559e549f4f2fac443b9673014a37/facility-23797ccc-75c0-4a05-a21b-05620de11eba/search" class="cta-card" target="_blank" rel="noopener">
         <div class="cta-icon"><img src="イラスト/icon_new.png" alt=""></div>
-        <div class="cta-label">New Guest</div>
-        <div class="cta-title">はじめての方</div>
         <div class="cta-desc">公式サイトよりご予約いただけます</div>
         <div class="cta-btn btn-fill">公式サイトへ</div>
       </a>
