@@ -277,7 +277,8 @@ const ALL_MONTHS = WASSA.map(d => d.ym); // 2024/01 〜 2026/05 (29ヶ月)
 const ASUNARO_IDX = ALL_MONTHS.indexOf('2025/04'); // = 15
 const ASUNARO_BOUNDARY = ASUNARO_IDX - 0.5;        // 14.5 (2025/03 と 2025/04 の境)
 
-const OTA_CHANNELS = ['楽天','じゃらん','一休','Booking.com','Agoda','公式HP'];
+const PURE_OTA     = ['楽天','じゃらん','一休','Booking.com','Agoda']; // 純粋な新規OTA
+const OTA_CHANNELS = [...PURE_OTA, '公式HP'];                         // グラフ表示用（公式HP含む）
 const ALL_SOURCES  = [...OTA_CHANNELS, '直予約'];
 const SOURCE_COLOR = {
   '楽天':       '#BF0000',
@@ -407,7 +408,7 @@ function updateOtaKpi(otaMonthly) {
   const before = ALL_MONTHS.filter(m => m < '2025/04');
   const after  = ALL_MONTHS.filter(m => m >= '2025/04');
   const otaCount = (ms) => ms.reduce((s, m) => {
-    return s + OTA_CHANNELS.reduce((t, src) => t + (otaMonthly[m]?.[src] || 0), 0);
+    return s + PURE_OTA.reduce((t, src) => t + (otaMonthly[m]?.[src] || 0), 0);
   }, 0);
   const oBefore = before.length ? otaCount(before) / before.length : 0;
   const oAfter  = after.length  ? otaCount(after)  / after.length  : 0;
@@ -686,7 +687,7 @@ function renderOtaCharts({ otaMonthly, otaSalesMonthly }) {
   });
 
   // --- 前後比較（横棒） ---
-  const baData = OTA_CHANNELS.map(src => ({
+  const baData = PURE_OTA.map(src => ({
     src,
     before: before.length ? before.reduce((s, m) => s + (otaMonthly[m]?.[src] || 0), 0) / before.length : 0,
     after:  after.length  ? after.reduce((s,  m) => s + (otaMonthly[m]?.[src] || 0), 0) / after.length  : 0,
