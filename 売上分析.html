@@ -899,13 +899,16 @@ function renderFutureCharts({ occMonthly, futureMonthly, futureOccMonthly, futur
    ============================================================ */
 async function fetchReservations() {
   const url = SB_URL + '/rest/v1/reservations'
-    + '?select=id,check_in,check_out,room_id,source,status,billing,adults,children'
+    + '?select=*'
     + '&status=neq.cancelled'
     + '&check_in=gte.2024-01-01'
-    + '&order=check_in.asc'
-    + '&limit=2000';
+    + '&order=check_in.asc';
   const res = await fetch(url, {
-    headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY },
+    headers: {
+      'apikey': SB_KEY,
+      'Authorization': 'Bearer ' + SB_KEY,
+      'Range': '0-1999',
+    },
   });
   if (!res.ok) throw new Error('HTTP ' + res.status);
   return res.json();
