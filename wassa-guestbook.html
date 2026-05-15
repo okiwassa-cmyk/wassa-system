@@ -2681,7 +2681,7 @@ async function checkPastCompanion(guestName, banner){
     if(!norm || norm.length < 2) return;
     // 名前の先頭2文字でilike検索し、JS側でスペース正規化して比較
     var prefix = norm.slice(0,2);
-    var data = await supa('reservation_companions?name=ilike.'+encodeURIComponent(prefix)+'*&select=reservation_id,name,reservations(guest_name,check_in)&limit=20');
+    var data = await supa('reservation_companions?name=ilike.'+encodeURIComponent(prefix)+'%25&select=reservation_id,name,reservations(guest_name,check_in)&limit=20');
     // スペース除去で正規化して一致するものに絞る
     data = (data||[]).filter(function(c){ return (c.name||'').replace(/[\s\u3000　]+/g,'')===norm; });
     if(!data || !data.length) return;
