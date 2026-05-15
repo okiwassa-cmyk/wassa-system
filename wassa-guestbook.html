@@ -2679,16 +2679,22 @@ async function checkPastCompanion(guestName, banner){
   try{
     var norm = guestName.replace(/[\s\u3000　]+/g,'');
     if(!norm || norm.length < 2) return;
-    var data = await supa('reservation_companions?name=eq.'+encodeURIComponent(guestName)+'&select=reservation_id,name&limit=5');
+    // reservationsの代表者名もネストして取得（allReservationsにない過去データにも対応）
+    var data = await supa('reservation_companions?name=eq.'+encodeURIComponent(guestName)+'&select=reservation_id,name,reservations(guest_name,check_in)&limit=5');
     if(!data || !data.length) return;
     // 現在の予約IDは除外
     var others = data.filter(function(c){ return c.reservation_id !== currentEditId; });
     if(!others.length) return;
-    // 一致した予約の代表者名を取得
+    // 一致した予約の代表者名を取得（DBから直接）
     var repNames = [];
     others.forEach(function(c){
-      var rv = allReservations.find(function(x){ return x.id===c.reservation_id; });
-      if(rv && rv.guest_name && rv.guest_name !== guestName) repNames.push(rv.guest_name);
+      var mainGuest = c.reservations && c.reservations.guest_name;
+      if(!mainGuest) {
+        // フォールバック: allReservationsから検索
+        var rv = allReservations.find(function(x){ return x.id===c.reservation_id; });
+        mainGuest = rv && rv.guest_name;
+      }
+      if(mainGuest && mainGuest !== guestName) repNames.push(mainGuest);
     });
     var uniq = repNames.filter(function(v,i,a){ return a.indexOf(v)===i; });
     if(!uniq.length) return;
