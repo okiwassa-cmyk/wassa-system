@@ -3533,11 +3533,11 @@ function autoGenBillingRows(){
         if(_infMealOnly>0) rows.push({cat:'宿泊料金',date:_ds,item:'幼児・布団なし（朝食付き）',qty:_infMealOnly,discount:0,price:_er.infNoFutonUnit+common.bf_infant,payment:pay});
         if(_infDlx>0) rows.push({cat:'宿泊料金',date:_ds,item:'幼児（朝食付き）',qty:_infDlx,discount:0,price:_er.infDlxUnit+common.bf_infant,payment:pay});
       } else {
-        if(_adults>0) rows.push({cat:'宿泊料金',date:_ds,item:'大人宿泊',qty:_adults,discount:0,price:_er.baseUnit,payment:pay});
-        if(_children>0&&_er.childUnit>0) rows.push({cat:'宿泊料金',date:_ds,item:'小学生宿泊',qty:_children,discount:0,price:_er.childUnit,payment:pay});
+        if(_adults>0) rows.push({cat:'宿泊料金',date:_ds,item:'大人宿泊料金',qty:_adults,discount:0,price:_er.baseUnit,payment:pay});
+        if(_children>0&&_er.childUnit>0) rows.push({cat:'宿泊料金',date:_ds,item:'小学生宿泊料金',qty:_children,discount:0,price:_er.childUnit,payment:pay});
         if(_infMealBed>0) rows.push({cat:'宿泊料金',date:_ds,item:'幼児（布団あり）',qty:_infMealBed,discount:0,price:_er.infFutonUnit,payment:pay});
         if(_infMealOnly>0) rows.push({cat:'宿泊料金',date:_ds,item:'幼児（布団なし）',qty:_infMealOnly,discount:0,price:_er.infNoFutonUnit,payment:pay});
-        if(_infDlx>0) rows.push({cat:'宿泊料金',date:_ds,item:'幼児宿泊',qty:_infDlx,discount:0,price:_er.infDlxUnit,payment:pay});
+        if(_infDlx>0) rows.push({cat:'宿泊料金',date:_ds,item:'幼児宿泊料金',qty:_infDlx,discount:0,price:_er.infDlxUnit,payment:pay});
       }
       if(_infBedOnly>0) rows.push({cat:'宿泊料金',date:_ds,item:'幼児・布団あり（食なし）',qty:_infBedOnly,discount:0,price:_er.infFutonUnit,payment:pay});
       if(_hasDin){
@@ -3572,8 +3572,8 @@ function autoGenBillingRows(){
   for(var n=0;n<nights;n++){
     var nd=new Date(d1);nd.setDate(nd.getDate()+n);
     var ds=nd.getFullYear()+'-'+String(nd.getMonth()+1).padStart(2,'0')+'-'+String(nd.getDate()).padStart(2,'0');
-    if(adults>0) rows.push({cat:'宿泊料金',date:ds,item:'大人宿泊',qty:adults,discount:0,price:0,payment:pay});
-    if(parseInt(r.children)>0) rows.push({cat:'宿泊料金',date:ds,item:'小学生宿泊',qty:parseInt(r.children),discount:0,price:0,payment:pay});
+    if(adults>0) rows.push({cat:'宿泊料金',date:ds,item:'大人宿泊料金',qty:adults,discount:0,price:0,payment:pay});
+    if(parseInt(r.children)>0) rows.push({cat:'宿泊料金',date:ds,item:'小学生宿泊料金',qty:parseInt(r.children),discount:0,price:0,payment:pay});
     if(parseInt(r.infants)>0) rows.push({cat:'宿泊料金',date:ds,item:'幼児',qty:parseInt(r.infants),discount:0,price:0,payment:pay});
   }
   billingRows=rows;
@@ -7442,8 +7442,8 @@ async function saveDirectReservation(){
   for(var ri=0; ri<e.rows.length; ri++){
     var r = e.rows[ri];
     var m = getMealAmtForRow(r);
-    billing.push({cat:'宿泊料金', date:r.date||r.label, item:'大人宿泊', qty:r.ak, price:r.baseUnit, discount:0});
-    if(e.child&&r.childRoom) billing.push({cat:'宿泊料金', date:r.date||r.label, item:'小学生宿泊', qty:e.child, price:r.childUnit, discount:0});
+    billing.push({cat:'宿泊料金', date:r.date||r.label, item:'大人宿泊料金', qty:r.ak, price:r.baseUnit, discount:0});
+    if(e.child&&r.childRoom) billing.push({cat:'宿泊料金', date:r.date||r.label, item:'小学生宿泊料金', qty:e.child, price:r.childUnit, discount:0});
     var _hasMeal=(e.meal&&e.meal!=='none');
     if(e.room==='sup'){
       if(e.infFuton&&r.infFutonRoom) billing.push({cat:'宿泊料金', date:r.date||r.label, item:_hasMeal?'幼児（食事有・布団有）':'幼児（食事無・布団有）', qty:e.infFuton, price:r.infFutonUnit, discount:0});
@@ -7502,8 +7502,8 @@ async function saveDirectReservation(){
           var br=est.rows[bri];
           var bfNext=(function(ds){var d=new Date(ds);d.setDate(d.getDate()+1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');})(br.date||br.label);
           var _estMeal=(est.meal&&est.meal!=='none');
-          estBilling.push({cat:'宿泊料金',date:br.date||br.label,item:'大人宿泊',qty:br.ak,price:br.baseUnit,discount:0});
-          if(est.child&&br.childRoom) estBilling.push({cat:'宿泊料金',date:br.date||br.label,item:'小学生宿泊',qty:est.child,price:br.childUnit,discount:0});
+          estBilling.push({cat:'宿泊料金',date:br.date||br.label,item:'大人宿泊料金',qty:br.ak,price:br.baseUnit,discount:0});
+          if(est.child&&br.childRoom) estBilling.push({cat:'宿泊料金',date:br.date||br.label,item:'小学生宿泊料金',qty:est.child,price:br.childUnit,discount:0});
           if(est.room==='sup'){
             if(est.infFuton&&br.infFutonRoom) estBilling.push({cat:'宿泊料金',date:br.date||br.label,item:_estMeal?'幼児（食事有・布団有）':'幼児（食事無・布団有）',qty:est.infFuton,price:br.infFutonUnit,discount:0});
             if(est.infNoFuton&&br.infNoFutonRoom) estBilling.push({cat:'宿泊料金',date:br.date||br.label,item:_estMeal?'幼児（食事有・布団無）':'幼児（食事無・布団無）',qty:est.infNoFuton,price:br.infNoFutonUnit,discount:0});
@@ -7915,13 +7915,13 @@ async function saveQuoteToDb(){
         var _bfInfFutonUnit=hasBf&&r.bfInfFutonOn?Math.round((r.bfInfFutonAmt||0)/(e.infFuton||1)):0;
         var _bfInfNoFutonUnit=hasBf&&r.bfInfNoFutonOn?Math.round((r.bfInfNoFutonAmt||0)/(e.infNoFuton||1)):0;
         var _bfInfDlxUnit=hasBf&&r.bfInfDlxOn?Math.round((r.bfInfDlxAmt||0)/(e.infDlx||1)):0;
-        brows.push({cat:'宿泊料金',date:_ds,item:'大人宿泊'+_msfxBf,qty:r.ak,price:r.baseUnit+_adBfUnit,discount:0});
-        if(e.child&&r.childRoom) brows.push({cat:'宿泊料金',date:_ds,item:'小学生宿泊'+_msfxBf,qty:e.child,price:r.childUnit+_chBfUnit,discount:0});
+        brows.push({cat:'宿泊料金',date:_ds,item:'大人宿泊料金'+_msfxBf,qty:r.ak,price:r.baseUnit+_adBfUnit,discount:0});
+        if(e.child&&r.childRoom) brows.push({cat:'宿泊料金',date:_ds,item:'小学生宿泊料金'+_msfxBf,qty:e.child,price:r.childUnit+_chBfUnit,discount:0});
         if(e.room==='sup'){
           if(e.infFuton&&r.infFutonRoom) brows.push({cat:'宿泊料金',date:_ds,item:'幼児（布団あり）'+_msfxBf,qty:e.infFuton,price:r.infFutonUnit+_bfInfFutonUnit,discount:0});
           if(e.infNoFuton&&r.infNoFutonRoom) brows.push({cat:'宿泊料金',date:_ds,item:'幼児（布団なし）'+_msfxBf,qty:e.infNoFuton,price:r.infNoFutonUnit+_bfInfNoFutonUnit,discount:0});
         } else {
-          if(e.infDlx&&r.infDlxRoom) brows.push({cat:'宿泊料金',date:_ds,item:'幼児宿泊'+_msfxBf,qty:e.infDlx,price:r.infDlxUnit+_bfInfDlxUnit,discount:0});
+          if(e.infDlx&&r.infDlxRoom) brows.push({cat:'宿泊料金',date:_ds,item:'幼児宿泊料金'+_msfxBf,qty:e.infDlx,price:r.infDlxUnit+_bfInfDlxUnit,discount:0});
         }
         // 夕食：大人・小学生・幼児
         if(r.dinAdultOn&&r.dinAdultAmt) brows.push({cat:'ディナー',date:_ds,item:'ディナー（大人）',qty:e.adult,price:Math.round(r.dinAdultAmt/(e.adult||1)),discount:0});

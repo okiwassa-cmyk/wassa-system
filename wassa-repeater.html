@@ -959,8 +959,8 @@ function buildBillingRows(cin, cout, adults, children, meal, room, infMealBed, i
       if (infMealBed > 0) rows.push({cat:'宿泊料金', date:ds, item:'幼児・布団あり（朝食付き）', qty:infMealBed,  discount:0, price:infFutonRate + _priceData.bf_inf,   payment:pay});
       if (infMealOnly > 0) rows.push({cat:'宿泊料金', date:ds, item:'幼児・布団なし（朝食付き）', qty:infMealOnly, discount:0, price:infNoFutonRate + _priceData.bf_inf, payment:pay});
     } else {
-      rows.push({cat:'宿泊料金', date:ds, item:'大人宿泊', qty:adults, discount:0, price:rate, payment:pay});
-      if (children > 0 && childRate > 0) rows.push({cat:'宿泊料金', date:ds, item:'小学生宿泊', qty:children, discount:0, price:childRate, payment:pay});
+      rows.push({cat:'宿泊料金', date:ds, item:'大人宿泊料金', qty:adults, discount:0, price:rate, payment:pay});
+      if (children > 0 && childRate > 0) rows.push({cat:'宿泊料金', date:ds, item:'小学生宿泊料金', qty:children, discount:0, price:childRate, payment:pay});
       if (infMealBed > 0)  rows.push({cat:'宿泊料金', date:ds, item:'幼児・布団あり',      qty:infMealBed,  discount:0, price:infFutonRate,    payment:pay});
       if (infMealOnly > 0) rows.push({cat:'宿泊料金', date:ds, item:'幼児・布団なし',      qty:infMealOnly, discount:0, price:infNoFutonRate,  payment:pay});
     }
