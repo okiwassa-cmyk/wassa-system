@@ -1091,7 +1091,7 @@ async function submitBooking() {
         const token = crypto.randomUUID();
         const totalAmt = billingRows.reduce((s, row) => s + (row.price||0) * (row.qty||1), 0);
         const validUntil = new Date(); validUntil.setDate(validUntil.getDate() + 14);
-        await fetch(`${SB_URL}/rest/v1/quotes`, {
+        const qRes = await fetch(`${SB_URL}/rest/v1/quotes`, {
           method: 'POST',
           headers: { ...SB_H, Prefer: 'return=minimal' },
           body: JSON.stringify({
@@ -1111,11 +1111,12 @@ async function submitBooking() {
             valid_until: validUntil.toISOString().slice(0,10),
             status: 'sent',
             billing: { rows: billingRows, plan_name: body.plan_name, coupon: 0, points: 0 },
-            notes: body.notes,
+            notes: notes,
           })
         });
+        if (!qRes.ok) throw new Error('quotes POST failed: ' + await qRes.text());
         quoteUrl = `https://okiwassa-cmyk.github.io/wassa-system/wassa-quote-view.html?token=${token}`;
-      } catch(e) { /* 見積書生成失敗は無視 */ }
+      } catch(e) { console.error('見積書生成エラー:', e); }
     }
 
     document.getElementById('booking-form-wrap').style.display = 'none';
