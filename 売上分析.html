@@ -128,8 +128,8 @@ header .sub{font-size:11px;color:#94A3B8;margin-top:2px}
         <div class="ann-note">あすなろ導入（2025年4月）</div>
       </div>
       <div class="chart-card">
-        <h3>OTA vs 直予約 比率推移</h3>
-        <div class="c-sub">新規 vs リピーターの月次構成比（%）</div>
+        <h3>OTA vs 公式HP+直予約 比率推移</h3>
+        <div class="c-sub">新規（OTA5社）vs リピーター系（公式HP+直予約）の月次構成比（%）</div>
         <div class="chart-wrap h240"><canvas id="cOtaRatio"></canvas></div>
         <div class="ann-note">あすなろ導入（2025年4月）</div>
       </div>
@@ -652,20 +652,20 @@ function renderOtaCharts({ otaMonthly, otaSalesMonthly }) {
       labels: months,
       datasets: [
         {
-          label: 'OTA（新規客）',
+          label: 'OTA（新規客：楽天/じゃらん/一休/Booking/Agoda）',
           data: months.map(m => {
             const total = ALL_SOURCES.reduce((s, src) => s + (otaMonthly[m]?.[src] || 0), 0);
-            const ota   = OTA_CHANNELS.reduce((s, src) => s + (otaMonthly[m]?.[src] || 0), 0);
+            const ota   = OTA_CHANNELS.filter(s => s !== '公式HP').reduce((s, src) => s + (otaMonthly[m]?.[src] || 0), 0);
             return total ? Math.round(ota / total * 100) : null;
           }),
           backgroundColor: '#3B82F6', borderWidth: 0,
         },
         {
-          label: '直予約（リピーター）',
+          label: '公式HP+直予約（リピーター系）',
           data: months.map(m => {
             const total  = ALL_SOURCES.reduce((s, src) => s + (otaMonthly[m]?.[src] || 0), 0);
-            const direct = otaMonthly[m]?.['直予約'] || 0;
-            return total ? Math.round(direct / total * 100) : null;
+            const repeat = (otaMonthly[m]?.['公式HP'] || 0) + (otaMonthly[m]?.['直予約'] || 0);
+            return total ? Math.round(repeat / total * 100) : null;
           }),
           backgroundColor: '#94A3B8', borderWidth: 0,
         },
