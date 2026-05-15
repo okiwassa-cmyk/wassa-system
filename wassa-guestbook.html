@@ -2096,9 +2096,13 @@ function _fillGuestNames(rows){
     }
   });
 }
+var _allResLoaded=false;
 async function loadAll(){
+  // 起動時は直近90日前以降の予約のみ取得（高速化）。過去データはensureAllReservations()で遅延ロード
+  var cutoff=new Date();cutoff.setDate(cutoff.getDate()-90);
+  var cutoffStr=cutoff.toISOString().slice(0,10);
   const [resv,custs,menus,quotes,presets]=await Promise.all([
-    sbGet('reservations','select=*&order=check_in.desc'),
+    sbGet('reservations','select=*&order=check_in.desc&check_out=gte.'+cutoffStr),
     sbGet('wassa_customers','select=*'),
     sbGet('wassa_menus','select=*&order=sort_order.asc'),
     sbGet('quotes','select=*&order=created_at.desc&limit=300').catch(()=>[]),
@@ -2106,8 +2110,18 @@ async function loadAll(){
   ]);
   // 取得成功した場合のみ上書き（エラーで空配列が返った場合は既存データを保持）
   allReservations=resv; allCustomers=custs; allMenus=menus; allQuotes=quotes; allBillingPresets=presets;
+  _allResLoaded=false;
   _fillGuestNames(allReservations);
   await loadComms();
+  buildKanaIndex();
+}
+// 集計・CSV等で全予約が必要な時に呼ぶ（初回のみ全件取得）
+async function ensureAllReservations(){
+  if(_allResLoaded)return;
+  const resv=await sbGet('reservations','select=*&order=check_in.desc');
+  allReservations=resv;
+  _allResLoaded=true;
+  _fillGuestNames(allReservations);
   buildKanaIndex();
 }
 async function loadRateData(){
@@ -2185,7 +2199,8 @@ function showSec(id,btn){
       var cy=new Date().getFullYear();
       for(var yi=cy+1;yi>=2014;yi--){var o=document.createElement('option');o.value=yi;o.text=yi+'年';if(yi===cy)o.selected=true;ys.appendChild(o);}
     }
-    switchStatsTab('mgmt');
+    // 集計には全予約が必要なので遅延ロード
+    ensureAllReservations().then(()=>switchStatsTab('mgmt'));
   }
 }
 
@@ -9230,6 +9245,8 @@ async function saveRanges(s){
 
 // ━━ CSV ━━
 async function downloadCSV(type){
+  // 予約CSVは全件必要なので遅延ロード
+  if(type==='reservations')await ensureAllReservations();
   let rows,filename;
   if(type==='reservations'){
     const headers=['ID','予約番号','氏名','チェックイン','チェックアウト','大人','小学生','幼児','部屋','プラン','経路','電話','メール','住所','状態','備考'];
