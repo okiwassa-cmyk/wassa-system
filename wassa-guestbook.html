@@ -8846,10 +8846,13 @@ function renderMgr(){
   html+='<div style="font-size:11px;color:var(--text3);margin:8px 0 14px 0">スタッフPINでログインすると：見積もり・顧客DB・CSVタブが非表示になり、予約・請求・食事・対応履歴・清掃を<strong>閲覧のみ</strong>（編集不可）で表示します</div>';
   html+='<button class="save-btn" onclick="savePins()">保存</button><span class="saved-msg" id="msg-pins">保存しました ✓</span></div>';
   // ━━ リピーターページ設定 ━━
+  var repeaterUrl='https://okiwassa-cmyk.github.io/wassa-system/wassa-repeater.html?key='+encodeURIComponent(_repeaterPass);
   html+='<div class="section-card"><div class="section-title">リピーター専用ページ</div>';
-  html+='<p style="font-size:12px;color:var(--text3);margin-bottom:12px">チェックアウト時にゲストへお伝えするパスワードです。年1回程度変更することをお勧めします。</p>';
-  html+='<div class="opt-row"><label>パスワード</label><input type="text" id="repeater-pass-inp" value="'+escHtml(_repeaterPass)+'" maxlength="20" style="width:160px;letter-spacing:.08em;font-size:14px;font-family:monospace"></div>';
-  html+='<div style="font-size:11px;color:var(--text3);margin:6px 0 14px">wassa-repeater.html のログインに使用します。変更後は即時反映されます。</div>';
+  html+='<p style="font-size:12px;color:var(--text3);margin-bottom:12px">チェックアウト後にLINEでお客様へ送るURLです。URLにキーが含まれているのでパスワード入力不要でアクセスできます。</p>';
+  html+='<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:12px;font-family:monospace;word-break:break-all;line-height:1.7;margin-bottom:10px" id="repeater-url-disp">'+escHtml(repeaterUrl)+'</div>';
+  html+='<button class="save-btn" onclick="copyRepeaterUrl()" style="margin-bottom:16px">URLをコピー</button><span class="saved-msg" id="msg-copy-url">コピーしました ✓</span>';
+  html+='<div style="font-size:12px;color:var(--text3);margin-bottom:12px;margin-top:4px">キーを変更する場合（年1回程度）</div>';
+  html+='<div class="opt-row"><label>キー</label><input type="text" id="repeater-pass-inp" value="'+escHtml(_repeaterPass)+'" maxlength="20" style="width:160px;letter-spacing:.08em;font-size:14px;font-family:monospace" oninput="updateRepeaterUrlPreview()"></div>';
   html+='<button class="save-btn" onclick="saveRepeaterPass()">保存</button><span class="saved-msg" id="msg-repeater-pass">保存しました ✓</span></div>';
   // ━━ キャンセルポリシー設定 ━━
   html+='<div class="section-card"><div class="section-title">キャンセルポリシー（見積書に表示）</div>';
@@ -8921,10 +8924,23 @@ async function savePins(){
 }
 async function saveRepeaterPass(){
   var pw=(document.getElementById('repeater-pass-inp').value||'').trim();
-  if(!pw){alert('パスワードを入力してください');return;}
+  if(!pw){alert('キーを入力してください');return;}
   _repeaterPass=pw;
-  try{await supa('price_common?id=eq.1','PATCH',{repeater_pass:pw});showMsg('msg-repeater-pass');}
+  try{await supa('price_common?id=eq.1','PATCH',{repeater_pass:pw});showMsg('msg-repeater-pass');updateRepeaterUrlPreview();}
   catch(e){alert('保存に失敗しました: '+e.message);}
+}
+function updateRepeaterUrlPreview(){
+  var pw=(document.getElementById('repeater-pass-inp').value||'').trim()||_repeaterPass;
+  var url='https://okiwassa-cmyk.github.io/wassa-system/wassa-repeater.html?key='+encodeURIComponent(pw);
+  var el=document.getElementById('repeater-url-disp');
+  if(el) el.textContent=url;
+}
+function copyRepeaterUrl(){
+  var el=document.getElementById('repeater-url-disp');
+  if(!el) return;
+  navigator.clipboard.writeText(el.textContent).then(function(){showMsg('msg-copy-url');}).catch(function(){
+    var ta=document.createElement('textarea');ta.value=el.textContent;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);showMsg('msg-copy-url');
+  });
 }
 function getEmailTemplates(){
   try{return JSON.parse(localStorage.getItem('wassaEmailTemplates'))||{};}catch(e){return {};}
