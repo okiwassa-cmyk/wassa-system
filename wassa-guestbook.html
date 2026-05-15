@@ -2710,7 +2710,7 @@ async function checkPastCompanion(guestName, banner){
       +'🛌 過去に <strong>'+uniq.join('、')+'</strong> 様と同室したことがあります。';
     banner.innerHTML += addHtml;
     banner.style.display = 'block';
-  }catch(e){}
+  }catch(e){console.error('checkPastCompanion error:', e);}
 }
 
 async function linkAsFamily(repCustId, rel){
