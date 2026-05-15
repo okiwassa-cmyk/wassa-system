@@ -557,9 +557,13 @@ function processReservations(reservations) {
   const isDx  = r => (r.room_type || '').includes('デラックス') || r.room_type === 'DX';
   const isSup = r => !isDx(r) && !!(r.room_type);
   const filtered = reservations.filter(r => {
+    // キャンセル・2024年以前を除外
+    if (r.status === 'cancelled') return false;
+    if (!r.check_in || r.check_in < '2024-01-01') return false;
+    // 室フィルター
     if (currentFilter === 'wassa')   return isSup(r);
     if (currentFilter === 'routine') return isDx(r);
-    return !!(r.room_type); // 部屋不明は除外
+    return !!(r.room_type);
   });
 
   const otaMonthly     = {}; // { ym: { source: count } }
@@ -902,19 +906,15 @@ function renderFutureCharts({ occMonthly, futureMonthly, futureOccMonthly, futur
    Supabase fetch
    ============================================================ */
 async function fetchReservations() {
-  const url = SB_URL + '/rest/v1/reservations'
-    + '?select=*'
-    + '&status=neq.cancelled'
-    + '&check_in=gte.2024-01-01'
-    + '&order=check_in.asc';
+  // guestbook.html と同じシンプルなクエリ（フィルターはJS側で処理）
+  const url = SB_URL + '/rest/v1/reservations?select=*&order=check_in.desc';
   const res = await fetch(url, {
     headers: {
       'apikey': SB_KEY,
       'Authorization': 'Bearer ' + SB_KEY,
-      'Range': '0-1999',
     },
   });
-  if (!res.ok) throw new Error('HTTP ' + res.status);
+  if (!res.ok) throw new Error('HTTP ' + res.status + ' — ' + await res.text());
   return res.json();
 }
 
