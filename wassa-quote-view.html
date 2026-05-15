@@ -69,9 +69,9 @@
   .quote-to .sama { font-size: 14px; color: var(--text2); }
   .quote-tbl { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 14px; }
   .quote-tbl th { background: var(--ocean); color: var(--white); padding: 7px 10px; text-align: left; font-weight: 500; font-size: 11px; border: 1px solid var(--ocean); }
-  .quote-tbl th:last-child { text-align: right; }
+  .quote-tbl th:nth-child(3), .quote-tbl th:nth-child(4), .quote-tbl th:last-child { text-align: right; }
   .quote-tbl td { padding: 6px 10px; border: 1px solid var(--border); color: var(--text2); }
-  .quote-tbl td:last-child { text-align: right; color: var(--text); }
+  .quote-tbl td:nth-child(3), .quote-tbl td:nth-child(4), .quote-tbl td:last-child { text-align: right; color: var(--text); }
   .quote-tbl tr.night-row td { background: var(--bg); font-weight: 600; color: var(--text); font-size: 11px; }
   .quote-tbl tr.sub-row td { padding: 4px 10px 4px 24px; font-size: 10px; }
   .quote-total { display: flex; justify-content: space-between; align-items: center; background: var(--ocean); color: var(--white); padding: 12px 16px; border-radius: var(--radius-sm); margin-bottom: 16px; }
@@ -222,11 +222,14 @@ function render(q, cancelPolicy) {
       var isSubRow = row.cat !== 'night' && row.cat !== '宿泊' && d === prevDate;
       var dateCell = (d && d !== prevDate) ? fmtDate(d) : '';
       prevDate = d || prevDate;
-      var amt = (parseInt(row.price)||0) * (parseInt(row.qty)||1) - (parseInt(row.discount)||0);
+      var price = parseInt(row.price)||0;
+      var qty = parseInt(row.qty)||1;
+      var amt = price * qty - (parseInt(row.discount)||0);
       var itemLabel = escHtml(row.item || row.cat || '');
-      if (parseInt(row.qty) > 1) itemLabel += ' ×' + row.qty + '名';
       var trClass = isNightRow ? ' class="night-row"' : (isSubRow ? ' class="sub-row"' : '');
-      rows += '<tr'+trClass+'><td>'+escHtml(dateCell)+'</td><td>'+itemLabel+'</td><td>'+fmtPrice(amt)+'</td></tr>';
+      var unitCell = qty > 1 ? fmtPrice(price) : '';
+      var qtyCell = qty > 1 ? qty + '名' : '';
+      rows += '<tr'+trClass+'><td>'+escHtml(dateCell)+'</td><td>'+itemLabel+'</td><td>'+unitCell+'</td><td>'+qtyCell+'</td><td>'+fmtPrice(amt)+'</td></tr>';
     });
   }
 
@@ -287,7 +290,7 @@ function render(q, cancelPolicy) {
       + '</div>'
     + '</div>'
     // 明細テーブル
-    + '<table class="quote-tbl"><thead><tr><th>日付</th><th>内容</th><th>金額</th></tr></thead><tbody>' + rows + '</tbody></table>'
+    + '<table class="quote-tbl"><thead><tr><th>日付</th><th>内容</th><th>単価</th><th>数量</th><th>金額</th></tr></thead><tbody>' + rows + '</tbody></table>'
     // 合計
     + '<div class="quote-total"><span class="label">' + totalLabel + '</span><span class="amount">' + fmtPrice(q.total_amount) + '</span></div>'
     // 備考
