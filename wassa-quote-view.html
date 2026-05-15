@@ -302,7 +302,18 @@ function render(q, cancelPolicy) {
     // フッター
     + '<div class="quote-footer">海と星空の小さな宿 WASSA WASSA<br>ご予約・お問い合わせ：wassa@wassa-okinawa.com</div>'
     // 印刷ボタン
-    + '<button class="btn-print" onclick="window.print()">🖨️ 印刷・PDFとして保存</button>';
+    + (function(){
+        var isIOS = /iP(hone|ad|od)/.test(navigator.userAgent);
+        if(isIOS){
+          return '<div style="margin-top:24px;padding:14px 16px;background:var(--sand);border-radius:10px;font-size:13px;color:var(--text2);line-height:1.8;text-align:center">'
+            + '📄 PDFとして保存するには<br>'
+            + 'Safari下部の <strong>共有ボタン（□↑）</strong> をタップ<br>'
+            + '→「<strong>プリント</strong>」→ 2本指でピンチアウト → 共有 → PDF保存'
+            + '</div>';
+        } else {
+          return '<button class="btn-print" onclick="window.print()">🖨️ 印刷・PDFとして保存</button>';
+        }
+      })();
 }
 
 function showError(msg) {
