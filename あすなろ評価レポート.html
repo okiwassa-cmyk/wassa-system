@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>あすなろ評価レポート｜WASSA WASSA</title>
+<style>
+@page { size: A4; margin: 18mm 16mm; }
+*{ box-sizing:border-box; margin:0; padding:0; }
+body{ font-family:-apple-system,'Hiragino Sans','Yu Gothic',sans-serif; font-size:11pt; color:#1a1a2e; background:#fff; line-height:1.7; }
+
+/* ---- Cover ---- */
+.cover{ height:100vh; display:flex; flex-direction:column; justify-content:center; padding:40px 0; border-bottom:3px solid #1E293B; page-break-after:always; }
+.cover .label{ font-size:9pt; color:#64748B; letter-spacing:2px; text-transform:uppercase; margin-bottom:16px; }
+.cover h1{ font-size:22pt; font-weight:800; color:#1E293B; line-height:1.3; margin-bottom:12px; }
+.cover .sub{ font-size:12pt; color:#475569; margin-bottom:40px; }
+.cover .meta{ font-size:9.5pt; color:#64748B; border-top:1px solid #E2E8F0; padding-top:16px; display:flex; gap:32px; }
+.cover .tag{ display:inline-block; background:#1E293B; color:#fff; font-size:8.5pt; padding:3px 10px; border-radius:4px; margin-right:6px; margin-bottom:4px; }
+
+/* ---- Section ---- */
+.page{ padding:20px 0; page-break-before:always; }
+.page:first-of-type{ page-break-before:avoid; }
+h2{ font-size:13pt; font-weight:800; color:#1E293B; border-left:4px solid #2563EB; padding-left:10px; margin-bottom:14px; margin-top:28px; }
+h3{ font-size:10.5pt; font-weight:700; color:#334155; margin-bottom:8px; margin-top:18px; }
+p{ margin-bottom:8px; font-size:10pt; color:#334155; }
+
+/* ---- KPI Grid ---- */
+.kpi-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:16px 0; }
+.kpi{ background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:12px 14px; }
+.kpi .lbl{ font-size:8pt; color:#64748B; font-weight:600; letter-spacing:.5px; text-transform:uppercase; }
+.kpi .val{ font-size:18pt; font-weight:800; color:#1E293B; line-height:1.1; margin:4px 0; }
+.kpi .chg{ font-size:9pt; font-weight:600; }
+.kpi .chg.up{ color:#10B981; }
+.kpi .chg.down{ color:#EF4444; }
+.kpi .chg.note{ color:#94A3B8; }
+.kpi-2{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin:16px 0; }
+
+/* ---- Table ---- */
+table{ width:100%; border-collapse:collapse; font-size:9.5pt; margin:12px 0; }
+th{ background:#1E293B; color:#fff; padding:7px 10px; text-align:center; font-weight:600; font-size:9pt; }
+td{ padding:6px 10px; border-bottom:1px solid #E2E8F0; text-align:right; }
+td.lbl{ text-align:left; font-weight:600; color:#334155; }
+tr:nth-child(even) td{ background:#F8FAFC; }
+tr.total td{ background:#EFF6FF; font-weight:700; border-top:2px solid #BFDBFE; }
+tr.highlight td{ background:#FEF9C3; }
+
+/* ---- Bar chart (CSS) ---- */
+.bar-wrap{ margin:10px 0; }
+.bar-row{ display:flex; align-items:center; margin-bottom:5px; gap:8px; }
+.bar-row .bar-lbl{ width:70px; font-size:8.5pt; color:#475569; text-align:right; flex-shrink:0; }
+.bar-row .bar-track{ flex:1; background:#F1F5F9; border-radius:3px; height:18px; position:relative; overflow:hidden; }
+.bar-row .bar-fill{ height:100%; border-radius:3px; display:flex; align-items:center; padding:0 6px; }
+.bar-row .bar-val{ font-size:8pt; font-weight:700; color:#fff; white-space:nowrap; }
+.bar-row .bar-sub{ width:80px; font-size:8pt; color:#64748B; flex-shrink:0; text-align:right; }
+
+/* ---- Verdict boxes ---- */
+.verdict-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin:14px 0; }
+.verdict{ border-radius:8px; padding:12px 14px; }
+.verdict.good{ background:#ECFDF5; border:1px solid #6EE7B7; }
+.verdict.warn{ background:#FFF7ED; border:1px solid #FED7AA; }
+.verdict.neutral{ background:#F1F5F9; border:1px solid #CBD5E1; }
+.verdict .v-head{ display:flex; align-items:center; gap:8px; font-weight:700; font-size:10pt; margin-bottom:5px; }
+.verdict .icon{ font-size:14pt; }
+.verdict p{ font-size:9pt; margin:0; color:#374151; }
+
+/* ---- Opinion ---- */
+.opinion-box{ background:#EFF6FF; border-left:4px solid #2563EB; border-radius:0 8px 8px 0; padding:14px 16px; margin:14px 0; }
+.opinion-box .head{ font-weight:700; font-size:9.5pt; color:#1D4ED8; margin-bottom:6px; }
+.opinion-box p{ font-size:9.5pt; color:#1E3A5F; margin-bottom:5px; }
+
+/* ---- Annotation ---- */
+.asunaro-note{ background:#FEF2F2; border:1px solid #FECACA; border-radius:6px; padding:8px 12px; font-size:9pt; color:#991B1B; display:flex; align-items:center; gap:8px; margin:10px 0; }
+.note{ background:#FFFBEB; border-left:3px solid #F59E0B; padding:8px 12px; font-size:8.5pt; color:#78350F; margin:8px 0; border-radius:0 6px 6px 0; }
+
+/* ---- Print ---- */
+@media print{
+  body{ font-size:10pt; }
+  .cover{ height:auto; min-height:250px; }
+  .no-print{ display:none; }
+}
+@media screen{
+  body{ max-width:210mm; margin:0 auto; padding:20px; background:#f0f0f0; }
+  .cover, .page{ background:#fff; padding:30px 40px; margin-bottom:20px; box-shadow:0 2px 12px rgba(0,0,0,.1); border-radius:4px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============ COVER ============ -->
+<div class="cover">
+  <div class="label">Confidential — Internal Review</div>
+  <h1>あすなろシステム＋すけさん<br>導入効果検証レポート</h1>
+  <div class="sub">WASSA WASSA ／ Yambaru Routine</div>
+  <div style="margin-bottom:20px">
+    <span class="tag">分析期間: 2024年1月〜2026年5月</span>
+    <span class="tag">導入: 2025年4月</span>
+    <span class="tag">比較: 導入前15ヶ月 vs 導入後14ヶ月</span>
+  </div>
+  <div class="meta">
+    <div><strong>施設</strong><br>WASSA WASSA（S01+S02）<br>Yambaru Routine（DX）</div>
+    <div><strong>作成日</strong><br>2026年5月15日</div>
+    <div><strong>データ出典</strong><br>あすなろPOSシステム CSV<br>Supabase 予約管理DB</div>
+  </div>
+</div>
+
+<!-- ============ PAGE 1: KPI Overview ============ -->
+<div class="page">
+  <h2>1. 売上実績サマリー</h2>
+
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="lbl">2024年 年間売上（2室合計）</div>
+      <div class="val">2,294万円</div>
+      <div class="chg note">※ Routine は7月開業のため参考値</div>
+    </div>
+    <div class="kpi">
+      <div class="lbl">2025年 年間売上（2室合計）</div>
+      <div class="val">2,552万円</div>
+      <div class="chg up">▲ +258万円 / +11.2%</div>
+    </div>
+    <div class="kpi">
+      <div class="lbl">2026年 売上（1〜5月）</div>
+      <div class="val">868万円</div>
+      <div class="chg note">5月途中のため参考値</div>
+    </div>
+  </div>
+
+  <h3>月次売上推移（万円）</h3>
+  <div class="bar-wrap">
+    <!-- 2024 -->
+    <div class="bar-row"><span class="bar-lbl">2024/01</span><div class="bar-track"><div class="bar-fill" style="width:20%;background:#94A3B8"><span class="bar-val">65万</span></div></div><span class="bar-sub">WASSA のみ</span></div>
+    <div class="bar-row"><span class="bar-lbl">2024/03</span><div class="bar-track"><div class="bar-fill" style="width:61%;background:#94A3B8"><span class="bar-val">200万</span></div></div><span class="bar-sub">WASSA のみ</span></div>
+    <div class="bar-row"><span class="bar-lbl">2024/07</span><div class="bar-track"><div class="bar-fill" style="width:100%;background:#64748B"><span class="bar-val">391万（2室合計）</span></div></div><span class="bar-sub">Routine 開業</span></div>
+    <div class="bar-row"><span class="bar-lbl">2024/08</span><div class="bar-track"><div class="bar-fill" style="width:100%;background:#64748B"><span class="bar-val">397万（2室合計）</span></div></div><span class="bar-sub">年間最高</span></div>
+    <div style="border-top:2px dashed #DC2626;margin:6px 0;position:relative"><span style="position:absolute;right:0;top:-10px;font-size:8pt;color:#DC2626;font-weight:700">◀ あすなろ＋すけさん導入（2025年4月）</span></div>
+    <div class="bar-row"><span class="bar-lbl">2025/04</span><div class="bar-track"><div class="bar-fill" style="width:51%;background:#3B82F6"><span class="bar-val">168万（2室合計）</span></div></div><span class="bar-sub">導入初月</span></div>
+    <div class="bar-row"><span class="bar-lbl">2025/07</span><div class="bar-track"><div class="bar-fill" style="width:93%;background:#3B82F6"><span class="bar-val">304万（2室合計）</span></div></div><span class="bar-sub"></span></div>
+    <div class="bar-row"><span class="bar-lbl">2025/08</span><div class="bar-track"><div class="bar-fill" style="width:100%;background:#3B82F6"><span class="bar-val">390万（2室合計）</span></div></div><span class="bar-sub">導入後最高</span></div>
+    <div class="bar-row"><span class="bar-lbl">2026/04</span><div class="bar-track"><div class="bar-fill" style="width:66%;background:#10B981"><span class="bar-val">218万（2室合計）</span></div></div><span class="bar-sub"></span></div>
+  </div>
+
+  <h3>導入前後 月平均売上比較（2室合計）</h3>
+  <table>
+    <tr><th>期間</th><th>月数</th><th>月平均売上</th><th>前期比</th></tr>
+    <tr><td class="lbl">導入前（〜2025年3月）</td><td>15ヶ月</td><td>187万円</td><td>—</td></tr>
+    <tr class="highlight"><td class="lbl">導入後（2025年4月〜）</td><td>14ヶ月</td><td>196万円</td><td style="color:#10B981;font-weight:700">+4.3%</td></tr>
+  </table>
+  <div class="note">※ 導入前の2024年7月〜12月はYambaru Routine開業後のみを含む。単純比較には注意が必要。</div>
+</div>
+
+<!-- ============ PAGE 2: 客単価・WASSA詳細 ============ -->
+<div class="page">
+  <h2>2. 客単価の変化（すけさん効果の中心指標）</h2>
+
+  <p>プランコンサルシステム「すけさん」の効果が最も顕著に現れる指標は<strong>客単価</strong>です。</p>
+
+  <h3>WASSA WASSA（S01+S02）客単価推移</h3>
+  <table>
+    <tr><th>年</th><th>上半期 平均</th><th>下半期 平均</th><th>年間 平均</th><th>前年比</th></tr>
+    <tr><td class="lbl">2024年</td><td>¥24,856</td><td>¥24,477</td><td>¥24,663</td><td>—</td></tr>
+    <tr><td class="lbl">2025年</td><td>¥24,664</td><td>¥34,007</td><td>¥28,999</td><td style="color:#10B981;font-weight:700">+17.6%</td></tr>
+    <tr class="highlight"><td class="lbl">2026年（1〜5月）</td><td colspan="2" style="text-align:center">¥36,371（1〜5月平均）</td><td>¥36,371</td><td style="color:#10B981;font-weight:700">+25.3%</td></tr>
+  </table>
+
+  <div class="bar-wrap" style="margin-top:12px">
+    <div class="bar-row"><span class="bar-lbl">2024年平均</span><div class="bar-track"><div class="bar-fill" style="width:54%;background:#94A3B8"><span class="bar-val">¥24,663</span></div></div><span class="bar-sub"></span></div>
+    <div class="bar-row"><span class="bar-lbl">2025年平均</span><div class="bar-track"><div class="bar-fill" style="width:63%;background:#3B82F6"><span class="bar-val">¥28,999</span></div></div><span class="bar-sub">+17.6%</span></div>
+    <div class="bar-row"><span class="bar-lbl">2026/04</span><div class="bar-track"><div class="bar-fill" style="width:100%;background:#10B981"><span class="bar-val">¥45,424（最高値）</span></div></div><span class="bar-sub">+84%</span></div>
+  </div>
+
+  <h3>Yambaru Routine（DX）客単価推移</h3>
+  <table>
+    <tr><th>期間</th><th>客単価</th><th>備考</th></tr>
+    <tr><td class="lbl">2024年下半期（開業期）</td><td>¥55,204</td><td>開業直後・変動大</td></tr>
+    <tr><td class="lbl">2025年（通年）</td><td>¥48,054</td><td>安定期に入る</td></tr>
+    <tr class="highlight"><td class="lbl">2026年（1〜5月）</td><td>¥52,315</td><td>上昇傾向</td></tr>
+  </table>
+  <div class="note">※ Routineの2024年9月（¥44,715）・12月（¥85,539）など単月の振れ幅が大きい。件数が少ないため月ごとに大きく変動。</div>
+
+  <h2 style="margin-top:24px">3. WASSA WASSA 単体の実情</h2>
+  <p>2室合計では+11%ですが、WASSA WASSA単体を見ると異なる姿が見えます。</p>
+
+  <table>
+    <tr><th>指標</th><th>2024年</th><th>2025年</th><th>変化</th></tr>
+    <tr><td class="lbl">年間売上</td><td>¥19,621千</td><td>¥17,084千</td><td style="color:#EF4444">▼ −13%</td></tr>
+    <tr><td class="lbl">年間会計数（泊数）</td><td>407件</td><td>335件</td><td style="color:#EF4444">▼ −18%</td></tr>
+    <tr><td class="lbl">客単価</td><td>¥24,663</td><td>¥28,999</td><td style="color:#10B981">▲ +18%</td></tr>
+    <tr><td class="lbl">夏（7〜8月）売上</td><td>¥549万</td><td>¥452万</td><td style="color:#EF4444">▼ −18%</td></tr>
+  </table>
+  <div class="asunaro-note">⚠ 売上は減少しているが客単価は上昇。「数より質」への転換が起きている可能性があります。</div>
+</div>
+
+<!-- ============ PAGE 3: 総合評価・見解 ============ -->
+<div class="page">
+  <h2>4. 総合評価</h2>
+
+  <div class="verdict-grid">
+    <div class="verdict good">
+      <div class="v-head"><span class="icon">◎</span>客単価の上昇</div>
+      <p>WとR合わせて客単価が明確に上昇。すけさんのプラン設計が単価向上に機能していると判断できる。2026年4月は¥45,424/人と過去最高水準。</p>
+    </div>
+    <div class="verdict good">
+      <div class="v-head"><span class="icon">○</span>Routine（DX）の成熟</div>
+      <p>2024年7月開業から2025年通年で年間¥844万を達成。2026年も安定推移しており、2室体制が軌道に乗っている。</p>
+    </div>
+    <div class="verdict warn">
+      <div class="v-head"><span class="icon">△</span>WASSA WASSA 単体の売上</div>
+      <p>2025年は2024年比▲13%。件数の減少が主因。新規客（OTA）の動向次第だが、現状は「単価↑・件数↓」のトレードオフが生じている可能性。</p>
+    </div>
+    <div class="verdict warn">
+      <div class="v-head"><span class="icon">△</span>OTA新規客の動向</div>
+      <p>楽天・じゃらん等の純粋新規客が増えているかどうかは予約管理データで確認が必要。導入後の件数増加が確認できれば、効果の証拠が強くなる。</p>
+    </div>
+  </div>
+
+  <h2 style="margin-top:24px">5. 分析者の見解</h2>
+
+  <div class="opinion-box">
+    <div class="head">💬 分析者コメント</div>
+    <p><strong>「単価は上がっている。しかし件数が追いついていない」</strong>というのが現状の正直な評価です。</p>
+    <p>すけさんのプラン設計の効果は客単価の数字に明確に表れており、これは本物だと思います。2024年に¥24,000台だった客単価が、2026年には¥45,000台まで上昇しているのは、プランの見せ方や価格設定の改善なしには説明がつきません。</p>
+    <p>一方で、あすなろシステム（POSレジ）自体が新規客獲得に直接働くツールではないため、OTA経由の新規予約が増えたかどうかは別途確認が必要です。公式HPや直予約はリピーターが中心のため、真の新規客獲得力は楽天・じゃらん等の件数推移で判断すべきです。</p>
+    <p><strong>今日の会議で確認したいこと：</strong>あすなろ社として「OTA掲載プランの改善サポート」や「新規客獲得に向けた施策提案」があるかどうか。現状は単価改善に留まっており、件数増加への道筋が見えていないことを率直に伝えることで、より踏み込んだ提案が引き出せると考えます。</p>
+  </div>
+
+  <h2 style="margin-top:24px">6. 会議での確認・提案事項</h2>
+
+  <table>
+    <tr><th style="text-align:left">確認項目</th><th style="width:90px">優先度</th></tr>
+    <tr><td class="lbl">① OTA掲載プランの改善はどこまでサポートしてもらえるか</td><td style="text-align:center;color:#DC2626;font-weight:700">高</td></tr>
+    <tr><td class="lbl">② 楽天・じゃらん等の新規予約件数が増加しているか（データ共有）</td><td style="text-align:center;color:#DC2626;font-weight:700">高</td></tr>
+    <tr><td class="lbl">③ 客単価は上がったが件数が減っている点への見解</td><td style="text-align:center;color:#DC2626;font-weight:700">高</td></tr>
+    <tr><td class="lbl">④ 稼働率向上に向けた閑散期（1〜2月・5月）対策の提案</td><td style="text-align:center;color:#F59E0B;font-weight:700">中</td></tr>
+    <tr><td class="lbl">⑤ 次年度に向けたプラン見直しのスケジュール</td><td style="text-align:center;color:#F59E0B;font-weight:700">中</td></tr>
+  </table>
+
+  <div style="margin-top:30px;border-top:1px solid #E2E8F0;padding-top:12px;font-size:8.5pt;color:#94A3B8;display:flex;justify-content:space-between">
+    <span>WASSA WASSA ／ Yambaru Routine — Confidential</span>
+    <span>作成: 2026年5月15日</span>
+  </div>
+</div>
+
+<div class="no-print" style="text-align:center;padding:20px">
+  <button onclick="window.print()" style="padding:12px 32px;background:#1E293B;color:white;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-family:inherit">🖨 印刷する</button>
+</div>
+
+</body>
+</html>
