@@ -2689,17 +2689,22 @@ async function checkPastCompanion(guestName, banner){
     var others = data.filter(function(c){ return c.reservation_id !== currentEditId; });
     if(!others.length) return;
     // 一致した予約の代表者名を取得（DBから直接）
-    var repNames = [];
+    var repItems = [];
     others.forEach(function(c){
       var mainGuest = c.reservations && c.reservations.guest_name;
+      var checkIn = c.reservations && c.reservations.check_in;
       if(!mainGuest) {
         // フォールバック: allReservationsから検索
         var rv = allReservations.find(function(x){ return x.id===c.reservation_id; });
         mainGuest = rv && rv.guest_name;
+        checkIn = checkIn || (rv && rv.check_in);
       }
-      if(mainGuest && mainGuest !== guestName) repNames.push(mainGuest);
+      if(mainGuest && mainGuest !== guestName){
+        var label = mainGuest + (checkIn ? '（'+checkIn+'）' : '');
+        repItems.push(label);
+      }
     });
-    var uniq = repNames.filter(function(v,i,a){ return a.indexOf(v)===i; });
+    var uniq = repItems.filter(function(v,i,a){ return a.indexOf(v)===i; });
     if(!uniq.length) return;
     var addHtml = (banner.innerHTML ? '<br>' : '')
       +'🛌 過去に <strong>'+uniq.slice(0,3).join('、')+'</strong> 様と同室したことがあります。';
