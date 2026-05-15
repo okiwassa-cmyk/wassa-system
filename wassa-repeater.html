@@ -1112,6 +1112,7 @@ async function submitBooking() {
             status: 'sent',
             billing: { rows: billingRows, plan_name: body.plan_name, coupon: 0, points: 0 },
             notes: notes,
+            doc_type: 'confirmation',
           })
         });
         if (!qRes.ok) throw new Error('quotes POST failed: ' + await qRes.text());

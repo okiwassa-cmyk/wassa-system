@@ -173,17 +173,29 @@ async function loadQuote() {
   var token = getToken();
   if (!token) { showError('URLが正しくありません。'); return; }
 
-  var res = await fetch(SB_URL + '/rest/v1/quotes?token=eq.' + encodeURIComponent(token) + '&select=*', {
-    headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
-  });
+  var [res, cpRes] = await Promise.all([
+    fetch(SB_URL + '/rest/v1/quotes?token=eq.' + encodeURIComponent(token) + '&select=*', {
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+    }),
+    fetch(SB_URL + '/rest/v1/price_common?id=eq.1&select=cancel_policy', {
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+    })
+  ]);
   if (!res.ok) { showError('データを取得できませんでした。'); return; }
   var rows = await res.json();
   if (!rows || rows.length === 0) { showError('見積書が見つかりません。\nURLをご確認ください。'); return; }
-  render(rows[0]);
+  var cpData = cpRes.ok ? await cpRes.json() : [];
+  var cancelPolicy = (cpData && cpData[0] && cpData[0].cancel_policy) || '';
+  render(rows[0], cancelPolicy);
 }
 
-function render(q) {
+function render(q, cancelPolicy) {
   var card = document.getElementById('main-card');
+
+  // ドキュメント種別
+  var isConfirmation = q.doc_type === 'confirmation';
+  var docTitle = isConfirmation ? '予　約　確　認　書' : '見　積　書';
+  var totalLabel = isConfirmation ? 'ご宿泊料金合計（税込）' : 'お見積り合計金額（税込）';
 
   // 有効期限チェック
   var isExpired = false;
@@ -193,14 +205,18 @@ function render(q) {
   }
 
   var today = q.created_at ? q.created_at.slice(0,10) : new Date().toISOString().slice(0,10);
-  var planName = q.plan_name || '';
+  var planName = q.plan_name || (q.billing && q.billing.plan_name) || '';
 
-  // 明細行生成（管理画面と同じロジック）
+  // 明細行生成（billing は配列または {rows:[...]} 形式に対応）
+  var billingRows = q.billing;
+  if (billingRows && !Array.isArray(billingRows) && Array.isArray(billingRows.rows)) {
+    billingRows = billingRows.rows;
+  }
   var rows = '';
-  var billing = q.billing;
-  if (billing && Array.isArray(billing) && billing.length > 0) {
+  if (Array.isArray(billingRows) && billingRows.length > 0) {
     var prevDate = '';
-    billing.forEach(function(row) {
+    billingRows.forEach(function(row) {
+      if (row.is_ref) return; // 参考行は非表示
       var d = row.date || '';
       var isNightRow = row.cat === 'night' || row.cat === '宿泊';
       var isSubRow = row.cat !== 'night' && row.cat !== '宿泊' && d === prevDate;
@@ -214,28 +230,42 @@ function render(q) {
     });
   }
 
-  // 部屋ラベル
+  // 部屋名フルネーム
   var roomType = q.room_type || q.room || '';
   var roomLabel = '';
   if (roomType) {
-    if (roomType.indexOf('デラックス') !== -1 || roomType === 'DX') roomLabel = 'DX';
-    else if (roomType.indexOf('01') !== -1 || roomType === 'S1' || roomType === '01') roomLabel = 'S01';
-    else if (roomType.indexOf('02') !== -1 || roomType === 'S2' || roomType === '02') roomLabel = 'S02';
-    else roomLabel = roomType;
+    if (roomType.indexOf('デラックス') !== -1 || roomType === 'dlx' || roomType === 'DX')
+      roomLabel = 'デラックスツインルーム';
+    else if (roomType.indexOf('01') !== -1 || roomType === 'S1' || roomType === 'sup01')
+      roomLabel = 'スーペリアツインルーム01';
+    else if (roomType.indexOf('02') !== -1 || roomType === 'S2' || roomType === 'sup02')
+      roomLabel = 'スーペリアツインルーム02';
+    else
+      roomLabel = roomType;
   }
-  var roomHeader = roomLabel ? '<div style="text-align:center;font-size:12px;font-weight:600;color:var(--ocean2);background:var(--sand);border-radius:4px;padding:4px 12px;display:inline-block;margin:0 auto 14px;letter-spacing:.05em">🛏 ' + roomLabel + '</div><br>' : '';
+  var roomHeader = roomLabel
+    ? '<div style="text-align:center;font-size:12px;font-weight:600;color:var(--ocean2);background:var(--sand);border-radius:4px;padding:4px 14px;display:inline-block;margin:0 auto 14px;letter-spacing:.05em">' + escHtml(roomLabel) + '</div><br>'
+    : '';
 
   var expiredHtml = isExpired ? ' <span class="expired-badge">期限切れ</span>' : '';
   var validFmt = q.valid_until ? fmtDate(q.valid_until) : '';
+
+  // キャンセルポリシー
+  var cancelHtml = cancelPolicy
+    ? '<div style="border:1px solid var(--border);border-radius:6px;padding:12px 14px;margin-bottom:14px;font-size:10px;color:var(--text2);line-height:1.9">'
+        + '<div style="font-weight:700;color:var(--text);margin-bottom:6px;font-size:11px">キャンセルポリシー</div>'
+        + escHtml(cancelPolicy).replace(/\n/g,'<br>')
+      + '</div>'
+    : '';
 
   card.innerHTML =
     // 発行日
     '<div style="text-align:right;font-size:10px;color:var(--text2);line-height:2;margin-bottom:6px">'
       + '<div>発行：' + fmtDate(today) + '</div>'
-      + (validFmt ? '<div>有効期限：' + validFmt + expiredHtml + '</div>' : '')
+      + (validFmt && !isConfirmation ? '<div>有効期限：' + validFmt + expiredHtml + '</div>' : '')
     + '</div>'
     // タイトル
-    + '<div style="text-align:center;font-size:22px;font-weight:700;letter-spacing:.3em;margin-bottom:' + (planName?'8':'18') + 'px">見　積　書</div>'
+    + '<div style="text-align:center;font-size:22px;font-weight:700;letter-spacing:.3em;margin-bottom:' + (planName?'8':'18') + 'px">' + docTitle + '</div>'
     + (planName ? '<div style="text-align:center;font-size:13px;color:var(--ocean2);font-weight:600;margin-bottom:14px;letter-spacing:.05em">' + escHtml(planName) + '</div>' : '')
     + (roomHeader || '')
     // お客様名 ＋ 事業所情報
@@ -259,11 +289,13 @@ function render(q) {
     // 明細テーブル
     + '<table class="quote-tbl"><thead><tr><th>日付</th><th>内容</th><th>金額</th></tr></thead><tbody>' + rows + '</tbody></table>'
     // 合計
-    + '<div class="quote-total"><span class="label">お見積り合計金額（税込）</span><span class="amount">' + fmtPrice(q.total_amount) + '</span></div>'
+    + '<div class="quote-total"><span class="label">' + totalLabel + '</span><span class="amount">' + fmtPrice(q.total_amount) + '</span></div>'
     // 備考
     + (q.notes && !q.notes.startsWith('貸切 buyout-') ? '<div class="quote-note"><p>' + escHtml(q.notes).replace(/\n/g,'<br>') + '</p></div>' : '')
     // ご連絡
     + '<div class="quote-note"><p>・ご不明な点はお気軽にお問い合わせください。</p></div>'
+    // キャンセルポリシー
+    + cancelHtml
     // フッター
     + '<div class="quote-footer">海と星空の小さな宿 WASSA WASSA<br>ご予約・お問い合わせ：wassa@wassa-okinawa.com</div>'
     // 印刷ボタン
