@@ -947,7 +947,7 @@ function buildBillingRows(cin, cout, adults, children, meal, room, infMealBed, i
   let d = new Date(cin + 'T00:00:00');
   const end = new Date(cout + 'T00:00:00');
   while (d < end) {
-    const ds             = d.toISOString().slice(0, 10);
+    const ds = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
     const season         = getSeasonForDate(ds);
     const rate           = getRoomRate(season, room, adults);
     const childRate      = getChildRoomRate(season, room);
