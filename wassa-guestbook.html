@@ -625,7 +625,7 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="res-search" placeholder="顧客名で検索" oninput="debounceFilter()">
       </div>
-      <select id="res-filter" onchange="filterReservations()" style="width:auto;min-width:110px">
+      <select id="res-filter" onchange="onResFilterChange()" style="width:auto;min-width:110px">
         <option value="">すべて</option>
         <option value="upcoming">今後の予約</option>
         <option value="today">本日</option>
@@ -2338,11 +2338,25 @@ function filterCustomers(){
   container.innerHTML=list.map(c=>{const name=(c.sei||'')+(c.mei?'　'+c.mei:'');const kana=(c.sei_kana||'')+(c.mei_kana?' '+c.mei_kana:'');const initial=(c.sei||'?')[0];const allergy=c.allergy==='あり'||c.ng_food;const cnt=stayCountIndex[c.id]||0;const hasFamily=c.family_id&&allCustomers.filter(function(x){return x.family_id===c.family_id&&x.id!==c.id;}).length>0;const isRepeater=cnt>=2;const _prefRaw=c.pref||'';const _cityM=(c.city||'').match(/^(.{2,4}[都道府県])/);const _pm=(_prefRaw.length>=3)?_prefRaw:(_cityM?_cityM[1]:'');const pref=_pm?'<span style="font-size:11px;color:var(--text3);background:var(--sand);padding:1px 5px;border-radius:3px;margin-left:4px">'+_pm+'</span>':'';return`<div class="customer-row" onclick="openCustomer(${c.id})"><div class="avatar">${initial}</div><div class="cust-info"><div class="cust-name">${name}${pref} ${isRepeater?'<span style="font-size:11px;background:#e8f4fd;color:#1976d2;padding:1px 6px;border-radius:10px;font-weight:600">🔁 リピーター</span>':''} ${allergy?'<span class="allergy-tag">⚠ 食アレ</span>':''} ${hasFamily?'<span class="family-badge">👨‍👩‍👧 家族</span>':''}</div><div class="cust-sub">${kana?kana+'　':''}${c.mobile||c.email||'連絡先未登録'}</div></div><div style="font-size:11px;color:var(--text3);white-space:nowrap">${cnt}回</div></div>`;}).join('');
 }
 
-// debounce: 入力が300ms止まってから検索実行
+/// debounce: 入力が300ms止まってから検索実行
 var _resFilterTimer = null;
 function debounceFilter(){
   clearTimeout(_resFilterTimer);
-  _resFilterTimer = setTimeout(filterReservations, 300);
+  const q=(document.getElementById('res-search').value||'').trim();
+  if(q && !_allResLoaded){
+    // 過去予約も検索対象にするため全件ロード
+    _resFilterTimer = setTimeout(async function(){
+      await ensureAllReservations();
+      filterReservations();
+    }, 300);
+  } else {
+    _resFilterTimer = setTimeout(filterReservations, 300);
+  }
+}
+async function onResFilterChange(){
+  const f=document.getElementById('res-filter').value;
+  if(f==='past' && !_allResLoaded) await ensureAllReservations();
+  filterReservations();
 }
 
 function filterReservations(){
