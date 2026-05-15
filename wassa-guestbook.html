@@ -3805,6 +3805,7 @@ async function genQuoteUrlForLine(){
     total_amount:String(Math.round(total)),
     valid_until:validUntil.toISOString().slice(0,10),
     status:'作成済み',
+    doc_type:r.status==='confirmed'?'confirmation':'estimate',
     plan_name:billingMeta.plan_name||r.plan_name||'',
     notes:r.notes||'',
     billing:billingRows
@@ -7894,6 +7895,8 @@ async function saveQuoteToDb(){
   var ests = (lastEstimates&&lastEstimates.length) ? lastEstimates : [lastEstimate];
   var isBuyout = ests.length > 1;
   var savedIds = [];
+  var _curRsv = allReservations.find(function(x){return x.id===currentEditId;});
+  var _docType = (_curRsv&&_curRsv.status==='confirmed') ? 'confirmation' : 'estimate';
 
   try{
     function _buildBillingForEst(e){
@@ -7955,6 +7958,7 @@ async function saveQuoteToDb(){
           total_amount:String(estGrand),
           valid_until:dateStr(validUntil),
           status:'作成済み',
+          doc_type:_docType,
           plan_name:planName||'',
           notes:'貸切 '+buyoutGroup,
           email:email,
@@ -7980,6 +7984,7 @@ async function saveQuoteToDb(){
         total_amount:String(estGrand),
         valid_until:dateStr(validUntil),
         status:'作成済み',
+        doc_type:_docType,
         plan_name:planName||'',
         notes:e.paxDesc,
         email:email,
