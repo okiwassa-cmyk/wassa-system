@@ -1947,6 +1947,11 @@ let common={bf_adult:2200,bf_child:2200,bf_infant:2200,din_adult:7700,din_child_
 var _pins={owner:'1234',staff:'5678'}; // Supabaseから起動時に読み込む
 var _cancelPolicy=''; // キャンセルポリシー（price_commonから読み込む）
 var _repeaterPass='WASSA2025'; // リピーターページパスワード（price_commonから読み込む）
+var _replyTemplates={
+  instagram:'ありがとうございます！\n詳しいご相談はLINE公式アカウントで\n対応しております😊\n\n▼ WASSA WASSA 公式LINE\n（友達追加URLをここに入力）\n\nお気軽にご連絡ください。',
+  repeater:'いつもありがとうございます！\nリピーター様専用ページはこちらです。\n\n▼ ご予約・料金確認\nhttps://okiwassa-cmyk.github.io/wassa-system/wassa-repeater.html\n\nパスワード：'+_repeaterPass+'\n\nご不明な点はそのままLINEでお知らせください。',
+  email_sig:'---\n今後のご連絡はLINE公式アカウントでも\nお気軽にどうぞ。\n\n▼ WASSA WASSA 公式LINE\n（友達追加URLをここに入力）\n\n海と星空の小さな宿 WASSA WASSA　溝川 祐次・理佐\nTEL: 0980-50-2500  wassa@wassa-okinawa.com'
+};
 var _pinsReady=false; // true になるまで checkPin() は待機する
 let prices={}, ranges={super_high:[],high:[],regular:[],low:[]};
 let rateCalYear=new Date().getFullYear(), rateCalMonth=new Date().getMonth();
@@ -2127,6 +2132,7 @@ async function loadRateData(){
       // キャンセルポリシー
       if(c.cancel_policy) _cancelPolicy=c.cancel_policy;
       if(c.repeater_pass) _repeaterPass=c.repeater_pass;
+      if(c.reply_templates && typeof c.reply_templates==='object') _replyTemplates=Object.assign(_replyTemplates,c.reply_templates);
     }
     prices={};for(const s of SEASONS)prices[s]={sup:{},dlx:{}};
     for(const row of pm){const p=prices[row.season]?.[row.room];if(!p)continue;if(row.pax_type==='adult')p[row.pax]=row.price;else if(row.pax_type==='child')p.child=row.price;else if(row.pax_type==='infant')p.infant=row.price;else if(row.pax_type==='infant_futon')p.infant_futon=row.price;else if(row.pax_type==='infant_no_futon')p.infant_no_futon=row.price;}
@@ -8882,6 +8888,27 @@ function renderMgr(){
   html+='<button class="save-btn" onclick="saveEmailTemplates()">保存</button>';
   html+='<span class="saved-msg" id="msg-email-tpl">保存しました ✓</span></div>';
 
+  // ━━ 返信テンプレート ━━
+  var rtDefs=[
+    {key:'repeater',label:'リピーター案内（LINE送信用）'},
+    {key:'instagram',label:'インスタDM返信用'},
+    {key:'email_sig', label:'メール署名'}
+  ];
+  html+='<div class="section-card"><div class="section-title">返信テンプレート</div>';
+  html+='<p style="font-size:12px;color:var(--text3);margin-bottom:12px">よく使う返信文をここで管理。コピーしてそのまま使えます。</p>';
+  rtDefs.forEach(function(rd){
+    var val=escHtml(_replyTemplates[rd.key]||'');
+    html+='<div style="margin-bottom:18px;padding:14px;background:var(--sand);border-radius:8px">';
+    html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">';
+    html+='<div style="font-size:13px;font-weight:600">'+rd.label+'</div>';
+    html+='<button onclick="copyReplyTemplate(\'rt-'+rd.key+'\')" style="font-size:11px;padding:4px 10px;border:1px solid var(--ocean);border-radius:6px;background:#fff;color:var(--ocean);cursor:pointer">コピー</button>';
+    html+='</div>';
+    html+='<textarea id="rt-'+rd.key+'" rows="6" style="width:100%;box-sizing:border-box;font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;line-height:1.6;resize:vertical">'+val+'</textarea>';
+    html+='</div>';
+  });
+  html+='<button class="save-btn" onclick="saveReplyTemplates()">保存</button>';
+  html+='<span class="saved-msg" id="msg-reply-tpl">保存しました ✓</span></div>';
+
   el.innerHTML=html;
 }
 async function saveCommon(){
@@ -8902,6 +8929,25 @@ var _defaultEmailTemplates={
   confirmation_winter:{subject:'【WASSA WASSA】ご予約ありがとうございます',body:'{{guest}} 様\n\n海と星空の小さな宿　WASSA WASSAの溝川です。\nこの度はご予約いただき、ありがとうございます。\n\n当宿は3部屋だけの小さな宿で、目の前は手つかずの海、背後は山といった自然あふれる環境の中にあります。\n沖縄の中でも観光地化があまりされていない地域なので、ゆったりと過ごすのがおすすめです。\n\n車で5分ほどのところにコンビニエンスストアがありますが、\nスーパーはないので必要なものがあれば、途中の名護のイオン等に立ち寄られることをお勧めします。\n\n冬の沖縄は一番寒い時期でも日中平均気温１５度以上！\n暖かい沖縄でいっぱい楽しんでください。\n私たちの個人的なおすすめは…\n\nアクティブ派なら\n・亜熱帯の山を散策！\n　涼しい季節は山歩きに最適です！ネイチャーガイドさんをつけて、生物多様性の沖縄の山を散策するのもおすすめです。\n\n・カヌーでリバートレッキング\n\n・ホエールウォッチング（１２月下旬から４月上旬）\n　９９パーセントの確率でクジラに会えるツアーもあります。\n\n・体験フィッシング\n　色とりどりの魚が釣れます。お子様も楽しめます！\n\n・パワースポット巡り\n　北部には沖縄最古の聖地　大石林山　\n　信仰の要点　備瀬崎などがあります。\n\nのんびりしたい方には\n・やちむん（沖縄の陶芸）工房めぐり\n　冬こそ沖縄の工芸品などじっくり見てみるチャンスです。忙しくない時期だと人気工房の親方さんとも喋れたりするかも。\n\n・山カフェ・森カフェ巡り\n\n・夜には北部周辺のリゾートホテルでイルミネーションも楽しめます。\n\n・やっぱり何もしないのも贅沢です。。。\n\n周辺スポット↓\nhttp://wassa-okinawa.com/spot/index.html\n\n宿のチェックインは１６時からです。\n当宿は（駐車場のみ利用を含む）１６時以前のアーリーチェックインはお受けできませんのでご注意下さい。\n\nチェックインの時間に変更があったり、食事・その他ご要望などあれば、お気軽にメールください。\nお会いできるのを楽しみにしています\n\n---\n海と星空の小さな宿 WASSA WASSA　溝川 祐次・理佐\nTEL: 0980-50-2500  wassa@wassa-okinawa.com'},
   thankyou:{subject:'【WASSA WASSA】ご宿泊ありがとうございました！',body:'{{guest}} 様\n\nこんにちは。WASSA WASSAの溝川です。先日はご利用いただき誠にありがとうございました。\n\nお時間がございましたら、Googleレビューをいただけると嬉しいです。\nhttps://g.page/r/CVP0Hn007oC0EBE/review\n\nまたのお越しをお待ちしております。\n\n---\n海と星空の小さな宿 WASSA WASSA　溝川 祐次・理佐\nTEL: 0980-50-2500  wassa@wassa-okinawa.com'}
 };
+async function saveReplyTemplates(){
+  var tpls={};
+  ['repeater','instagram','email_sig'].forEach(function(k){
+    var el=document.getElementById('rt-'+k);
+    if(el) tpls[k]=el.value;
+  });
+  _replyTemplates=tpls;
+  try{await supa('price_common?id=eq.1','PATCH',{reply_templates:tpls});showMsg('msg-reply-tpl');}
+  catch(e){alert('保存に失敗しました: '+e.message);}
+}
+function copyReplyTemplate(id){
+  var el=document.getElementById(id);
+  if(!el) return;
+  navigator.clipboard.writeText(el.value).catch(function(){
+    el.select();document.execCommand('copy');
+  });
+  var btn=el.previousElementSibling&&el.previousElementSibling.querySelector('button');
+  if(btn){var orig=btn.textContent;btn.textContent='コピーしました✓';setTimeout(function(){btn.textContent=orig;},2000);}
+}
 async function saveCancelPolicy(){
   var txt=document.getElementById('cancel-policy-txt').value;
   try{
