@@ -4832,6 +4832,10 @@ async function calMove(dir){
   calMonth+=dir;
   if(calMonth>11){calMonth=0;calYear++;}
   if(calMonth<0){calMonth=11;calYear--;}
+  // 過去月に移動したら全予約データを確保
+  var cutoff=new Date();cutoff.setDate(cutoff.getDate()-90);
+  var viewDate=new Date(calYear,calMonth,1);
+  if(viewDate<cutoff && !_allResLoaded) await ensureAllReservations();
   renderCalendar();
 }
 function calGoToday(){
