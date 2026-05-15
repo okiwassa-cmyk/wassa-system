@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>導入効果レポート 2024-2026｜WASSA WASSA</title>
+<style>
+@page { size: A4; margin: 16mm 15mm; }
+*{ box-sizing:border-box; margin:0; padding:0; }
+body{ font-family:-apple-system,'Hiragino Sans','Yu Gothic',sans-serif; font-size:10.5pt; color:#1a1a2e; background:#fff; line-height:1.65; }
+
+/* Cover */
+.cover{ min-height:260px; padding:36px 0 28px; border-bottom:3px solid #1E293B; page-break-after:always; }
+.cover .to-label{ font-size:9pt; color:#64748B; margin-bottom:18px; }
+.cover .to-label strong{ color:#1E293B; font-size:11pt; }
+.cover h1{ font-size:20pt; font-weight:800; color:#1E293B; line-height:1.3; margin-bottom:10px; }
+.cover .sub{ font-size:11pt; color:#2563EB; font-weight:600; margin-bottom:24px; }
+.cover .tag{ display:inline-block; background:#1E293B; color:#fff; font-size:8pt; padding:3px 9px; border-radius:4px; margin-right:5px; margin-bottom:4px; }
+.cover .meta{ font-size:9pt; color:#64748B; border-top:1px solid #E2E8F0; padding-top:14px; display:flex; gap:28px; margin-top:18px; }
+
+/* Pages */
+.page{ padding:18px 0; page-break-before:always; }
+h2{ font-size:12.5pt; font-weight:800; color:#1E293B; border-left:4px solid #2563EB; padding-left:10px; margin-bottom:12px; margin-top:24px; }
+h3{ font-size:10pt; font-weight:700; color:#334155; margin-bottom:7px; margin-top:16px; }
+p{ margin-bottom:7px; font-size:9.5pt; color:#334155; }
+
+/* KPI */
+.kpi-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:9px; margin:14px 0; }
+.kpi{ background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:11px 13px; }
+.kpi.blue{ background:#EFF6FF; border-color:#BFDBFE; }
+.kpi.green{ background:#ECFDF5; border-color:#6EE7B7; }
+.kpi .lbl{ font-size:7.5pt; color:#64748B; font-weight:600; letter-spacing:.4px; }
+.kpi .val{ font-size:16pt; font-weight:800; color:#1E293B; line-height:1.1; margin:3px 0; }
+.kpi .chg{ font-size:8.5pt; font-weight:600; }
+.kpi .up{ color:#10B981; }
+.kpi .dn{ color:#EF4444; }
+.kpi .note{ color:#94A3B8; }
+
+/* Tables */
+table{ width:100%; border-collapse:collapse; font-size:8.5pt; margin:10px 0; }
+th{ background:#1E293B; color:#fff; padding:6px 8px; text-align:center; font-weight:600; font-size:8pt; }
+th.left{ text-align:left; }
+td{ padding:5px 8px; border-bottom:1px solid #E2E8F0; text-align:right; }
+td.lbl{ text-align:left; font-weight:600; color:#334155; }
+td.center{ text-align:center; }
+tr:nth-child(even) td{ background:#F8FAFC; }
+tr.total td{ background:#EFF6FF; font-weight:700; border-top:2px solid #BFDBFE; border-bottom:2px solid #BFDBFE; }
+tr.asunaro td{ background:#FEF9C3; }
+tr.section-h td{ background:#334155; color:#fff; font-weight:700; padding:4px 8px; }
+
+/* Mini bar in table */
+.mini-bar{ display:inline-block; height:10px; border-radius:2px; vertical-align:middle; }
+
+/* Bar chart (CSS) */
+.bar-wrap{ margin:8px 0; }
+.bar-row{ display:flex; align-items:center; margin-bottom:4px; gap:7px; }
+.bar-row .bar-lbl{ width:68px; font-size:8pt; color:#475569; text-align:right; flex-shrink:0; }
+.bar-row .bar-track{ flex:1; background:#F1F5F9; border-radius:3px; height:16px; overflow:hidden; }
+.bar-row .bar-fill{ height:100%; border-radius:3px; display:flex; align-items:center; padding:0 5px; }
+.bar-row .bar-val{ font-size:7.5pt; font-weight:700; color:#fff; white-space:nowrap; }
+.bar-row .bar-sub{ width:90px; font-size:7.5pt; color:#64748B; flex-shrink:0; text-align:right; }
+.divider-line{ border-top:2px dashed #DC2626; margin:5px 0; position:relative; }
+.divider-label{ position:absolute; right:0; top:-10px; font-size:7.5pt; color:#DC2626; font-weight:700; background:#fff; padding:0 4px; }
+
+/* Highlight box */
+.highlight-box{ background:#EFF6FF; border-left:4px solid #2563EB; border-radius:0 8px 8px 0; padding:12px 14px; margin:12px 0; }
+.highlight-box .head{ font-weight:700; font-size:9.5pt; color:#1D4ED8; margin-bottom:5px; }
+.highlight-box p{ font-size:9pt; color:#1E3A5F; margin-bottom:4px; }
+
+.note-box{ background:#FFFBEB; border-left:3px solid #F59E0B; padding:7px 11px; font-size:8pt; color:#78350F; margin:7px 0; border-radius:0 6px 6px 0; }
+
+/* Discussion items */
+.disc-item{ border:1px solid #E2E8F0; border-radius:8px; padding:11px 13px; margin-bottom:8px; }
+.disc-item .d-head{ font-weight:700; font-size:9.5pt; color:#1E293B; margin-bottom:4px; display:flex; align-items:center; gap:8px; }
+.disc-item p{ font-size:8.5pt; color:#475569; margin:0; }
+.disc-item.primary{ border-color:#BFDBFE; background:#F0F7FF; }
+.disc-item.primary .d-head{ color:#1D4ED8; }
+
+/* Two columns */
+.two-col{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:10px 0; }
+
+/* Print */
+@media print{
+  body{ font-size:9.5pt; }
+  .no-print{ display:none; }
+}
+@media screen{
+  body{ max-width:210mm; margin:0 auto; padding:20px; background:#e8edf2; }
+  .cover, .page{ background:#fff; padding:28px 36px; margin-bottom:16px; box-shadow:0 2px 12px rgba(0,0,0,.1); border-radius:4px; }
+}
+</style>
+</head>
+<body>
+
+<!-- COVER -->
+<div class="cover">
+  <div class="to-label">
+    <strong>株式会社リバティー 御中</strong><br>
+    あすなろシステム担当者様
+  </div>
+  <h1>導入効果レポート<br>2024年〜2026年実績</h1>
+  <div class="sub">WASSA WASSA ／ Yambaru Routine（大宜味村）</div>
+  <div>
+    <span class="tag">分析期間: 2024年1月〜2026年5月</span>
+    <span class="tag">あすなろ＋すけさん導入: 2025年4月</span>
+    <span class="tag">3室運営（S01・S02・DX）</span>
+  </div>
+  <div class="meta">
+    <div><strong>施設概要</strong><br>WASSA WASSA（スーペリアツイン2室）<br>Yambaru Routine（デラックスツイン1室 ／ 2024年7月開業）</div>
+    <div><strong>作成日</strong><br>2026年5月15日</div>
+    <div><strong>データ出典</strong><br>あすなろPOS月次集計CSV<br>Supabase 予約管理DB</div>
+  </div>
+</div>
+
+<!-- PAGE 1: KPI Summary -->
+<div class="page">
+  <h2>1. 年間売上サマリー（2室合計）</h2>
+
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="lbl">2024年 年間売上</div>
+      <div class="val">2,294万円</div>
+      <div class="chg note">※ Routine は7月開業</div>
+    </div>
+    <div class="kpi blue">
+      <div class="lbl">2025年 年間売上（あすなろ導入年）</div>
+      <div class="val">2,552万円</div>
+      <div class="chg up">▲ +258万円（+11.2%）</div>
+    </div>
+    <div class="kpi green">
+      <div class="lbl">2026年 売上（1〜5月途中）</div>
+      <div class="val">701万円</div>
+      <div class="chg note">前年同期比 検討中</div>
+    </div>
+  </div>
+
+  <div class="kpi-grid" style="margin-top:0">
+    <div class="kpi">
+      <div class="lbl">2024年 客単価（2室合計）</div>
+      <div class="val">¥27,348</div>
+      <div class="chg note">839人</div>
+    </div>
+    <div class="kpi blue">
+      <div class="lbl">2025年 客単価（2室合計）</div>
+      <div class="val">¥31,786</div>
+      <div class="chg up">▲ +¥4,438（+16.2%）</div>
+    </div>
+    <div class="kpi green">
+      <div class="lbl">2026年 客単価（1〜5月）</div>
+      <div class="val">¥38,317</div>
+      <div class="chg up">▲ 前年比 +20.5%</div>
+    </div>
+  </div>
+
+  <h3>月次売上推移（2室合計）</h3>
+  <div class="bar-wrap">
+    <div class="bar-row"><span class="bar-lbl">2024/01</span><div class="bar-track"><div class="bar-fill" style="width:16%;background:#94A3B8"><span class="bar-val">65万</span></div></div><span class="bar-sub">WASSA のみ</span></div>
+    <div class="bar-row"><span class="bar-lbl">2024/03</span><div class="bar-track"><div class="bar-fill" style="width:50%;background:#94A3B8"><span class="bar-val">200万</span></div></div><span class="bar-sub">WASSA のみ</span></div>
+    <div class="bar-row"><span class="bar-lbl">2024/06</span><div class="bar-track"><div class="bar-fill" style="width:44%;background:#94A3B8"><span class="bar-val">174万</span></div></div><span class="bar-sub">WASSA のみ</span></div>
+    <div class="bar-row"><span class="bar-lbl">2024/07</span><div class="bar-track"><div class="bar-fill" style="width:99%;background:#64748B"><span class="bar-val">391万 ★Routine開業</span></div></div><span class="bar-sub">2室合計</span></div>
+    <div class="bar-row"><span class="bar-lbl">2024/08</span><div class="bar-track"><div class="bar-fill" style="width:100%;background:#64748B"><span class="bar-val">397万（過去最高）</span></div></div><span class="bar-sub">2室合計</span></div>
+    <div class="bar-row"><span class="bar-lbl">2025/01</span><div class="bar-track"><div class="bar-fill" style="width:32%;background:#94A3B8"><span class="bar-val">129万</span></div></div><span class="bar-sub">導入前</span></div>
+    <div class="bar-row"><span class="bar-lbl">2025/03</span><div class="bar-track"><div class="bar-fill" style="width:62%;background:#94A3B8"><span class="bar-val">248万</span></div></div><span class="bar-sub">導入前</span></div>
+    <div class="divider-line"><span class="divider-label">◀ あすなろ＋すけさん導入（2025年4月）</span></div>
+    <div class="bar-row"><span class="bar-lbl">2025/04</span><div class="bar-track"><div class="bar-fill" style="width:42%;background:#3B82F6"><span class="bar-val">168万</span></div></div><span class="bar-sub">導入初月</span></div>
+    <div class="bar-row"><span class="bar-lbl">2025/07</span><div class="bar-track"><div class="bar-fill" style="width:76%;background:#3B82F6"><span class="bar-val">304万</span></div></div><span class="bar-sub"></span></div>
+    <div class="bar-row"><span class="bar-lbl">2025/08</span><div class="bar-track"><div class="bar-fill" style="width:99%;background:#3B82F6"><span class="bar-val">390万</span></div></div><span class="bar-sub"></span></div>
+    <div class="bar-row"><span class="bar-lbl">2025/11</span><div class="bar-track"><div class="bar-fill" style="width:58%;background:#3B82F6"><span class="bar-val">230万</span></div></div><span class="bar-sub">客単価 最高水準</span></div>
+    <div class="bar-row"><span class="bar-lbl">2026/04</span><div class="bar-track"><div class="bar-fill" style="width:55%;background:#10B981"><span class="bar-val">218万</span></div></div><span class="bar-sub"></span></div>
+  </div>
+
+  <div class="note-box">※ 2024年1〜6月はWASSA WASSA（2室）のみの売上。7月以降はYambaru Routine（1室）加算の3室合計。</div>
+</div>
+
+<!-- PAGE 2: WASSA WASSA Monthly Detail -->
+<div class="page">
+  <h2>2. WASSA WASSA（スーペリアツイン S01・S02）月次詳細</h2>
+  <p>あすなろPOS月次集計データより。単位：円</p>
+
+  <table>
+    <tr>
+      <th class="left" style="width:60px">年月</th>
+      <th>売上（円）</th>
+      <th>会計数</th>
+      <th>会計単価</th>
+      <th>客数（人）</th>
+      <th>客単価</th>
+      <th>売上バー</th>
+    </tr>
+    <!-- 2024 -->
+    <tr class="section-h"><td colspan="7">2024年（1月〜12月）</td></tr>
+    <tr><td class="lbl">2024/01</td><td>655,176</td><td>18</td><td>36,398</td><td>27</td><td>24,265</td><td><div class="mini-bar" style="width:24%;background:#94A3B8;height:10px;border-radius:2px"></div></td></tr>
+    <tr><td class="lbl">2024/02</td><td>1,020,610</td><td>30</td><td>34,020</td><td>49</td><td>20,828</td><td><div class="mini-bar" style="width:37%;background:#94A3B8"></div></td></tr>
+    <tr><td class="lbl">2024/03</td><td>2,004,551</td><td>41</td><td>48,891</td><td>73</td><td>27,459</td><td><div class="mini-bar" style="width:73%;background:#94A3B8"></div></td></tr>
+    <tr><td class="lbl">2024/04</td><td>1,738,145</td><td>33</td><td>52,671</td><td>67</td><td>25,942</td><td><div class="mini-bar" style="width:63%;background:#94A3B8"></div></td></tr>
+    <tr><td class="lbl">2024/05</td><td>821,468</td><td>15</td><td>54,764</td><td>30</td><td>27,382</td><td><div class="mini-bar" style="width:30%;background:#94A3B8"></div></td></tr>
+    <tr><td class="lbl">2024/06</td><td>1,744,501</td><td>34</td><td>51,308</td><td>75</td><td>23,260</td><td><div class="mini-bar" style="width:63%;background:#94A3B8"></div></td></tr>
+    <tr><td class="lbl">2024/07</td><td>2,736,608</td><td>41</td><td>66,746</td><td>107</td><td>25,575</td><td><div class="mini-bar" style="width:100%;background:#64748B"></div></td></tr>
+    <tr><td class="lbl">2024/08</td><td>2,747,270</td><td>48</td><td>57,234</td><td>106</td><td>25,917</td><td><div class="mini-bar" style="width:100%;background:#64748B"></div></td></tr>
+    <tr><td class="lbl">2024/09</td><td>1,671,905</td><td>33</td><td>50,663</td><td>64</td><td>26,123</td><td><div class="mini-bar" style="width:61%;background:#94A3B8"></div></td></tr>
+    <tr><td class="lbl">2024/10</td><td>1,559,995</td><td>39</td><td>39,999</td><td>64</td><td>24,374</td><td><div class="mini-bar" style="width:57%;background:#94A3B8"></div></td></tr>
+    <tr><td class="lbl">2024/11</td><td>1,181,542</td><td>31</td><td>38,114</td><td>54</td><td>21,880</td><td><div class="mini-bar" style="width:43%;background:#94A3B8"></div></td></tr>
+    <tr><td class="lbl">2024/12</td><td>938,580</td><td>23</td><td>40,807</td><td>41</td><td>22,892</td><td><div class="mini-bar" style="width:34%;background:#94A3B8"></div></td></tr>
+    <tr class="total"><td class="lbl">2024年計</td><td>18,820,351</td><td>386</td><td>—</td><td>757</td><td>24,861</td><td></td></tr>
+
+    <!-- 2025 -->
+    <tr class="section-h"><td colspan="7">2025年（1月〜12月）／ 4月〜 あすなろ＋すけさん稼働</td></tr>
+    <tr><td class="lbl">2025/01</td><td>1,108,030</td><td>18</td><td>61,557</td><td>37</td><td>29,946</td><td><div class="mini-bar" style="width:40%;background:#94A3B8"></div></td></tr>
+    <tr><td class="lbl">2025/02</td><td>1,308,200</td><td>33</td><td>39,642</td><td>55</td><td>23,785</td><td><div class="mini-bar" style="width:48%;background:#94A3B8"></div></td></tr>
+    <tr><td class="lbl">2025/03</td><td>1,637,535</td><td>47</td><td>34,841</td><td>74</td><td>22,128</td><td><div class="mini-bar" style="width:60%;background:#94A3B8"></div></td></tr>
+    <tr class="asunaro"><td class="lbl">2025/04 ★</td><td>1,207,645</td><td>34</td><td>35,518</td><td>53</td><td>22,785</td><td><div class="mini-bar" style="width:44%;background:#F59E0B"></div></td></tr>
+    <tr><td class="lbl">2025/05</td><td>1,110,955</td><td>28</td><td>39,676</td><td>43</td><td>25,836</td><td><div class="mini-bar" style="width:40%;background:#3B82F6"></div></td></tr>
+    <tr><td class="lbl">2025/06</td><td>1,328,250</td><td>29</td><td>45,801</td><td>52</td><td>25,543</td><td><div class="mini-bar" style="width:48%;background:#3B82F6"></div></td></tr>
+    <tr><td class="lbl">2025/07</td><td>1,884,854</td><td>32</td><td>58,901</td><td>69</td><td>27,316</td><td><div class="mini-bar" style="width:69%;background:#3B82F6"></div></td></tr>
+    <tr><td class="lbl">2025/08</td><td>2,634,025</td><td>26</td><td>101,308</td><td>87</td><td>30,276</td><td><div class="mini-bar" style="width:96%;background:#3B82F6"></div></td></tr>
+    <tr><td class="lbl">2025/09</td><td>1,166,250</td><td>26</td><td>44,855</td><td>55</td><td>21,204</td><td><div class="mini-bar" style="width:42%;background:#3B82F6"></div></td></tr>
+    <tr><td class="lbl">2025/10</td><td>1,636,775</td><td>26</td><td>62,952</td><td>52</td><td>31,476</td><td><div class="mini-bar" style="width:60%;background:#3B82F6"></div></td></tr>
+    <tr><td class="lbl">2025/11</td><td>1,148,690</td><td>22</td><td>52,213</td><td>27</td><td>42,544</td><td><div class="mini-bar" style="width:42%;background:#3B82F6"></div></td></tr>
+    <tr><td class="lbl">2025/12</td><td>912,466</td><td>14</td><td>65,176</td><td>32</td><td>28,514</td><td><div class="mini-bar" style="width:33%;background:#3B82F6"></div></td></tr>
+    <tr class="total"><td class="lbl">2025年計</td><td>17,083,675</td><td>335</td><td>—</td><td>636</td><td>26,860</td><td></td></tr>
+
+    <!-- 2026 -->
+    <tr class="section-h"><td colspan="7">2026年（1月〜5月途中）</td></tr>
+    <tr><td class="lbl">2026/01</td><td>708,045</td><td>15</td><td>47,203</td><td>24</td><td>29,501</td><td><div class="mini-bar" style="width:26%;background:#10B981"></div></td></tr>
+    <tr><td class="lbl">2026/02</td><td>589,415</td><td>12</td><td>49,117</td><td>20</td><td>29,470</td><td><div class="mini-bar" style="width:21%;background:#10B981"></div></td></tr>
+    <tr><td class="lbl">2026/03</td><td>1,453,720</td><td>24</td><td>60,571</td><td>45</td><td>32,304</td><td><div class="mini-bar" style="width:53%;background:#10B981"></div></td></tr>
+    <tr><td class="lbl">2026/04</td><td>1,589,853</td><td>20</td><td>79,492</td><td>35</td><td>45,424</td><td><div class="mini-bar" style="width:58%;background:#10B981"></div></td></tr>
+    <tr><td class="lbl">2026/05</td><td>527,395</td><td>12</td><td>43,949</td><td>15</td><td>35,159</td><td><div class="mini-bar" style="width:19%;background:#10B981"></div></td></tr>
+    <tr class="total"><td class="lbl">2026年計（暫定）</td><td>4,868,428</td><td>83</td><td>—</td><td>139</td><td>35,024</td><td></td></tr>
+  </table>
+
+  <div class="highlight-box">
+    <div class="head">📈 WASSA WASSA 客単価の変化</div>
+    <p>2024年通年 <strong>¥24,861</strong>　→　2025年通年 <strong>¥26,860（+7.9%）</strong>　→　2026年1〜5月 <strong>¥35,024（+30.4%）</strong></p>
+    <p>特に2026年4月は <strong>¥45,424</strong> と過去最高水準。すけさんのプラン設計が客単価に明確に寄与しています。</p>
+  </div>
+</div>
+
+<!-- PAGE 3: Yambaru Routine Monthly Detail -->
+<div class="page">
+  <h2>3. Yambaru Routine（デラックスツイン DX）月次詳細</h2>
+  <p>2024年7月開業。あすなろPOS月次集計データより。単位：円</p>
+
+  <table>
+    <tr>
+      <th class="left" style="width:60px">年月</th>
+      <th>売上（円）</th>
+      <th>会計数</th>
+      <th>会計単価</th>
+      <th>客数（人）</th>
+      <th>客単価</th>
+      <th>売上バー</th>
+    </tr>
+    <!-- 2024 -->
+    <tr class="section-h"><td colspan="7">2024年（7月開業〜12月）</td></tr>
+    <tr><td class="lbl">2024/07</td><td>1,174,145</td><td>6</td><td>195,690</td><td>14</td><td>83,867</td><td><div class="mini-bar" style="width:93%;background:#64748B"></div></td></tr>
+    <tr><td class="lbl">2024/08</td><td>1,226,475</td><td>10</td><td>122,647</td><td>29</td><td>42,292</td><td><div class="mini-bar" style="width:97%;background:#64748B"></div></td></tr>
+    <tr><td class="lbl">2024/09</td><td>178,863</td><td>2</td><td>89,431</td><td>4</td><td>44,715</td><td><div class="mini-bar" style="width:14%;background:#94A3B8"></div></td></tr>
+    <tr><td class="lbl">2024/10</td><td>692,303</td><td>7</td><td>98,900</td><td>16</td><td>43,268</td><td><div class="mini-bar" style="width:55%;background:#94A3B8"></div></td></tr>
+    <tr><td class="lbl">2024/11</td><td>424,763</td><td>4</td><td>106,190</td><td>14</td><td>30,340</td><td><div class="mini-bar" style="width:34%;background:#94A3B8"></div></td></tr>
+    <tr><td class="lbl">2024/12</td><td>427,698</td><td>2</td><td>213,849</td><td>5</td><td>85,539</td><td><div class="mini-bar" style="width:34%;background:#94A3B8"></div></td></tr>
+    <tr class="total"><td class="lbl">2024年計（7〜12月）</td><td>4,124,247</td><td>31</td><td>—</td><td>82</td><td>50,296</td><td></td></tr>
+
+    <!-- 2025 -->
+    <tr class="section-h"><td colspan="7">2025年（1月〜12月）／ 4月〜 あすなろ＋すけさん稼働</td></tr>
+    <tr><td class="lbl">2025/01</td><td>183,535</td><td>2</td><td>91,767</td><td>4</td><td>45,883</td><td><div class="mini-bar" style="width:15%;background:#94A3B8"></div></td></tr>
+    <tr><td class="lbl">2025/02</td><td>80,300</td><td>1</td><td>80,300</td><td>5</td><td>16,060</td><td><div class="mini-bar" style="width:6%;background:#94A3B8"></div></td></tr>
+    <tr><td class="lbl">2025/03</td><td>846,560</td><td>5</td><td>169,312</td><td>13</td><td>65,120</td><td><div class="mini-bar" style="width:67%;background:#94A3B8"></div></td></tr>
+    <tr class="asunaro"><td class="lbl">2025/04 ★</td><td>472,515</td><td>3</td><td>157,505</td><td>12</td><td>39,376</td><td><div class="mini-bar" style="width:37%;background:#F59E0B"></div></td></tr>
+    <tr><td class="lbl">2025/05</td><td>507,570</td><td>4</td><td>126,892</td><td>7</td><td>72,510</td><td><div class="mini-bar" style="width:40%;background:#3B82F6"></div></td></tr>
+    <tr><td class="lbl">2025/06</td><td>364,110</td><td>7</td><td>52,015</td><td>14</td><td>26,007</td><td><div class="mini-bar" style="width:29%;background:#3B82F6"></div></td></tr>
+    <tr><td class="lbl">2025/07</td><td>1,151,948</td><td>9</td><td>127,994</td><td>18</td><td>63,997</td><td><div class="mini-bar" style="width:91%;background:#3B82F6"></div></td></tr>
+    <tr><td class="lbl">2025/08</td><td>1,261,285</td><td>10</td><td>126,128</td><td>24</td><td>52,553</td><td><div class="mini-bar" style="width:100%;background:#3B82F6"></div></td></tr>
+    <tr><td class="lbl">2025/09</td><td>657,995</td><td>10</td><td>65,799</td><td>15</td><td>43,866</td><td><div class="mini-bar" style="width:52%;background:#3B82F6"></div></td></tr>
+    <tr><td class="lbl">2025/10</td><td>929,380</td><td>12</td><td>77,448</td><td>21</td><td>44,256</td><td><div class="mini-bar" style="width:74%;background:#3B82F6"></div></td></tr>
+    <tr><td class="lbl">2025/11</td><td>1,151,880</td><td>10</td><td>115,188</td><td>18</td><td>63,993</td><td><div class="mini-bar" style="width:91%;background:#3B82F6"></div></td></tr>
+    <tr><td class="lbl">2025/12</td><td>832,735</td><td>10</td><td>83,273</td><td>16</td><td>52,045</td><td><div class="mini-bar" style="width:66%;background:#3B82F6"></div></td></tr>
+    <tr class="total"><td class="lbl">2025年計</td><td>8,439,813</td><td>83</td><td>—</td><td>167</td><td>50,538</td><td></td></tr>
+
+    <!-- 2026 -->
+    <tr class="section-h"><td colspan="7">2026年（1月〜5月途中）</td></tr>
+    <tr><td class="lbl">2026/01</td><td>261,440</td><td>2</td><td>130,720</td><td>4</td><td>65,360</td><td><div class="mini-bar" style="width:21%;background:#10B981"></div></td></tr>
+    <tr><td class="lbl">2026/02</td><td>413,295</td><td>4</td><td>103,323</td><td>8</td><td>51,661</td><td><div class="mini-bar" style="width:33%;background:#10B981"></div></td></tr>
+    <tr><td class="lbl">2026/03</td><td>624,570</td><td>10</td><td>62,457</td><td>17</td><td>36,739</td><td><div class="mini-bar" style="width:50%;background:#10B981"></div></td></tr>
+    <tr><td class="lbl">2026/04</td><td>591,260</td><td>5</td><td>118,252</td><td>9</td><td>65,695</td><td><div class="mini-bar" style="width:47%;background:#10B981"></div></td></tr>
+    <tr><td class="lbl">2026/05</td><td>252,730</td><td>3</td><td>84,243</td><td>6</td><td>42,121</td><td><div class="mini-bar" style="width:20%;background:#10B981"></div></td></tr>
+    <tr class="total"><td class="lbl">2026年計（暫定）</td><td>2,143,295</td><td>24</td><td>—</td><td>44</td><td>48,711</td><td></td></tr>
+  </table>
+
+  <div class="note-box">※ Routineは1室のため件数の変動が大きく、月単位では客単価が大きくぶれることがあります。年間・半期での傾向把握を推奨します。</div>
+</div>
+
+<!-- PAGE 4: 客単価分析 -->
+<div class="page">
+  <h2>4. 客単価の推移（すけさん効果の中心指標）</h2>
+
+  <p>プランコンサルシステム「すけさん」の効果が最も顕著に現れる指標が<strong>客単価</strong>です。以下は2室合計の年別比較です。</p>
+
+  <h3>2室合計 年次比較</h3>
+  <table>
+    <tr><th>年</th><th>年間売上</th><th>延べ客数</th><th>客単価</th><th>前年比</th><th>備考</th></tr>
+    <tr><td class="lbl">2024年</td><td>22,944,598円</td><td>839人</td><td>¥27,348</td><td>—</td><td>Routine は7〜12月のみ</td></tr>
+    <tr class="asunaro"><td class="lbl">2025年（導入年）</td><td>25,523,488円</td><td>803人</td><td>¥31,786</td><td style="color:#10B981;font-weight:700">+16.2%</td><td>4月〜 あすなろ稼働</td></tr>
+    <tr><td class="lbl">2026年 1〜5月</td><td>7,011,723円</td><td>183人</td><td>¥38,317</td><td style="color:#10B981;font-weight:700">+20.5%</td><td>前年同期比</td></tr>
+  </table>
+
+  <div class="two-col">
+    <div>
+      <h3>WASSA WASSA 客単価</h3>
+      <div class="bar-wrap">
+        <div class="bar-row"><span class="bar-lbl">2024年</span><div class="bar-track"><div class="bar-fill" style="width:55%;background:#94A3B8"><span class="bar-val">¥24,861</span></div></div><span class="bar-sub"></span></div>
+        <div class="bar-row"><span class="bar-lbl">2025年</span><div class="bar-track"><div class="bar-fill" style="width:59%;background:#3B82F6"><span class="bar-val">¥26,860</span></div></div><span class="bar-sub">+7.9%</span></div>
+        <div class="bar-row"><span class="bar-lbl">2026/1〜5</span><div class="bar-track"><div class="bar-fill" style="width:77%;background:#10B981"><span class="bar-val">¥35,024</span></div></div><span class="bar-sub">+30%</span></div>
+        <div class="bar-row"><span class="bar-lbl">2026/04</span><div class="bar-track"><div class="bar-fill" style="width:100%;background:#F59E0B"><span class="bar-val">¥45,424 最高</span></div></div><span class="bar-sub"></span></div>
+      </div>
+    </div>
+    <div>
+      <h3>Yambaru Routine 客単価</h3>
+      <div class="bar-wrap">
+        <div class="bar-row"><span class="bar-lbl">2024/7〜12</span><div class="bar-track"><div class="bar-fill" style="width:59%;background:#64748B"><span class="bar-val">¥50,296</span></div></div><span class="bar-sub">開業期</span></div>
+        <div class="bar-row"><span class="bar-lbl">2025年</span><div class="bar-track"><div class="bar-fill" style="width:59%;background:#3B82F6"><span class="bar-val">¥50,538</span></div></div><span class="bar-sub">安定</span></div>
+        <div class="bar-row"><span class="bar-lbl">2026/1〜5</span><div class="bar-track"><div class="bar-fill" style="width:57%;background:#10B981"><span class="bar-val">¥48,711</span></div></div><span class="bar-sub">維持</span></div>
+        <div class="bar-row"><span class="bar-lbl">2026/04</span><div class="bar-track"><div class="bar-fill" style="width:77%;background:#F59E0B"><span class="bar-val">¥65,695</span></div></div><span class="bar-sub">最高</span></div>
+      </div>
+    </div>
+  </div>
+
+  <h3>WASSA WASSA 月別客単価（全月）</h3>
+  <table>
+    <tr><th class="left">月</th><th>2024年</th><th>2025年</th><th>2026年</th><th>前年同月比（2024→2025）</th></tr>
+    <tr><td class="lbl">1月</td><td>¥24,265</td><td>¥29,946</td><td>¥29,501</td><td style="color:#10B981">+23.4%</td></tr>
+    <tr><td class="lbl">2月</td><td>¥20,828</td><td>¥23,785</td><td>¥29,470</td><td style="color:#10B981">+14.2%</td></tr>
+    <tr><td class="lbl">3月</td><td>¥27,459</td><td>¥22,128</td><td>¥32,304</td><td style="color:#EF4444">−19.4%</td></tr>
+    <tr><td class="lbl">4月</td><td>¥25,942</td><td>¥22,785 ★</td><td>¥45,424</td><td style="color:#EF4444">−12.2%</td></tr>
+    <tr><td class="lbl">5月</td><td>¥27,382</td><td>¥25,836</td><td>¥35,159</td><td style="color:#EF4444">−5.6%</td></tr>
+    <tr><td class="lbl">6月</td><td>¥23,260</td><td>¥25,543</td><td>—</td><td style="color:#10B981">+9.8%</td></tr>
+    <tr><td class="lbl">7月</td><td>¥25,575</td><td>¥27,316</td><td>—</td><td style="color:#10B981">+6.8%</td></tr>
+    <tr><td class="lbl">8月</td><td>¥25,917</td><td>¥30,276</td><td>—</td><td style="color:#10B981">+16.8%</td></tr>
+    <tr><td class="lbl">9月</td><td>¥26,123</td><td>¥21,204</td><td>—</td><td style="color:#EF4444">−18.8%</td></tr>
+    <tr><td class="lbl">10月</td><td>¥24,374</td><td>¥31,476</td><td>—</td><td style="color:#10B981">+29.1%</td></tr>
+    <tr><td class="lbl">11月</td><td>¥21,880</td><td>¥42,544</td><td>—</td><td style="color:#10B981">+94.4%</td></tr>
+    <tr><td class="lbl">12月</td><td>¥22,892</td><td>¥28,514</td><td>—</td><td style="color:#10B981">+24.6%</td></tr>
+    <tr class="total"><td class="lbl">年間平均</td><td>¥24,861</td><td>¥26,860</td><td>¥35,024</td><td style="color:#10B981">+7.9%</td></tr>
+  </table>
+  <div class="note-box">★ 2025/04 はあすなろ導入初月。システム切り替え期のため数値が低め。10月〜11月以降の大幅な客単価上昇が顕著。</div>
+</div>
+
+<!-- PAGE 5: Discussion -->
+<div class="page">
+  <h2>5. 今後の方向性・ご相談事項</h2>
+
+  <div class="disc-item primary">
+    <div class="d-head">① 客単価のさらなる向上（すけさん継続活用）</div>
+    <p>2026年は客単価¥35,000〜¥45,000台が定着しつつあります。次の目標設定と、プランの季節・週末設定の最適化について継続してご支援いただけますか。</p>
+  </div>
+
+  <div class="disc-item primary">
+    <div class="d-head">② 閑散期（1〜2月・5月）の底上げ戦略</div>
+    <p>1〜2月は売上が600〜700万台と弱い月です。閑散期向けの特別プランや、OTA掲載戦略についてご提案をいただけますと幸いです。</p>
+  </div>
+
+  <div class="disc-item">
+    <div class="d-head">③ 新規客（OTA経由）の獲得状況の共有</div>
+    <p>楽天・じゃらん等のOTA経由の予約件数が、あすなろ導入後にどう変化しているかを確認したいです。御社の集計データがあれば共有いただけますか。</p>
+  </div>
+
+  <div class="disc-item">
+    <div class="d-head">④ Yambaru Routine の稼働率向上</div>
+    <p>DXは1室のため件数が少なく、1〜2月・6月が弱い状況です。Routineに特化したプラン戦略や、ロングステイ向け提案についてご意見をお聞かせください。</p>
+  </div>
+
+  <div class="disc-item">
+    <div class="d-head">⑤ 2026年夏に向けた価格設定の確認</div>
+    <p>2025年8月の売上が好調（WASSA ¥263万、Routine ¥126万）でした。2026年夏に向けて、プランの単価・内容設定を早めに調整したいと考えています。</p>
+  </div>
+
+  <div style="margin-top:24px; border-top:1px solid #E2E8F0; padding-top:16px;">
+    <h3 style="margin-top:0">2024〜2026 合計実績サマリー（ご参考）</h3>
+    <table>
+      <tr><th class="left">施設</th><th>2024年売上</th><th>2025年売上</th><th>2026年（1〜5月）</th><th>2025年 客単価</th></tr>
+      <tr><td class="lbl">WASSA WASSA</td><td>18,820,351円</td><td>17,083,675円</td><td>4,868,428円</td><td>¥26,860</td></tr>
+      <tr><td class="lbl">Yambaru Routine</td><td>4,124,247円（7〜12月）</td><td>8,439,813円</td><td>2,143,295円</td><td>¥50,538</td></tr>
+      <tr class="total"><td class="lbl">合計</td><td>22,944,598円</td><td>25,523,488円</td><td>7,011,723円</td><td>¥31,786</td></tr>
+    </table>
+  </div>
+
+  <div style="margin-top:28px;border-top:1px solid #E2E8F0;padding-top:12px;font-size:8pt;color:#94A3B8;display:flex;justify-content:space-between">
+    <span>WASSA WASSA ／ Yambaru Routine（沖縄県大宜味村）</span>
+    <span>作成: 2026年5月15日</span>
+  </div>
+</div>
+
+<div class="no-print" style="text-align:center;padding:20px">
+  <button onclick="window.print()" style="padding:12px 32px;background:#1E293B;color:white;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-family:inherit">🖨 印刷する（A4）</button>
+</div>
+
+</body>
+</html>
