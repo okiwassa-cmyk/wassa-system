@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WASSA 売上分析ダッシュボード</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Hiragino Sans',sans-serif;background:#F1F5F9;color:#1E293B;font-size:14px}
+header{background:#1E293B;color:white;padding:14px 20px;display:flex;align-items:center;gap:14px}
+header .logo{font-size:20px;font-weight:800;letter-spacing:1px}
+header .sub{font-size:11px;color:#94A3B8;margin-top:2px}
+.container{max-width:1280px;margin:0 auto;padding:16px}
+.filter-bar{background:white;border-radius:10px;padding:10px 16px;margin-bottom:14px;display:flex;align-items:center;gap:8px;box-shadow:0 1px 3px rgba(0,0,0,.08);flex-wrap:wrap}
+.filter-bar .label{font-size:11px;color:#64748B;font-weight:600;margin-right:4px}
+.filter-btn{padding:5px 14px;border-radius:20px;border:1.5px solid #E2E8F0;background:white;cursor:pointer;font-size:13px;color:#475569;transition:all .15s;font-family:inherit}
+.filter-btn.active{background:#2563EB;border-color:#2563EB;color:white;font-weight:600}
+.kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:14px}
+.kpi-card{background:white;border-radius:10px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.kpi-card .k-label{font-size:10px;color:#64748B;font-weight:600;letter-spacing:.4px;text-transform:uppercase;margin-bottom:5px}
+.kpi-card .k-value{font-size:18px;font-weight:700;color:#1E293B;line-height:1.1}
+.kpi-card .k-value.up{color:#10B981}
+.kpi-card .k-value.down{color:#EF4444}
+.kpi-card .k-sub{font-size:10px;color:#94A3B8;margin-top:3px}
+.tabs{display:flex;gap:2px;margin-bottom:14px;background:white;border-radius:10px;padding:4px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.tab-btn{flex:1;padding:9px 8px;border:none;background:transparent;cursor:pointer;font-size:13px;color:#64748B;border-radius:8px;transition:all .15s;font-weight:500;font-family:inherit}
+.tab-btn.active{background:#2563EB;color:white;font-weight:700}
+.tab-content{display:none}
+.tab-content.active{display:block}
+.chart-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:14px}
+.chart-grid.one-col{grid-template-columns:1fr}
+.full-col{grid-column:1/-1}
+.chart-card{background:white;border-radius:10px;padding:18px 20px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.chart-card h3{font-size:13px;font-weight:700;color:#1E293B;margin-bottom:2px}
+.chart-card .c-sub{font-size:10px;color:#94A3B8;margin-bottom:12px}
+.chart-wrap{position:relative}
+.chart-wrap.h240{height:240px}
+.chart-wrap.h280{height:280px}
+.chart-wrap.h200{height:200px}
+.ann-note{display:inline-flex;align-items:center;gap:6px;font-size:10px;color:#DC2626;margin-top:6px;opacity:.8}
+.ann-note::before{content:'';width:18px;height:0;border-top:2px dashed #DC2626;display:inline-block}
+.status-msg{text-align:center;padding:30px;color:#94A3B8;font-size:13px}
+.status-msg.err{color:#EF4444}
+@media(max-width:1024px){.kpi-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:768px){
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .chart-grid{grid-template-columns:1fr}
+  .full-col{grid-column:1}
+  .chart-wrap.h280{height:220px}
+  .chart-wrap.h240{height:200px}
+}
+@media print{
+  body{background:white}
+  .filter-bar,.tabs{display:none!important}
+  .tab-content{display:block!important}
+  .chart-wrap.h280{height:220px}
+}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="logo">WASSA 売上分析</div>
+    <div class="sub">2024年1月〜2026年5月 ／ あすなろシステム導入: 2025年4月 ／ 直予約=リピーター / OTA=新規客</div>
+  </div>
+</header>
+
+<div class="container">
+  <!-- Room filter -->
+  <div class="filter-bar">
+    <span class="label">表示室:</span>
+    <button class="filter-btn active" onclick="setFilter(this,'total')">2室合計</button>
+    <button class="filter-btn" onclick="setFilter(this,'wassa')">WASSA WASSA（S01+S02）</button>
+    <button class="filter-btn" onclick="setFilter(this,'routine')">Yambaru Routine（DX）</button>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="k-label">2024年 年間売上</div>
+      <div class="k-value" id="kpi2024">—</div>
+      <div class="k-sub" id="kpi2024sub">計算中...</div>
+    </div>
+    <div class="kpi-card">
+      <div class="k-label">2025年 年間売上</div>
+      <div class="k-value" id="kpi2025">—</div>
+      <div class="k-sub" id="kpi2025sub">計算中...</div>
+    </div>
+    <div class="kpi-card">
+      <div class="k-label">あすなろ前 月平均</div>
+      <div class="k-value" id="kpiBefore">—</div>
+      <div class="k-sub">〜2025年3月</div>
+    </div>
+    <div class="kpi-card">
+      <div class="k-label">あすなろ後 月平均</div>
+      <div class="k-value" id="kpiAfter">—</div>
+      <div class="k-sub" id="kpiAfterSub">2025年4月〜</div>
+    </div>
+    <div class="kpi-card">
+      <div class="k-label">OTA月平均 (前)</div>
+      <div class="k-value" id="kpiOtaBefore">—</div>
+      <div class="k-sub">〜2025年3月</div>
+    </div>
+    <div class="kpi-card">
+      <div class="k-label">OTA月平均 (後)</div>
+      <div class="k-value" id="kpiOtaAfter">—</div>
+      <div class="k-sub" id="kpiOtaAfterSub">2025年4月〜</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="showTab(this,'ota')">新規客（OTA）分析</button>
+    <button class="tab-btn" onclick="showTab(this,'sales')">売上・稼働率</button>
+    <button class="tab-btn" onclick="showTab(this,'future')">将来予測</button>
+  </div>
+
+  <!-- Tab 1: OTA analysis -->
+  <div class="tab-content active" id="tab-ota">
+    <div id="otaStatus" class="status-msg">Supabaseから予約データを読み込み中...</div>
+    <div class="chart-grid" id="otaCharts" style="display:none">
+      <div class="chart-card full-col">
+        <h3>OTA月次件数推移（予約経路別積み上げ）</h3>
+        <div class="c-sub">直予約=リピーター / OTA=新規客 の月ごとの内訳</div>
+        <div class="chart-wrap h280"><canvas id="cOtaMonthly"></canvas></div>
+        <div class="ann-note">あすなろ導入（2025年4月）</div>
+      </div>
+      <div class="chart-card">
+        <h3>OTA vs 直予約 比率推移</h3>
+        <div class="c-sub">新規 vs リピーターの月次構成比（%）</div>
+        <div class="chart-wrap h240"><canvas id="cOtaRatio"></canvas></div>
+        <div class="ann-note">あすなろ導入（2025年4月）</div>
+      </div>
+      <div class="chart-card">
+        <h3>あすなろ導入 前後比較（OTA月平均件数）</h3>
+        <div class="c-sub">経路別の月平均件数 / 導入前（〜2025/3）vs 導入後（2025/4〜）</div>
+        <div class="chart-wrap h240"><canvas id="cOtaBeforeAfter"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>経路別 月次売上（Supabaseのbilling合計）</h3>
+        <div class="c-sub">OTA + 直予約の売上積み上げ</div>
+        <div class="chart-wrap h240"><canvas id="cOtaSales"></canvas></div>
+        <div class="ann-note">あすなろ導入（2025年4月）</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 2: Sales & Occupancy -->
+  <div class="tab-content" id="tab-sales">
+    <div class="chart-grid">
+      <div class="chart-card full-col">
+        <h3>月次売上推移（全期間）</h3>
+        <div class="c-sub">2024年1月〜2026年5月 ／ CSVデータより</div>
+        <div class="chart-wrap h280"><canvas id="cSalesMonthly"></canvas></div>
+        <div class="ann-note">あすなろ導入（2025年4月）</div>
+      </div>
+      <div class="chart-card">
+        <h3>年別月次売上比較</h3>
+        <div class="c-sub">1〜12月で重ねて季節性を確認</div>
+        <div class="chart-wrap h240"><canvas id="cSalesYoY"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>客単価の推移</h3>
+        <div class="c-sub">1泊あたり客単価（CSVデータより）</div>
+        <div class="chart-wrap h240"><canvas id="cUnitPrice"></canvas></div>
+        <div class="ann-note">あすなろ導入（2025年4月）</div>
+      </div>
+      <div class="chart-card">
+        <h3>稼働率推移（Supabaseから算出）</h3>
+        <div class="c-sub">宿泊日数 ÷ 月の室×日数 / WASSA=2室 / Routine=1室</div>
+        <div class="chart-wrap h240"><canvas id="cOccupancy"></canvas></div>
+        <div class="ann-note">あすなろ導入（2025年4月）</div>
+      </div>
+      <div class="chart-card">
+        <h3>支払い方法別売上（現金 vs その他）</h3>
+        <div class="c-sub">CSVデータより</div>
+        <div class="chart-wrap h240"><canvas id="cPayment"></canvas></div>
+        <div class="ann-note">あすなろ導入（2025年4月）</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 3: Future -->
+  <div class="tab-content" id="tab-future">
+    <div id="futureStatus" class="status-msg">Supabaseから将来予約を読み込み中...</div>
+    <div class="chart-grid" id="futureCharts" style="display:none">
+      <div class="chart-card full-col">
+        <h3>売上 実績 + 将来予測</h3>
+        <div class="c-sub">実績（濃色）+ 確定済み予約から算出した将来予測（薄色）</div>
+        <div class="chart-wrap h280"><canvas id="cFuture"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>稼働率 実績 + 将来予測</h3>
+        <div class="c-sub">確定済み予約からの稼働率予測（点線）</div>
+        <div class="chart-wrap h240"><canvas id="cFutureOcc"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>将来予約 経路別件数</h3>
+        <div class="c-sub">今後の確定予約 OTA別内訳</div>
+        <div class="chart-wrap h240"><canvas id="cFutureOta"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   Constants & Data
+   ============================================================ */
+const SB_URL = 'https://mtsdhheqddrckksiqlim.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10c2RoaGVxZGRyY2trc2lxbGltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1OTc5NDgsImV4cCI6MjA4ODE3Mzk0OH0.c18ExSxNHBOani7CN4QAqaerhvpr5ZCYA0GGkUg0mlc';
+
+// WASSA WASSA (S01+S02): from CSV
+// fields: ym, sales, orders, guests, guestAvg, cash, other, discount
+const WASSA = [
+  {ym:'2024/01',sales:655176,orders:18,guests:27,guestAvg:24265,cash:87373,other:567803,discount:-5000},
+  {ym:'2024/02',sales:1020610,orders:30,guests:49,guestAvg:20828,cash:151765,other:868845,discount:-20000},
+  {ym:'2024/03',sales:2004551,orders:41,guests:73,guestAvg:27459,cash:429010,other:1575541,discount:-21435},
+  {ym:'2024/04',sales:1738145,orders:33,guests:67,guestAvg:25942,cash:98945,other:1639200,discount:-5000},
+  {ym:'2024/05',sales:821468,orders:15,guests:30,guestAvg:27382,cash:81665,other:739803,discount:-5000},
+  {ym:'2024/06',sales:1744501,orders:34,guests:75,guestAvg:23260,cash:170786,other:1573715,discount:-38700},
+  {ym:'2024/07',sales:2736608,orders:41,guests:107,guestAvg:25575,cash:418648,other:2317960,discount:-45000},
+  {ym:'2024/08',sales:2747270,orders:48,guests:106,guestAvg:25917,cash:46145,other:2701125,discount:-20175},
+  {ym:'2024/09',sales:1671905,orders:33,guests:64,guestAvg:26123,cash:143955,other:1527950,discount:-5000},
+  {ym:'2024/10',sales:1559995,orders:39,guests:64,guestAvg:24374,cash:182440,other:1377555,discount:-18800},
+  {ym:'2024/11',sales:1181542,orders:31,guests:54,guestAvg:21880,cash:88106,other:1093436,discount:-25000},
+  {ym:'2024/12',sales:938580,orders:23,guests:41,guestAvg:22892,cash:288420,other:650160,discount:-5000},
+  {ym:'2025/01',sales:1108030,orders:18,guests:37,guestAvg:29946,cash:214060,other:893970,discount:-16500},
+  {ym:'2025/02',sales:1308200,orders:33,guests:55,guestAvg:23785,cash:67760,other:1240440,discount:-15000},
+  {ym:'2025/03',sales:1637535,orders:47,guests:74,guestAvg:22128,cash:91195,other:1546340,discount:-10000},
+  {ym:'2025/04',sales:1207645,orders:34,guests:53,guestAvg:22785,cash:351125,other:856520,discount:-10000},
+  {ym:'2025/05',sales:1110955,orders:28,guests:43,guestAvg:25836,cash:45210,other:1065745,discount:-10000},
+  {ym:'2025/06',sales:1328250,orders:29,guests:52,guestAvg:25543,cash:27470,other:1300780,discount:-10000},
+  {ym:'2025/07',sales:1884854,orders:32,guests:69,guestAvg:27316,cash:253510,other:1631344,discount:-12090},
+  {ym:'2025/08',sales:2634025,orders:26,guests:87,guestAvg:30276,cash:275635,other:2358390,discount:-10000},
+  {ym:'2025/09',sales:1166250,orders:26,guests:55,guestAvg:21204,cash:20820,other:1145430,discount:-5000},
+  {ym:'2025/10',sales:1636775,orders:26,guests:52,guestAvg:31476,cash:106890,other:1529885,discount:-8520},
+  {ym:'2025/11',sales:1148690,orders:22,guests:27,guestAvg:42544,cash:44905,other:1103785,discount:-5000},
+  {ym:'2025/12',sales:912466,orders:14,guests:32,guestAvg:28514,cash:7590,other:904876,discount:-22400},
+  {ym:'2026/01',sales:708045,orders:15,guests:24,guestAvg:29501,cash:4510,other:703535,discount:-10000},
+  {ym:'2026/02',sales:589415,orders:12,guests:20,guestAvg:29470,cash:45300,other:544115,discount:-10000},
+  {ym:'2026/03',sales:1453720,orders:24,guests:45,guestAvg:32304,cash:83300,other:1370420,discount:-10600},
+  {ym:'2026/04',sales:1589853,orders:20,guests:35,guestAvg:45424,cash:223670,other:1366183,discount:-15000},
+  {ym:'2026/05',sales:527395,orders:12,guests:15,guestAvg:35159,cash:3605,other:523790,discount:-980},
+];
+
+// Yambaru Routine (DX): from screenshots (started 2024/07)
+const ROUTINE = [
+  {ym:'2024/07',sales:1174145,orders:6,guests:14,guestAvg:83867,cash:-18700,other:1192845,discount:-158400},
+  {ym:'2024/08',sales:1226475,orders:10,guests:29,guestAvg:42292,cash:175395,other:1051080,discount:-89030},
+  {ym:'2024/09',sales:178863,orders:2,guests:4,guestAvg:44715,cash:0,other:178863,discount:-19192},
+  {ym:'2024/10',sales:692303,orders:7,guests:16,guestAvg:43268,cash:373625,other:318678,discount:-95792},
+  {ym:'2024/11',sales:424763,orders:4,guests:14,guestAvg:30340,cash:199648,other:225115,discount:-35312},
+  {ym:'2024/12',sales:427698,orders:2,guests:5,guestAvg:85539,cash:165108,other:262590,discount:-16502},
+  {ym:'2025/01',sales:183535,orders:2,guests:4,guestAvg:45883,cash:0,other:183535,discount:0},
+  {ym:'2025/02',sales:80300,orders:1,guests:5,guestAvg:16060,cash:0,other:80300,discount:0},
+  {ym:'2025/03',sales:846560,orders:5,guests:13,guestAvg:65120,cash:87505,other:759055,discount:0},
+  {ym:'2025/04',sales:472515,orders:3,guests:12,guestAvg:39376,cash:0,other:472515,discount:-10000},
+  {ym:'2025/05',sales:507570,orders:4,guests:7,guestAvg:72510,cash:4840,other:502730,discount:0},
+  {ym:'2025/06',sales:364110,orders:7,guests:14,guestAvg:26007,cash:6100,other:358010,discount:0},
+  {ym:'2025/07',sales:1151948,orders:9,guests:18,guestAvg:63997,cash:0,other:1151948,discount:-13582},
+  {ym:'2025/08',sales:1261285,orders:10,guests:24,guestAvg:52553,cash:0,other:1261285,discount:0},
+  {ym:'2025/09',sales:657995,orders:10,guests:15,guestAvg:43866,cash:3850,other:654145,discount:-5000},
+  {ym:'2025/10',sales:929380,orders:12,guests:21,guestAvg:44256,cash:305505,other:623875,discount:-5000},
+  {ym:'2025/11',sales:1151880,orders:10,guests:18,guestAvg:63993,cash:217495,other:934385,discount:-5000},
+  {ym:'2025/12',sales:832735,orders:10,guests:16,guestAvg:52045,cash:210220,other:622515,discount:0},
+  {ym:'2026/01',sales:261440,orders:2,guests:4,guestAvg:65360,cash:0,other:261440,discount:0},
+  {ym:'2026/02',sales:413295,orders:4,guests:8,guestAvg:51661,cash:0,other:413295,discount:0},
+  {ym:'2026/03',sales:624570,orders:10,guests:17,guestAvg:36739,cash:94830,other:529740,discount:-160000},
+  {ym:'2026/04',sales:591260,orders:5,guests:9,guestAvg:65695,cash:0,other:591260,discount:-5000},
+  {ym:'2026/05',sales:252730,orders:3,guests:6,guestAvg:42121,cash:0,other:252730,discount:-5000},
+];
+
+const ALL_MONTHS = WASSA.map(d => d.ym); // 2024/01 〜 2026/05 (29ヶ月)
+const ASUNARO_IDX = ALL_MONTHS.indexOf('2025/04'); // = 15
+const ASUNARO_BOUNDARY = ASUNARO_IDX - 0.5;        // 14.5 (2025/03 と 2025/04 の境)
+
+const OTA_CHANNELS = ['楽天','じゃらん','一休','Booking.com','Agoda','公式HP'];
+const ALL_SOURCES  = [...OTA_CHANNELS, '直予約'];
+const SOURCE_COLOR = {
+  '楽天':       '#BF0000',
+  'じゃらん':   '#E8380D',
+  '一休':       '#9B7B2B',
+  'Booking.com':'#003580',
+  'Agoda':      '#5392FF',
+  '公式HP':     '#059669',
+  '直予約':     '#94A3B8',
+};
+
+/* ============================================================
+   State
+   ============================================================ */
+let currentFilter = 'total';
+let sbData = null;
+const CHARTS = {};
+
+/* ============================================================
+   Helpers
+   ============================================================ */
+const fmt  = n => n == null ? '—' : Math.round(n).toLocaleString('ja-JP');
+const fmtM = n => n == null ? '—' : (n / 10000).toFixed(0) + '万円';
+
+function daysInMonth(ym) {
+  const [y, m] = ym.split('/').map(Number);
+  return new Date(y, m, 0).getDate();
+}
+function toYm(dateStr) {
+  // 'YYYY-MM-DD' → 'YYYY/MM'
+  return dateStr ? dateStr.slice(0, 7).replace('-', '/') : '';
+}
+function nightsBetween(ci, co) {
+  return Math.max(0, Math.round((new Date(co) - new Date(ci)) / 86400000));
+}
+function calcBillingTotal(billing) {
+  if (!Array.isArray(billing)) return 0;
+  return billing
+    .filter(r => !r.is_ref)
+    .reduce((s, r) => s + (parseFloat(r.price) || 0) * (parseFloat(r.qty) || 1), 0);
+}
+
+function getActiveData() {
+  if (currentFilter === 'wassa')   return { wassa: WASSA, routine: [] };
+  if (currentFilter === 'routine') return { wassa: [], routine: ROUTINE };
+  return { wassa: WASSA, routine: ROUTINE };
+}
+
+function getMonthSales(ym) {
+  const { wassa, routine } = getActiveData();
+  const w = wassa.find(d => d.ym === ym);
+  const r = routine.find(d => d.ym === ym);
+  const sales   = (w?.sales   || 0) + (r?.sales   || 0);
+  const guests  = (w?.guests  || 0) + (r?.guests  || 0);
+  const guestAvg = guests ? Math.round(sales / guests) : null;
+  const cash    = (w?.cash    || 0) + (r?.cash    || 0);
+  const other   = (w?.other   || 0) + (r?.other   || 0);
+  return { sales, guests, guestAvg, cash, other };
+}
+
+function roomCap(ym) {
+  // 対象フィルターに応じた室数×日数
+  const d = daysInMonth(ym);
+  if (currentFilter === 'wassa')   return d * 2;
+  if (currentFilter === 'routine') return d * 1;
+  return d * 3;
+}
+
+function asunaroAnnotation() {
+  return {
+    asunaroLine: {
+      type: 'line',
+      xMin: ASUNARO_BOUNDARY,
+      xMax: ASUNARO_BOUNDARY,
+      borderColor: 'rgba(220,38,38,0.7)',
+      borderWidth: 2,
+      borderDash: [6, 4],
+      label: {
+        content: 'あすなろ導入',
+        display: true,
+        position: 'start',
+        backgroundColor: 'rgba(220,38,38,0.07)',
+        color: '#DC2626',
+        font: { size: 10, weight: '700' },
+        padding: { x: 4, y: 2 },
+        yAdjust: 8,
+      }
+    }
+  };
+}
+
+function destroyChart(id) {
+  if (CHARTS[id]) { try { CHARTS[id].destroy(); } catch(e){} delete CHARTS[id]; }
+}
+
+/* ============================================================
+   KPI Cards
+   ============================================================ */
+function updateKpi() {
+  const ym2024 = ALL_MONTHS.filter(m => m.startsWith('2024'));
+  const ym2025 = ALL_MONTHS.filter(m => m.startsWith('2025'));
+  const before  = ALL_MONTHS.filter(m => m < '2025/04');
+  const after   = ALL_MONTHS.filter(m => m >= '2025/04');
+
+  const sum = (ms) => ms.reduce((s, m) => s + getMonthSales(m).sales, 0);
+  const avg = (ms) => ms.length ? sum(ms) / ms.length : 0;
+
+  const s2024 = sum(ym2024), s2025 = sum(ym2025);
+  const aBefore = avg(before), aAfter = avg(after);
+  const pct = aBefore ? ((aAfter - aBefore) / aBefore * 100).toFixed(1) : null;
+
+  document.getElementById('kpi2024').textContent     = fmtM(s2024);
+  document.getElementById('kpi2024sub').textContent  = '¥' + fmt(s2024);
+  document.getElementById('kpi2025').textContent     = fmtM(s2025);
+  document.getElementById('kpi2025sub').textContent  = '¥' + fmt(s2025);
+  document.getElementById('kpiBefore').textContent   = fmtM(aBefore);
+  document.getElementById('kpiAfter').textContent    = fmtM(aAfter);
+  if (pct !== null) {
+    document.getElementById('kpiAfterSub').textContent = `前比 ${pct > 0 ? '+' : ''}${pct}%`;
+    document.getElementById('kpiAfter').className = 'k-value ' + (parseFloat(pct) >= 0 ? 'up' : 'down');
+  }
+}
+
+function updateOtaKpi(otaMonthly) {
+  const before = ALL_MONTHS.filter(m => m < '2025/04');
+  const after  = ALL_MONTHS.filter(m => m >= '2025/04');
+  const otaCount = (ms) => ms.reduce((s, m) => {
+    return s + OTA_CHANNELS.reduce((t, src) => t + (otaMonthly[m]?.[src] || 0), 0);
+  }, 0);
+  const oBefore = before.length ? otaCount(before) / before.length : 0;
+  const oAfter  = after.length  ? otaCount(after)  / after.length  : 0;
+  const pct = oBefore ? ((oAfter - oBefore) / oBefore * 100).toFixed(1) : null;
+
+  document.getElementById('kpiOtaBefore').textContent = oBefore.toFixed(1) + '件/月';
+  document.getElementById('kpiOtaAfter').textContent  = oAfter.toFixed(1)  + '件/月';
+  if (pct !== null) {
+    document.getElementById('kpiOtaAfterSub').textContent = `前比 ${pct > 0 ? '+' : ''}${pct}%`;
+    document.getElementById('kpiOtaAfter').className = 'k-value ' + (parseFloat(pct) >= 0 ? 'up' : 'down');
+  }
+}
+
+/* ============================================================
+   CSV Charts (Tab 2)
+   ============================================================ */
+function renderSalesCharts() {
+  const { wassa, routine } = getActiveData();
+  const months = ALL_MONTHS;
+
+  // --- 月次売上推移 ---
+  destroyChart('cSalesMonthly');
+  const datasets = [];
+  if (currentFilter !== 'routine') {
+    datasets.push({
+      label: 'WASSA WASSA (S01+S02)',
+      data: months.map(m => wassa.find(d => d.ym === m)?.sales ?? null),
+      backgroundColor: '#3B82F6', borderWidth: 0,
+    });
+  }
+  if (currentFilter !== 'wassa') {
+    datasets.push({
+      label: 'Yambaru Routine (DX)',
+      data: months.map(m => routine.find(d => d.ym === m)?.sales ?? null),
+      backgroundColor: '#10B981', borderWidth: 0,
+    });
+  }
+  CHARTS['cSalesMonthly'] = new Chart(document.getElementById('cSalesMonthly'), {
+    type: 'bar',
+    data: { labels: months, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+        tooltip: { mode: 'index', callbacks: { label: c => `${c.dataset.label}: ¥${fmt(c.raw)}` } },
+        annotation: { annotations: asunaroAnnotation() },
+      },
+      scales: {
+        x: { stacked: true, ticks: { font: { size: 10 }, maxRotation: 45 } },
+        y: { stacked: true, ticks: { callback: v => '¥' + fmt(v), font: { size: 11 } } },
+      },
+    },
+  });
+
+  // --- 年別月次比較 ---
+  const mlabels = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  const yearSales = (yr) => mlabels.map((_, i) => {
+    const ym = `${yr}/${String(i+1).padStart(2,'0')}`;
+    return getMonthSales(ym).sales || null;
+  });
+  destroyChart('cSalesYoY');
+  CHARTS['cSalesYoY'] = new Chart(document.getElementById('cSalesYoY'), {
+    type: 'line',
+    data: {
+      labels: mlabels,
+      datasets: [
+        { label:'2024年', data: yearSales(2024), borderColor:'#94A3B8', tension: 0.3, pointRadius: 3, borderWidth: 2, backgroundColor: 'transparent' },
+        { label:'2025年', data: yearSales(2025), borderColor:'#3B82F6', tension: 0.3, pointRadius: 3, borderWidth: 2.5, backgroundColor: 'transparent' },
+        { label:'2026年', data: yearSales(2026), borderColor:'#10B981', tension: 0.3, pointRadius: 4, borderWidth: 2, borderDash: [5,3], backgroundColor: 'transparent' },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+        tooltip: { mode: 'index', callbacks: { label: c => `${c.dataset.label}: ¥${fmt(c.raw)}` } },
+      },
+      scales: {
+        x: { ticks: { font: { size: 11 } } },
+        y: { ticks: { callback: v => '¥' + fmt(v), font: { size: 11 } } },
+      },
+    },
+  });
+
+  // --- 客単価推移 ---
+  destroyChart('cUnitPrice');
+  CHARTS['cUnitPrice'] = new Chart(document.getElementById('cUnitPrice'), {
+    type: 'line',
+    data: {
+      labels: months,
+      datasets: [{
+        label: '客単価',
+        data: months.map(m => getMonthSales(m).guestAvg),
+        borderColor: '#F59E0B',
+        backgroundColor: 'rgba(245,158,11,0.08)',
+        fill: true, tension: 0.3, pointRadius: 3,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: c => `客単価: ¥${fmt(c.raw)}` } },
+        annotation: { annotations: asunaroAnnotation() },
+      },
+      scales: {
+        x: { ticks: { font: { size: 10 }, maxRotation: 45 } },
+        y: { ticks: { callback: v => '¥' + fmt(v), font: { size: 11 } } },
+      },
+    },
+  });
+
+  // --- 支払い方法別売上 ---
+  destroyChart('cPayment');
+  CHARTS['cPayment'] = new Chart(document.getElementById('cPayment'), {
+    type: 'bar',
+    data: {
+      labels: months,
+      datasets: [
+        { label: '現金', data: months.map(m => getMonthSales(m).cash), backgroundColor: '#6366F1', borderWidth: 0 },
+        { label: 'その他（カード等）', data: months.map(m => getMonthSales(m).other), backgroundColor: '#A5B4FC', borderWidth: 0 },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+        tooltip: { mode: 'index', callbacks: { label: c => `${c.dataset.label}: ¥${fmt(c.raw)}` } },
+        annotation: { annotations: asunaroAnnotation() },
+      },
+      scales: {
+        x: { stacked: true, ticks: { font: { size: 10 }, maxRotation: 45 } },
+        y: { stacked: true, ticks: { callback: v => '¥' + fmt(v), font: { size: 11 } } },
+      },
+    },
+  });
+}
+
+/* ============================================================
+   Supabase data processing
+   ============================================================ */
+function processReservations(reservations) {
+  const todayIso = new Date().toISOString().slice(0, 10);
+
+  // Filter by room
+  const filtered = reservations.filter(r => {
+    const rid = (r.room_id || '').toUpperCase();
+    if (currentFilter === 'wassa')   return rid === 'S01' || rid === 'S02';
+    if (currentFilter === 'routine') return rid === 'DX';
+    return true;
+  });
+
+  const otaMonthly     = {}; // { ym: { source: count } }
+  const otaSalesMonthly= {}; // { ym: { source: amount } }
+  const occMonthly     = {}; // { ym: { wassa: nights, routine: nights } }
+  const futureMonthly  = {}; // { ym: { wassa: amount, routine: amount } }
+  const futureOccMonthly={}; // { ym: { wassa: nights, routine: nights } }
+  const futureOtaMonthly={}; // { ym: { source: count } }
+
+  for (const r of filtered) {
+    const ci = r.check_in, co = r.check_out;
+    if (!ci || !co) continue;
+    const ym     = toYm(ci);
+    const nights = nightsBetween(ci, co);
+    const src    = r.source || '直予約';
+    const isW    = (r.room_id || '').toUpperCase() === 'S01' || (r.room_id || '').toUpperCase() === 'S02';
+    const isFut  = ci >= todayIso;
+    const btotal = calcBillingTotal(r.billing);
+
+    if (!isFut) {
+      // OTA件数
+      if (!otaMonthly[ym]) otaMonthly[ym] = {};
+      otaMonthly[ym][src] = (otaMonthly[ym][src] || 0) + 1;
+      // OTA売上
+      if (!otaSalesMonthly[ym]) otaSalesMonthly[ym] = {};
+      otaSalesMonthly[ym][src] = (otaSalesMonthly[ym][src] || 0) + btotal;
+      // 稼働率
+      if (!occMonthly[ym]) occMonthly[ym] = { wassa: 0, routine: 0 };
+      if (isW) occMonthly[ym].wassa += nights;
+      else     occMonthly[ym].routine += nights;
+    } else {
+      // 将来
+      if (!futureMonthly[ym])   futureMonthly[ym]   = { wassa: 0, routine: 0 };
+      if (!futureOccMonthly[ym])futureOccMonthly[ym]= { wassa: 0, routine: 0 };
+      if (!futureOtaMonthly[ym])futureOtaMonthly[ym]= {};
+      if (isW) { futureMonthly[ym].wassa   += btotal; futureOccMonthly[ym].wassa   += nights; }
+      else     { futureMonthly[ym].routine += btotal; futureOccMonthly[ym].routine += nights; }
+      futureOtaMonthly[ym][src] = (futureOtaMonthly[ym][src] || 0) + 1;
+    }
+  }
+  return { otaMonthly, otaSalesMonthly, occMonthly, futureMonthly, futureOccMonthly, futureOtaMonthly };
+}
+
+/* ============================================================
+   OTA Charts (Tab 1)
+   ============================================================ */
+function renderOtaCharts({ otaMonthly, otaSalesMonthly }) {
+  const months = ALL_MONTHS;
+  const before = months.filter(m => m < '2025/04');
+  const after  = months.filter(m => m >= '2025/04');
+
+  updateOtaKpi(otaMonthly);
+
+  // --- OTA月次件数 ---
+  destroyChart('cOtaMonthly');
+  CHARTS['cOtaMonthly'] = new Chart(document.getElementById('cOtaMonthly'), {
+    type: 'bar',
+    data: {
+      labels: months,
+      datasets: ALL_SOURCES.map(src => ({
+        label: src,
+        data: months.map(m => otaMonthly[m]?.[src] || 0),
+        backgroundColor: SOURCE_COLOR[src] || '#94A3B8',
+        borderWidth: 0,
+      })),
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+        tooltip: { mode: 'index' },
+        annotation: { annotations: asunaroAnnotation() },
+      },
+      scales: {
+        x: { stacked: true, ticks: { font: { size: 10 }, maxRotation: 45 } },
+        y: { stacked: true, ticks: { font: { size: 11 } }, title: { display: true, text: '件数', font: { size: 11 } } },
+      },
+    },
+  });
+
+  // --- OTA vs 直予約 比率 ---
+  destroyChart('cOtaRatio');
+  CHARTS['cOtaRatio'] = new Chart(document.getElementById('cOtaRatio'), {
+    type: 'bar',
+    data: {
+      labels: months,
+      datasets: [
+        {
+          label: 'OTA（新規客）',
+          data: months.map(m => {
+            const total = ALL_SOURCES.reduce((s, src) => s + (otaMonthly[m]?.[src] || 0), 0);
+            const ota   = OTA_CHANNELS.reduce((s, src) => s + (otaMonthly[m]?.[src] || 0), 0);
+            return total ? Math.round(ota / total * 100) : null;
+          }),
+          backgroundColor: '#3B82F6', borderWidth: 0,
+        },
+        {
+          label: '直予約（リピーター）',
+          data: months.map(m => {
+            const total  = ALL_SOURCES.reduce((s, src) => s + (otaMonthly[m]?.[src] || 0), 0);
+            const direct = otaMonthly[m]?.['直予約'] || 0;
+            return total ? Math.round(direct / total * 100) : null;
+          }),
+          backgroundColor: '#94A3B8', borderWidth: 0,
+        },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+        tooltip: { mode: 'index', callbacks: { label: c => `${c.dataset.label}: ${c.raw}%` } },
+        annotation: { annotations: asunaroAnnotation() },
+      },
+      scales: {
+        x: { stacked: true, ticks: { font: { size: 10 }, maxRotation: 45 } },
+        y: { stacked: true, max: 100, ticks: { callback: v => v + '%', font: { size: 11 } } },
+      },
+    },
+  });
+
+  // --- 前後比較（横棒） ---
+  const baData = OTA_CHANNELS.map(src => ({
+    src,
+    before: before.length ? before.reduce((s, m) => s + (otaMonthly[m]?.[src] || 0), 0) / before.length : 0,
+    after:  after.length  ? after.reduce((s,  m) => s + (otaMonthly[m]?.[src] || 0), 0) / after.length  : 0,
+  }));
+  destroyChart('cOtaBeforeAfter');
+  CHARTS['cOtaBeforeAfter'] = new Chart(document.getElementById('cOtaBeforeAfter'), {
+    type: 'bar',
+    data: {
+      labels: baData.map(d => d.src),
+      datasets: [
+        { label: '導入前（〜2025/3 月平均）', data: baData.map(d => d.before), backgroundColor: 'rgba(100,116,139,0.5)', borderWidth: 0 },
+        { label: '導入後（2025/4〜 月平均）', data: baData.map(d => d.after),  backgroundColor: baData.map(d => SOURCE_COLOR[d.src]), borderWidth: 0 },
+      ],
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+        tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.raw.toFixed(2)}件/月` } },
+      },
+      scales: {
+        x: { ticks: { font: { size: 11 } }, title: { display: true, text: '件/月（平均）', font: { size: 11 } } },
+        y: { ticks: { font: { size: 12 } } },
+      },
+    },
+  });
+
+  // --- 経路別売上 ---
+  destroyChart('cOtaSales');
+  CHARTS['cOtaSales'] = new Chart(document.getElementById('cOtaSales'), {
+    type: 'bar',
+    data: {
+      labels: months,
+      datasets: ALL_SOURCES.map(src => ({
+        label: src,
+        data: months.map(m => Math.round(otaSalesMonthly[m]?.[src] || 0)),
+        backgroundColor: SOURCE_COLOR[src] || '#94A3B8',
+        borderWidth: 0,
+      })),
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+        tooltip: { mode: 'index', callbacks: { label: c => `${c.dataset.label}: ¥${fmt(c.raw)}` } },
+        annotation: { annotations: asunaroAnnotation() },
+      },
+      scales: {
+        x: { stacked: true, ticks: { font: { size: 10 }, maxRotation: 45 } },
+        y: { stacked: true, ticks: { callback: v => '¥' + fmt(v), font: { size: 11 } } },
+      },
+    },
+  });
+}
+
+/* ============================================================
+   Occupancy Chart (Tab 2, from Supabase)
+   ============================================================ */
+function renderOccupancyChart({ occMonthly }) {
+  const months = ALL_MONTHS;
+  const occPct = months.map(m => {
+    const occ = occMonthly[m] || { wassa: 0, routine: 0 };
+    const cap = roomCap(m);
+    if (!cap) return null;
+    let nights;
+    if (currentFilter === 'wassa')   nights = occ.wassa;
+    else if (currentFilter === 'routine') nights = occ.routine;
+    else nights = occ.wassa + occ.routine;
+    return Math.round(nights / cap * 100);
+  });
+
+  destroyChart('cOccupancy');
+  CHARTS['cOccupancy'] = new Chart(document.getElementById('cOccupancy'), {
+    type: 'line',
+    data: {
+      labels: months,
+      datasets: [{
+        label: '稼働率',
+        data: occPct,
+        borderColor: '#6366F1',
+        backgroundColor: 'rgba(99,102,241,0.1)',
+        fill: true, tension: 0.3, pointRadius: 3,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: c => `稼働率: ${c.raw}%` } },
+        annotation: { annotations: asunaroAnnotation() },
+      },
+      scales: {
+        x: { ticks: { font: { size: 10 }, maxRotation: 45 } },
+        y: { min: 0, max: 100, ticks: { callback: v => v + '%', font: { size: 11 } } },
+      },
+    },
+  });
+}
+
+/* ============================================================
+   Future Charts (Tab 3)
+   ============================================================ */
+function renderFutureCharts({ occMonthly, futureMonthly, futureOccMonthly, futureOtaMonthly }) {
+  const todayYm = new Date().toISOString().slice(0, 7).replace('-', '/');
+
+  // 全月ラベル = 実績 + 将来予測月
+  const futureYms = Object.keys(futureMonthly).sort();
+  const allYms = [...new Set([...ALL_MONTHS, ...futureYms])].sort();
+
+  // 実績
+  const pastSales = allYms.map(m => m < todayYm ? getMonthSales(m).sales : null);
+  // 将来予測
+  const futureSales = allYms.map(m => {
+    if (m < todayYm) return null;
+    const fd = futureMonthly[m];
+    if (!fd) return null;
+    if (currentFilter === 'wassa')   return fd.wassa;
+    if (currentFilter === 'routine') return fd.routine;
+    return fd.wassa + fd.routine;
+  });
+
+  destroyChart('cFuture');
+  CHARTS['cFuture'] = new Chart(document.getElementById('cFuture'), {
+    type: 'bar',
+    data: {
+      labels: allYms,
+      datasets: [
+        { label: '実績', data: pastSales, backgroundColor: '#3B82F6', borderWidth: 0 },
+        { label: '予測（確定予約）', data: futureSales, backgroundColor: 'rgba(59,130,246,0.30)', borderWidth: 1.5, borderColor: '#3B82F6' },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+        tooltip: { mode: 'index', callbacks: { label: c => c.raw != null ? `${c.dataset.label}: ¥${fmt(c.raw)}` : '' } },
+      },
+      scales: {
+        x: { ticks: { font: { size: 10 }, maxRotation: 45 } },
+        y: { ticks: { callback: v => '¥' + fmt(v), font: { size: 11 } } },
+      },
+    },
+  });
+
+  // 稼働率 実績+予測
+  const pastOcc = allYms.map(m => {
+    if (m >= todayYm) return null;
+    const occ = occMonthly[m] || { wassa: 0, routine: 0 };
+    const cap = roomCap(m);
+    if (!cap) return null;
+    const nights = currentFilter === 'wassa' ? occ.wassa : currentFilter === 'routine' ? occ.routine : occ.wassa + occ.routine;
+    return Math.round(nights / cap * 100);
+  });
+  const futureOcc = allYms.map(m => {
+    if (m < todayYm) return null;
+    const fo = futureOccMonthly[m];
+    if (!fo) return null;
+    const cap = roomCap(m);
+    if (!cap) return null;
+    const nights = currentFilter === 'wassa' ? fo.wassa : currentFilter === 'routine' ? fo.routine : fo.wassa + fo.routine;
+    return Math.round(nights / cap * 100);
+  });
+
+  destroyChart('cFutureOcc');
+  CHARTS['cFutureOcc'] = new Chart(document.getElementById('cFutureOcc'), {
+    type: 'line',
+    data: {
+      labels: allYms,
+      datasets: [
+        { label: '実績 稼働率', data: pastOcc, borderColor: '#6366F1', backgroundColor: 'rgba(99,102,241,0.1)', fill: true, tension: 0.3, pointRadius: 3 },
+        { label: '予測 稼働率', data: futureOcc, borderColor: 'rgba(99,102,241,0.5)', borderDash: [5,4], backgroundColor: 'rgba(99,102,241,0.05)', fill: true, tension: 0.3, pointRadius: 3 },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+        tooltip: { callbacks: { label: c => c.raw != null ? `${c.dataset.label}: ${c.raw}%` : '' } },
+      },
+      scales: {
+        x: { ticks: { font: { size: 10 }, maxRotation: 45 } },
+        y: { min: 0, max: 100, ticks: { callback: v => v + '%', font: { size: 11 } } },
+      },
+    },
+  });
+
+  // 将来OTA件数
+  const futKeys = Object.keys(futureOtaMonthly).sort();
+  destroyChart('cFutureOta');
+  CHARTS['cFutureOta'] = new Chart(document.getElementById('cFutureOta'), {
+    type: 'bar',
+    data: {
+      labels: futKeys.length ? futKeys : ['データなし'],
+      datasets: ALL_SOURCES.map(src => ({
+        label: src,
+        data: futKeys.map(m => futureOtaMonthly[m]?.[src] || 0),
+        backgroundColor: SOURCE_COLOR[src] || '#94A3B8',
+        borderWidth: 0,
+      })),
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+        tooltip: { mode: 'index' },
+      },
+      scales: {
+        x: { stacked: true, ticks: { font: { size: 11 } } },
+        y: { stacked: true, ticks: { font: { size: 11 } } },
+      },
+    },
+  });
+}
+
+/* ============================================================
+   Supabase fetch
+   ============================================================ */
+async function fetchReservations() {
+  const url = SB_URL + '/rest/v1/reservations'
+    + '?select=id,check_in,check_out,room_id,source,status,billing,adults,children'
+    + '&status=neq.cancelled'
+    + '&check_in=gte.2024-01-01'
+    + '&order=check_in.asc'
+    + '&limit=2000';
+  const res = await fetch(url, {
+    headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY },
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+/* ============================================================
+   UI Controls
+   ============================================================ */
+function showTab(btn, tab) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  btn.classList.add('active');
+}
+
+function setFilter(btn, filter) {
+  if (currentFilter === filter) return;
+  currentFilter = filter;
+  document.querySelectorAll('.filter-btn').forEach(el => el.classList.remove('active'));
+  btn.classList.add('active');
+  updateKpi();
+  renderSalesCharts();
+  if (sbData) {
+    const processed = processReservations(sbData);
+    renderOtaCharts(processed);
+    renderOccupancyChart(processed);
+    renderFutureCharts(processed);
+  }
+}
+
+/* ============================================================
+   Init
+   ============================================================ */
+async function init() {
+  updateKpi();
+  renderSalesCharts();
+
+  try {
+    sbData = await fetchReservations();
+    const processed = processReservations(sbData);
+
+    // OTA Tab
+    document.getElementById('otaStatus').style.display = 'none';
+    document.getElementById('otaCharts').style.display = '';
+    renderOtaCharts(processed);
+
+    // Occupancy (Tab 2)
+    renderOccupancyChart(processed);
+
+    // Future Tab
+    document.getElementById('futureStatus').style.display = 'none';
+    document.getElementById('futureCharts').style.display = '';
+    renderFutureCharts(processed);
+
+  } catch (e) {
+    console.error('Supabase error:', e);
+    document.getElementById('otaStatus').textContent   = 'データ取得に失敗しました: ' + e.message;
+    document.getElementById('otaStatus').className     = 'status-msg err';
+    document.getElementById('futureStatus').textContent= 'データ取得に失敗しました: ' + e.message;
+    document.getElementById('futureStatus').className  = 'status-msg err';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
