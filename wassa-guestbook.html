@@ -768,9 +768,9 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <div class="search-wrap" style="flex:1;min-width:180px;margin:0">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="bil-search" placeholder="顧客名で検索" oninput="filterBillingList()">
+          <input type="text" id="bil-search" placeholder="顧客名で検索" oninput="onBilSearchChange()">
         </div>
-        <input type="month" id="bil-month" onchange="filterBillingList()" style="width:auto;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:inherit">
+        <input type="month" id="bil-month" onchange="onBilSearchChange()" style="width:auto;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:inherit">
       </div>
     </div>
     <div id="bil-list-content"><div style="padding:20px;text-align:center;color:var(--text3)">検索してください</div></div>
@@ -2361,6 +2361,10 @@ async function onResFilterChange(){
 async function onResYearMonthChange(){
   if(!_allResLoaded) await ensureAllReservations();
   filterReservations();
+}
+async function onBilSearchChange(){
+  if(!_allResLoaded) await ensureAllReservations();
+  filterBillingList();
 }
 
 function filterReservations(){
