@@ -1032,6 +1032,8 @@ async function submitBooking() {
   try {
     const infMealBed  = parseInt(document.getElementById('f-inf-meal-bed').value)||0;
     const infMealOnly = parseInt(document.getElementById('f-inf-meal-only').value)||0;
+    const infBedOnly  = parseInt(document.getElementById('f-inf-bed-only').value)||0;
+    const infNone     = parseInt(document.getElementById('f-inf-none').value)||0;
     const infMeal     = infMealBed + infMealOnly;
     const body = {
       guest_name: name,
@@ -1068,9 +1070,10 @@ async function submitBooking() {
     const newRsvId = newRsv && newRsv[0] && newRsv[0].id;
 
     // billing を別途 PATCH（失敗しても予約自体はキャンセルしない）
+    let billingRows = [];
     if (newRsvId) {
       try {
-        const billingRows = buildBillingRows(cin, cout, adults, children, meal, roomKey, infMealBed, infMealOnly, parseInt(document.getElementById('f-inf-bed-only').value)||0, parseInt(document.getElementById('f-inf-none').value)||0);
+        billingRows = buildBillingRows(cin, cout, adults, children, meal, roomKey, infMealBed, infMealOnly, infBedOnly, infNone);
         if (billingRows.length > 0) {
           await fetch(`${SB_URL}/rest/v1/reservations?id=eq.${newRsvId}`, {
             method: 'PATCH',
@@ -1079,6 +1082,40 @@ async function submitBooking() {
           });
         }
       } catch(e) { /* billing保存失敗は無視 */ }
+    }
+
+    // 見積書を自動生成（quotesテーブルにPOST）
+    let quoteUrl = null;
+    if (newRsvId && billingRows.length > 0) {
+      try {
+        const token = crypto.randomUUID();
+        const totalAmt = billingRows.reduce((s, row) => s + (row.price||0) * (row.qty||1), 0);
+        const validUntil = new Date(); validUntil.setDate(validUntil.getDate() + 14);
+        await fetch(`${SB_URL}/rest/v1/quotes`, {
+          method: 'POST',
+          headers: { ...SB_H, Prefer: 'return=minimal' },
+          body: JSON.stringify({
+            token,
+            guest_name: name,
+            phone,
+            check_in: cin,
+            check_out: cout,
+            room_type: body.room_type,
+            room: roomKey,
+            adults: String(adults),
+            children,
+            infants: infMealBed + infMealOnly + infBedOnly + infNone,
+            meal,
+            plan_name: body.plan_name,
+            total_amount: String(totalAmt),
+            valid_until: validUntil.toISOString().slice(0,10),
+            status: 'sent',
+            billing: { rows: billingRows, plan_name: body.plan_name, coupon: 0, points: 0 },
+            notes: body.notes,
+          })
+        });
+        quoteUrl = `https://okiwassa-cmyk.github.io/wassa-system/wassa-quote-view.html?token=${token}`;
+      } catch(e) { /* 見積書生成失敗は無視 */ }
     }
 
     document.getElementById('booking-form-wrap').style.display = 'none';
@@ -1122,8 +1159,6 @@ async function submitBooking() {
     // スタッフ通知メール（fire-and-forget）
     const mealLabel = {both:'朝夕食付き', din:'夕食付き', bf:'朝食付き', none:'素泊まり'};
     const roomLabel = document.getElementById('f-room').value === 'dlx' ? 'デラックス' : 'スーペリアツイン';
-    const infBedOnly  = parseInt(document.getElementById('f-inf-bed-only').value)||0;
-    const infNone     = parseInt(document.getElementById('f-inf-none').value)||0;
     const totalEl     = document.getElementById('estimate-total');
     const estTotal    = totalEl ? totalEl.textContent : '—';
     const notifyBody  = [
@@ -1145,6 +1180,8 @@ async function submitBooking() {
       notes ? '\nご要望:\n' + notes : '',
       '',
       '顧客照合: ' + customerInfo,
+      '',
+      quoteUrl ? '▼ 見積書URL（そのままお客様にお送りください）\n' + quoteUrl : '※ 見積書の自動生成に失敗しました。管理画面から作成してください。',
       '',
       '管理画面で内容を確認し、お客様へご連絡ください。',
     ].filter(l => l !== '').join('\n');
