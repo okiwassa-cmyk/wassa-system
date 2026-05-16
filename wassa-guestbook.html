@@ -2421,7 +2421,7 @@ function filterReservations(){
   list.sort(function(a,b){return a.check_in<b.check_in?1:-1;});
   const tb=document.getElementById('res-tbody');
   if(!list.length){tb.innerHTML='<tr class="empty-row"><td colspan="7">該当する予約はありません</td></tr>';return;}
-  tb.innerHTML=list.map(r=>`<tr onclick="openReservation(${r.id})" ${r.check_in===today?'id="res-row-today"':''} style="${r.check_in===today?'background:var(--ocean-light);font-weight:600;':''}"><td>${r.check_in||'—'}</td><td><strong>${r.guest_name||'—'}</strong></td><td>${shortRoom(r.room_type)}</td><td>${parseInt(r.adults)||0}名</td><td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.plan_name||'—'}</td><td>${r.source||'—'}</td><td>${statusBadge(r.status)}</td></tr>`).join('');
+  tb.innerHTML=list.map(r=>`<tr onclick="openReservation(${r.id})" ${r.check_in===today?'id="res-row-today"':''} style="${r.check_in===today?'background:var(--ocean-light);font-weight:600;':''}"><td>${r.check_in||'—'}</td><td><strong>${r.guest_name||'—'}</strong></td><td>${shortRoom(r.room_type)}</td><td>${parseInt(r.adults)||0}名${parseInt(r.children)>0?'／小'+parseInt(r.children):''}${parseInt(r.infants)>0?'／幼'+parseInt(r.infants):''}</td><td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.plan_name||'—'}</td><td>${r.source||'—'}</td><td>${statusBadge(r.status)}</td></tr>`).join('');
   // 今日の行があればスクロールしてフォーカス
   var todayRow=document.getElementById('res-row-today');
   if(todayRow) setTimeout(function(){todayRow.scrollIntoView({behavior:'smooth',block:'center'});},50);
