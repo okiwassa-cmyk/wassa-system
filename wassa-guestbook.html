@@ -2357,7 +2357,17 @@ async function onResFilterChange(){
   filterReservations();
 }
 async function onResYearMonthChange(){
-  if(!_allResLoaded) await ensureAllReservations();
+  if(!_allResLoaded){
+    var _yrEl=document.getElementById('res-year');
+    var _moEl=document.getElementById('res-month-sel');
+    if(_yrEl) _yrEl.disabled=true;
+    if(_moEl) _moEl.disabled=true;
+    toast('⏳ 全予約データを読み込み中...');
+    try{ await ensureAllReservations(); }finally{
+      if(_yrEl) _yrEl.disabled=false;
+      if(_moEl) _moEl.disabled=false;
+    }
+  }
   filterReservations();
 }
 async function onBilSearchChange(){
