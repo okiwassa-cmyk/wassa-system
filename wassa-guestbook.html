@@ -3998,8 +3998,15 @@ async function fixFoodMisalignment(){
   if(co!==ci) correct.push({served_date:co,category:'朝食'});
   // 不要行を削除→足りない行だけ追加
   try{
-    for(var i=0;i<toDelete.length;i++){
-      if(toDelete[i].id) await sbDelete('food_records',toDelete[i].id);
+    // IDをまとめて一括削除（in フィルター）
+    var delIds=toDelete.map(function(r){return r.id;}).filter(Boolean);
+    if(delIds.length){
+      var chunkSize=200;
+      for(var ci2=0;ci2<delIds.length;ci2+=chunkSize){
+        var chunk=delIds.slice(ci2,ci2+chunkSize);
+        var r2=await fetch(SB_URL+'/rest/v1/food_records?id=in.('+chunk.join(',')+')',{method:'DELETE',headers:SB_HEADERS});
+        if(!r2.ok) throw new Error(await r2.text());
+      }
     }
     currentFoodRecords=currentFoodRecords.filter(function(r){return toDelete.indexOf(r)<0;});
     var added=0;
