@@ -1420,29 +1420,6 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
     </div>
     <div class="fg full" style="margin-top:8px"><label>苦手な食材</label><input type="text" id="cust-ng-food" placeholder="例: 貝類、パクチー"></div>
     <div class="fg full" style="margin-top:8px"><label>メモ</label><textarea id="cust-memo" rows="3"></textarea></div>
-    <!-- 家族グループ -->
-    <div id="family-panel" style="display:none !important;margin-top:12px">
-      <div class="family-panel">
-        <div class="family-panel-title">👨‍👩‍👧 家族グループ</div>
-        <div id="family-members-list"></div>
-      <div id="family-add-form" style="display:none;margin-top:12px;padding:12px;background:var(--sand);border-radius:8px;border:1px solid var(--border)">
-        <div style="font-size:12px;font-weight:600;margin-bottom:8px;color:var(--text2)">家族情報を追加</div>
-        <div class="fgrid" style="gap:8px">
-          <div class="fg"><label style="font-size:11px">姓</label><input type="text" id="fam-add-sei" placeholder="山田"></div>
-          <div class="fg"><label style="font-size:11px">名</label><input type="text" id="fam-add-mei" placeholder="花子"></div>
-          <div class="fg full"><label style="font-size:11px">続柄</label><input type="text" id="fam-add-rel" placeholder="配偶者・長男・娘 など"></div>
-        </div>
-        <div class="fgrid" style="gap:8px;margin-top:6px">
-          <div class="fg"><label style="font-size:11px">せい</label><input type="text" id="fam-add-sei-kana" placeholder="やまだ"></div>
-          <div class="fg"><label style="font-size:11px">めい</label><input type="text" id="fam-add-mei-kana" placeholder="はなこ"></div>
-        </div>
-        <div style="margin-top:8px">
-          <button class="btn btn-primary btn-sm" onclick="addFamilyMember()" style="font-size:12px">顧客マスタに追加して家族登録</button>
-        </div>
-      </div>
-        <button class="btn btn-ghost btn-sm" style="margin-top:8px;font-size:12px" onclick="showFamilyLinkModal()">＋ 家族メンバーを追加・変更</button>
-      </div>
-    </div>
     <div class="bgrp" style="margin-top:20px;border-top:1px solid var(--sand2);padding-top:16px">
       <button class="btn btn-primary btn-dirty-save" onclick="saveCustomer()">保存</button>
       <button class="btn btn-secondary" onclick="closeModal('cust-modal')">閉じる</button>
@@ -5139,6 +5116,7 @@ function openCustomer(id, defaultTab){
 function renderFamilyPanel(c){
   var panel = document.getElementById('family-panel');
   var list  = document.getElementById('family-members-list');
+  if(!panel || !list) return; // 基本情報タブから削除済み
   var members = c.family_id ? allCustomers.filter(function(x){return x.family_id===c.family_id&&x.id!==c.id;}) : [];
   if(members.length > 0){
     panel.style.display = 'block';
