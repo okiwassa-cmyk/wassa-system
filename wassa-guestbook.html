@@ -2171,7 +2171,7 @@ async function syncReservations(){
     toast('同期しました');
   }catch(e){
     console.error('sync error:',e);
-    toast('⚠️ 同期に失敗しました。再度お試しください。');
+    toast('⚠️ 同期失敗: '+(e&&e.message?e.message.slice(0,80):String(e).slice(0,80)));
     // 既存データはそのまま保持（再描画しない）
   }finally{
     btn.classList.remove('spinning');
