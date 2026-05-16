@@ -9966,7 +9966,32 @@ function getFamilyCandidates(){
       results.push({name:fname, kana:rep['family'+n+'_kana']||'', rel:rep['family'+n+'_rel']||''});
     }
   });
-  return results;
+  // 重複除去: 正規化名（スペース除去）が一致するものは最も情報が多いものだけ残す
+  var norm = function(s){ return (s||'').replace(/[\s\u3000　]+/g,''); };
+  var seen = {};
+  results.forEach(function(fc){
+    var key = norm(fc.name);
+    if(!key) return;
+    if(!seen[key]){
+      seen[key] = fc;
+    } else {
+      // より長い名前・続柄ありを優先
+      var cur = seen[key];
+      if(fc.name.length > cur.name.length || (!cur.rel && fc.rel)){
+        seen[key] = fc;
+      }
+    }
+  });
+  // さらに「ある候補の正規化名が別の候補の正規化名に含まれる」場合は短い方を除去
+  var keys = Object.keys(seen);
+  keys.forEach(function(k){
+    keys.forEach(function(k2){
+      if(k!==k2 && k2.indexOf(k)!==-1 && seen[k]){
+        delete seen[k]; // k は k2 の部分文字列なので除去
+      }
+    });
+  });
+  return Object.values(seen);
 }
 
 function applyFamilyCandidate(i, name, kana){
