@@ -9668,12 +9668,10 @@ function renderCustFamily(){
         +'<div style="font-size:13px;font-weight:500;color:var(--text)">'+mName+(m.rel?'<span style="font-size:11px;color:var(--ocean2);margin-left:6px">'+m.rel+'</span>':'')+'</div>'
         +(mKana?'<div style="font-size:11px;color:var(--text3)">'+mKana+'</div>':'')
         +(m.mobile||m.email?'<div style="font-size:11px;color:var(--text3)">'+(m.mobile||m.email)+'</div>':'')
-        +'<div style="margin-top:4px;display:flex;align-items:center;gap:4px">'
-        +'<input type="text" placeholder="続柄" value="'+(m.rel||'')+'" onchange="updateFamilyRel('+m.id+',this.value)" style="width:100px;padding:3px 8px;border:1px solid var(--sand2);border-radius:4px;font-size:11px;color:var(--text2)">'
         +'</div>'
-        +'</div>'
-        +'<div style="font-size:11px;color:var(--text3);margin-right:8px">'+cnt+'回</div>'
-        +'<button onclick="unlinkFamilyMember('+m.id+')" style="background:none;border:1px solid var(--coral);border-radius:4px;color:var(--coral);font-size:11px;padding:2px 8px;cursor:pointer;white-space:nowrap">解除</button>'
+        +'<input type="text" placeholder="続柄" value="'+(m.rel||'')+'" onchange="updateFamilyRel('+m.id+',this.value)" onclick="event.stopPropagation()" style="width:90px;padding:3px 8px;border:1px solid var(--sand2);border-radius:4px;font-size:11px;color:var(--text2);flex-shrink:0">'
+        +'<div style="font-size:11px;color:var(--text3);white-space:nowrap">'+cnt+'回</div>'
+        +'<button onclick="event.stopPropagation();unlinkFamilyMember('+m.id+')" style="background:none;border:1px solid var(--coral);border-radius:4px;color:var(--coral);font-size:11px;padding:2px 8px;cursor:pointer;white-space:nowrap">解除</button>'
         +'</div>';
     }).join('');
     // グループ全員解除ボタン
@@ -9683,10 +9681,6 @@ function renderCustFamily(){
   } else {
     html+='<div style="padding:20px 0;color:var(--text3);font-size:13px">家族グループに登録されていません</div>';
   }
-  // 家族リンクボタン
-  html+='<div style="margin-top:12px">';
-  html+='<button class="btn btn-ghost btn-sm" onclick="switchToFamilyAddTab()">＋ 家族メンバーを追加・変更</button>';
-  html+='</div>';
   // 同住所の顧客
   var addr=(c.pref||'')+(c.city||'');
   if(addr.length>3){
