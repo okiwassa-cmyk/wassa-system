@@ -1454,7 +1454,7 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
           <div class="fg full"><label style="font-size:11px">続柄</label><input type="text" id="fam-new-rel" placeholder="配偶者・長男・娘 など"></div>
         </div>
         <div style="margin-top:8px">
-          <button class="btn btn-primary btn-sm" onclick="addNewFamilyMember()">顧客マスタに追加して家族登録</button>
+          <button class="btn btn-primary btn-sm" onclick="addNewFamilyMember()">家族メンバーを追加</button>
         </div>
       </div>
     </div>
@@ -4308,29 +4308,38 @@ function confirmFamilyLink(targetId){
 async function addNewFamilyMember(){
   var c = allCustomers.find(function(x){return x.id===currentEditId;});
   if(!c) return;
-  var sei = (document.getElementById('fam-new-sei')||{}).value||'';
-  var mei = (document.getElementById('fam-new-mei')||{}).value||'';
-  var seiK = (document.getElementById('fam-new-sei-kana')||{}).value||'';
-  var meiK = (document.getElementById('fam-new-mei-kana')||{}).value||'';
-  var rel = (document.getElementById('fam-new-rel')||{}).value||'';
+  var sei = (document.getElementById('fam-new-sei')||{}).value.trim()||'';
+  var mei = (document.getElementById('fam-new-mei')||{}).value.trim()||'';
+  var seiK = (document.getElementById('fam-new-sei-kana')||{}).value.trim()||'';
+  var meiK = (document.getElementById('fam-new-mei-kana')||{}).value.trim()||'';
+  var rel = (document.getElementById('fam-new-rel')||{}).value.trim()||'';
   if(!sei){ toast('姓を入力してください'); return; }
-  var famId = c.family_id || c.id;
-  if(!c.family_id){
-    await sbPatch('wassa_customers', c.id, {family_id:famId});
-    var ci=allCustomers.findIndex(function(x){return x.id===c.id;});
-    if(ci>-1) allCustomers[ci].family_id=famId;
-    c.family_id=famId;
+  var name = sei + (mei ? '　'+mei : '');
+  var kana = seiK + (meiK ? ' '+meiK : '');
+  // 空きスロットを探す
+  var slots = ['family1','family2','family3','family4'];
+  var emptySlot = null;
+  for(var i=0;i<slots.length;i++){
+    if(!c[slots[i]]){ emptySlot = slots[i]; break; }
   }
+  if(!emptySlot){ toast('家族スロットが満杯です（最大4名）'); return; }
   try{
-    var res = await sbPost('wassa_customers', {sei:sei,mei:mei,sei_kana:seiK,mei_kana:meiK,family_id:famId,rel:rel||null});
-    if(res&&res[0]){
-      allCustomers.push(res[0]);
-      ['fam-new-sei','fam-new-mei','fam-new-sei-kana','fam-new-mei-kana','fam-new-rel'].forEach(function(id){
-        var el=document.getElementById(id); if(el) el.value='';
-      });
-      renderCustFamily();
-      toast('✅ 家族メンバーを追加しました');
+    var patch = {};
+    patch[emptySlot] = name;
+    patch[emptySlot+'_kana'] = kana;
+    patch[emptySlot+'_rel'] = rel;
+    await sbPatch('wassa_customers', c.id, patch);
+    var ci = allCustomers.findIndex(function(x){return x.id===c.id;});
+    if(ci>-1){
+      allCustomers[ci][emptySlot] = name;
+      allCustomers[ci][emptySlot+'_kana'] = kana;
+      allCustomers[ci][emptySlot+'_rel'] = rel;
     }
+    ['fam-new-sei','fam-new-mei','fam-new-sei-kana','fam-new-mei-kana','fam-new-rel'].forEach(function(id){
+      var el=document.getElementById(id); if(el) el.value='';
+    });
+    renderCustFamily();
+    toast('✅ 家族メンバーを追加しました');
   }catch(e){ toast('エラー: '+e.message); }
 }
 
@@ -5222,6 +5231,34 @@ async function updateFamilyRel(memberId, rel){
     var idx = allCustomers.findIndex(function(x){return x.id===memberId;});
     if(idx>-1) allCustomers[idx].rel = rel||null;
     toast('続柄を更新しました');
+  }catch(e){ toast('エラー: '+e.message); }
+}
+
+// family1〜4スロットの続柄を更新
+async function updateFamilySlotRel(slot, rel){
+  var c = allCustomers.find(function(x){return x.id===currentEditId;});
+  if(!c) return;
+  try{
+    var patch = {}; patch[slot+'_rel'] = rel||'';
+    await sbPatch('wassa_customers', c.id, patch);
+    var idx = allCustomers.findIndex(function(x){return x.id===c.id;});
+    if(idx>-1) allCustomers[idx][slot+'_rel'] = rel||'';
+    toast('続柄を更新しました');
+  }catch(e){ toast('エラー: '+e.message); }
+}
+
+// family1〜4スロットを削除
+async function removeFamilySlot(slot){
+  var c = allCustomers.find(function(x){return x.id===currentEditId;});
+  if(!c) return;
+  if(!confirm((c[slot]||'このメンバー')+'を削除しますか？')) return;
+  try{
+    var patch = {}; patch[slot]=null; patch[slot+'_kana']=null; patch[slot+'_rel']=null;
+    await sbPatch('wassa_customers', c.id, patch);
+    var idx = allCustomers.findIndex(function(x){return x.id===c.id;});
+    if(idx>-1){ allCustomers[idx][slot]=null; allCustomers[idx][slot+'_kana']=null; allCustomers[idx][slot+'_rel']=null; }
+    renderCustFamily();
+    toast('✅ 削除しました');
   }catch(e){ toast('エラー: '+e.message); }
 }
 
@@ -9679,7 +9716,28 @@ function renderCustFamily(){
       +'<button onclick="unlinkFamilyAll()" style="background:none;border:1px solid var(--coral);border-radius:6px;color:var(--coral);font-size:12px;padding:4px 12px;cursor:pointer">🔓 グループ全員を解除</button>'
       +'</div>';
   } else {
-    html+='<div style="padding:20px 0;color:var(--text3);font-size:13px">家族グループに登録されていません</div>';
+    // family1〜4スロットを確認
+    var slots=['family1','family2','family3','family4'];
+    var slotEntries=slots.filter(function(s){return !!c[s];});
+    if(slotEntries.length>0){
+      html+='<div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--sand2)">👨‍👩‍👧 同室家族</div>';
+      html+=slotEntries.map(function(s){
+        var nm=c[s]||'';
+        var kn=c[s+'_kana']||'';
+        var rl=c[s+'_rel']||'';
+        return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--sand)">'
+          +'<div class="avatar" style="width:32px;height:32px;font-size:13px;background:var(--sand2);color:var(--text2)">'+(nm[0]||'?')+'</div>'
+          +'<div style="flex:1">'
+          +'<div style="font-size:13px;font-weight:500;color:var(--text)">'+nm+(rl?'<span style="font-size:11px;color:var(--ocean2);margin-left:6px">'+rl+'</span>':'')+'</div>'
+          +(kn?'<div style="font-size:11px;color:var(--text3)">'+kn+'</div>':'')
+          +'</div>'
+          +'<input type="text" placeholder="続柄" value="'+rl+'" onchange="updateFamilySlotRel(\''+s+'\',this.value)" onclick="event.stopPropagation()" style="width:90px;padding:3px 8px;border:1px solid var(--sand2);border-radius:4px;font-size:11px;color:var(--text2);flex-shrink:0">'
+          +'<button onclick="removeFamilySlot(\''+s+'\')" style="background:none;border:1px solid var(--coral);border-radius:4px;color:var(--coral);font-size:11px;padding:2px 8px;cursor:pointer;white-space:nowrap">削除</button>'
+          +'</div>';
+      }).join('');
+    } else {
+      html+='<div style="padding:20px 0;color:var(--text3);font-size:13px">家族メンバーが登録されていません</div>';
+    }
   }
   // 同住所の顧客
   var addr=(c.pref||'')+(c.city||'');
