@@ -1473,6 +1473,9 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
           <div class="fg"><label style="font-size:11px">せい（かな）</label><input type="text" id="fam-new-sei-kana" placeholder="やまだ"></div>
           <div class="fg"><label style="font-size:11px">めい（かな）</label><input type="text" id="fam-new-mei-kana" placeholder="はなこ"></div>
         </div>
+        <div style="margin-top:6px">
+          <div class="fg full"><label style="font-size:11px">続柄</label><input type="text" id="fam-new-rel" placeholder="配偶者・長男・娘 など"></div>
+        </div>
         <div style="margin-top:8px">
           <button class="btn btn-primary btn-sm" onclick="addNewFamilyMember()">顧客マスタに追加して家族登録</button>
         </div>
@@ -4332,6 +4335,7 @@ async function addNewFamilyMember(){
   var mei = (document.getElementById('fam-new-mei')||{}).value||'';
   var seiK = (document.getElementById('fam-new-sei-kana')||{}).value||'';
   var meiK = (document.getElementById('fam-new-mei-kana')||{}).value||'';
+  var rel = (document.getElementById('fam-new-rel')||{}).value||'';
   if(!sei){ toast('姓を入力してください'); return; }
   var famId = c.family_id || c.id;
   if(!c.family_id){
@@ -4341,10 +4345,10 @@ async function addNewFamilyMember(){
     c.family_id=famId;
   }
   try{
-    var res = await sbPost('wassa_customers', {sei:sei,mei:mei,sei_kana:seiK,mei_kana:meiK,family_id:famId});
+    var res = await sbPost('wassa_customers', {sei:sei,mei:mei,sei_kana:seiK,mei_kana:meiK,family_id:famId,rel:rel||null});
     if(res&&res[0]){
       allCustomers.push(res[0]);
-      ['fam-new-sei','fam-new-mei','fam-new-sei-kana','fam-new-mei-kana'].forEach(function(id){
+      ['fam-new-sei','fam-new-mei','fam-new-sei-kana','fam-new-mei-kana','fam-new-rel'].forEach(function(id){
         var el=document.getElementById(id); if(el) el.value='';
       });
       renderCustFamily();
@@ -5231,6 +5235,16 @@ async function linkFamilyGroup(id1, id2){
     renderCustFamily();
     toast('✅ 家族グループに追加しました');
   }catch(e){toast('エラー: '+e.message);}
+}
+
+// 家族メンバーの続柄を更新
+async function updateFamilyRel(memberId, rel){
+  try{
+    await sbPatch('wassa_customers', memberId, {rel: rel||null});
+    var idx = allCustomers.findIndex(function(x){return x.id===memberId;});
+    if(idx>-1) allCustomers[idx].rel = rel||null;
+    toast('続柄を更新しました');
+  }catch(e){ toast('エラー: '+e.message); }
 }
 
 // 家族グループから1人だけ解除
@@ -9673,9 +9687,12 @@ function renderCustFamily(){
       return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--sand)">'
         +'<div class="avatar" style="width:32px;height:32px;font-size:13px;cursor:pointer" onclick="closeModal(\'cust-modal\');openCustomer('+m.id+')">'+(m.sei||'?')[0]+'</div>'
         +'<div style="flex:1;cursor:pointer" onclick="closeModal(\'cust-modal\');openCustomer('+m.id+')">'
-        +'<div style="font-size:13px;font-weight:500;color:var(--text)">'+mName+'</div>'
+        +'<div style="font-size:13px;font-weight:500;color:var(--text)">'+mName+(m.rel?'<span style="font-size:11px;color:var(--ocean2);margin-left:6px">'+m.rel+'</span>':'')+'</div>'
         +(mKana?'<div style="font-size:11px;color:var(--text3)">'+mKana+'</div>':'')
         +(m.mobile||m.email?'<div style="font-size:11px;color:var(--text3)">'+(m.mobile||m.email)+'</div>':'')
+        +'<div style="margin-top:4px;display:flex;align-items:center;gap:4px">'
+        +'<input type="text" placeholder="続柄" value="'+(m.rel||'')+'" onchange="updateFamilyRel('+m.id+',this.value)" style="width:100px;padding:3px 8px;border:1px solid var(--sand2);border-radius:4px;font-size:11px;color:var(--text2)">'
+        +'</div>'
         +'</div>'
         +'<div style="font-size:11px;color:var(--text3);margin-right:8px">'+cnt+'回</div>'
         +'<button onclick="unlinkFamilyMember('+m.id+')" style="background:none;border:1px solid var(--coral);border-radius:4px;color:var(--coral);font-size:11px;padding:2px 8px;cursor:pointer;white-space:nowrap">解除</button>'
