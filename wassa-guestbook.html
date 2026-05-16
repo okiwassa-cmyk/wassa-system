@@ -3588,8 +3588,8 @@ function autoGenBillingRows(){
   for(var n=0;n<nights;n++){
     var nd=new Date(d1);nd.setDate(nd.getDate()+n);
     var ds=nd.getFullYear()+'-'+String(nd.getMonth()+1).padStart(2,'0')+'-'+String(nd.getDate()).padStart(2,'0');
-    if(adults>0) rows.push({cat:'宿泊料金',date:ds,item:'大人宿泊料金'+_msfx,qty:adults,discount:0,price:0,payment:pay});
-    if(children>0) rows.push({cat:'宿泊料金',date:ds,item:'小学生宿泊料金'+_msfx,qty:children,discount:0,price:0,payment:pay});
+    if(adults>0) rows.push({cat:'宿泊料金',date:ds,item:'大人宿泊料金',qty:adults,discount:0,price:0,payment:pay});
+    if(children>0) rows.push({cat:'宿泊料金',date:ds,item:'小学生宿泊料金',qty:children,discount:0,price:0,payment:pay});
     if(infants>0) rows.push({cat:'宿泊料金',date:ds,item:'幼児',qty:infants,discount:0,price:0,payment:pay});
     if(_hasDin){
       if(adults>0) rows.push({cat:'夕食',date:ds,item:'夕食（大人）',qty:adults,discount:0,price:common.din_adult||0,payment:pay});
