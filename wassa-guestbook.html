@@ -6,6 +6,9 @@
 <title>WASSA WASSA — 管理システム</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Shippori+Mincho:wght@400;500;600&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ja.js"></script>
 <style>
 :root {
   --ocean:#0D3B4A;--ocean2:#1A5568;--ocean3:#2B7A8E;
@@ -2014,8 +2017,22 @@ async function startApp(){
   document.getElementById('e-cout').value=tmr.toISOString().split('T')[0];
   updateMealInfo();
   setTimeout(()=>document.getElementById('loading').classList.add('hide'),600);
+  // flatpickr 初期化（iPad対応）
+  if(window.flatpickr){
+    flatpickr.localize(flatpickr.l10ns.ja);
+    window._fpCI = flatpickr('#edit-checkin', {dateFormat:'Y-m-d', allowInput:true, disableMobile:true});
+    window._fpCO = flatpickr('#edit-checkout', {dateFormat:'Y-m-d', allowInput:true, disableMobile:true});
+  }
   // 未保存の下書きがあれば復元を促す
   setTimeout(checkResDraft, 800);
+}
+
+function _setDate(id, val){
+  var el = document.getElementById(id);
+  if(!el) return;
+  el.value = val || '';
+  var fp = id==='edit-checkin' ? window._fpCI : id==='edit-checkout' ? window._fpCO : null;
+  if(fp) fp.setDate(val||'', false);
 }
 
 function setTodayDisplay(){
@@ -2846,8 +2863,8 @@ function clearResForm(){
   var _stb=document.getElementById('edit-thankyou-sent-badge');if(_stb)_stb.style.display='none';
   document.getElementById('edit-source').value='直予約';document.getElementById('edit-adults').value='2';
   document.getElementById('edit-children').value='0';document.getElementById('edit-infants').value='0';document.getElementById('edit-inf-meal-bed').value='0';document.getElementById('edit-inf-meal-only').value='0';document.getElementById('edit-inf-bed-only').value='0';document.getElementById('edit-inf-none').value='0';
-  document.getElementById('edit-status').value='confirmed';updateTentativeBanner();document.getElementById('edit-checkin').value=dateStr(new Date());
-  document.getElementById('edit-checkout').value=dateStr(new Date(Date.now()+86400000));document.getElementById('edit-citime').value='16:00';
+  document.getElementById('edit-status').value='confirmed';updateTentativeBanner();_setDate('edit-checkin',dateStr(new Date()));
+  _setDate('edit-checkout',dateStr(new Date(Date.now()+86400000)));document.getElementById('edit-citime').value='16:00';
   var _rs2=document.getElementById('edit-room-select');if(_rs2)_rs2.value='01';
   billingRows=[];billingMeta={plan_name:'',coupon:0,points:0};foodDays=[];renderBillingRows();renderFoodDays();resetRecordForm();
 }
@@ -2855,7 +2872,7 @@ function fillResForm(r){
   const set=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val||'';};
   set('edit-id',r.id);set('edit-resno1',r.reservation_no);set('edit-resno2',r.reservation_no2||'');
   set('edit-source',r.source||'公式HP');set('edit-guestname',r.guest_name);set('edit-planname',r.plan_name);
-  set('edit-checkin',r.check_in);set('edit-checkout',r.check_out);set('edit-citime',r.check_in_time||'16:00');
+  _setDate('edit-checkin',r.check_in);_setDate('edit-checkout',r.check_out);set('edit-citime',r.check_in_time||'16:00');
   set('edit-adults',parseInt(r.adults)||2);set('edit-children',parseInt(r.children)||0);set('edit-inf-meal-bed',parseInt(r.inf_meal_bed)||0);set('edit-inf-meal-only',parseInt(r.inf_meal_only)||0);set('edit-inf-bed-only',parseInt(r.inf_bed_only)||0);set('edit-inf-none',parseInt(r.inf_none)||0);calcInfTotal();
   set('edit-status',r.status||'confirmed');updateTentativeBanner();loadCompanions(r.companions||'');
   // ②予約番号2：空なら非表示
