@@ -1427,6 +1427,7 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
         <div class="fgrid" style="gap:8px">
           <div class="fg"><label style="font-size:11px">姓</label><input type="text" id="fam-add-sei" placeholder="山田"></div>
           <div class="fg"><label style="font-size:11px">名</label><input type="text" id="fam-add-mei" placeholder="花子"></div>
+          <div class="fg full"><label style="font-size:11px">続柄</label><input type="text" id="fam-add-rel" placeholder="配偶者・長男・娘 など"></div>
         </div>
         <div class="fgrid" style="gap:8px;margin-top:6px">
           <div class="fg"><label style="font-size:11px">せい</label><input type="text" id="fam-add-sei-kana" placeholder="やまだ"></div>
@@ -5125,7 +5126,7 @@ function renderFamilyPanel(c){
       var cnt = allReservations.filter(function(r){return r.customer_id===m.id&&r.status!=='cancelled';}).length;
       return '<div class="family-member-row" onclick="closeModal(&quot;cust-modal&quot;);openCustomer('+m.id+')">'
         +'<div class="avatar" style="width:28px;height:28px;font-size:12px;flex-shrink:0">'+(m.sei||'?')[0]+'</div>'
-        +'<div style="flex:1"><div style="font-size:13px;font-weight:500">'+mName+'</div>'
+        +'<div style="flex:1"><div style="font-size:13px;font-weight:500">'+mName+(m.rel?'<span style="font-size:11px;color:var(--ocean2);margin-left:6px">'+m.rel+'</span>':'')+'</div>'
         +'<div style="font-size:11px;color:var(--text3)">'+(m.mobile||m.email||'')+'</div></div>'
         +'<div style="font-size:11px;color:var(--text3)">'+cnt+'回</div>'
         +'</div>';
@@ -5146,6 +5147,7 @@ function addFamilyMember(){
   var mei = (document.getElementById('fam-add-mei')||{}).value||'';
   var seiK = (document.getElementById('fam-add-sei-kana')||{}).value||'';
   var meiK = (document.getElementById('fam-add-mei-kana')||{}).value||'';
+  var rel = (document.getElementById('fam-add-rel')||{}).value||'';
   if(!sei){ toast('姓を入力してください'); return; }
   // family_idを取得（なければ現在の顧客のidを使用）
   var famId = c.family_id || c.id;
@@ -5160,13 +5162,13 @@ function addFamilyMember(){
   // 新しい家族メンバーを顧客マスタに追加
   fetch(SB_URL+'/rest/v1/wassa_customers',{
     method:'POST',headers:SB_HEADERS,
-    body:JSON.stringify({sei:sei,mei:mei,sei_kana:seiK,mei_kana:meiK,family_id:famId})
+    body:JSON.stringify({sei:sei,mei:mei,sei_kana:seiK,mei_kana:meiK,family_id:famId,rel:rel||null})
   }).then(function(r){return r.json();}).then(function(data){
     if(data&&data[0]){
       allCustomers.push(data[0]);
       toast('✅ 家族メンバーを追加しました');
       // フォームをクリア
-      ['fam-add-sei','fam-add-mei','fam-add-sei-kana','fam-add-mei-kana'].forEach(function(id){
+      ['fam-add-sei','fam-add-mei','fam-add-sei-kana','fam-add-mei-kana','fam-add-rel'].forEach(function(id){
         var el=document.getElementById(id); if(el) el.value='';
       });
       renderFamilyPanel(c);
