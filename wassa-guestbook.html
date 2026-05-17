@@ -1912,6 +1912,7 @@ const SUPA_URL = SB_URL;
 const SUPA_KEY = SB_KEY;
 const SEASONS=['super_high','high','regular','low'];
 const SL={super_high:'Super High',high:'High',regular:'Regular',low:'Low'};
+var _seasonOpen={super_high:false,high:false,regular:false,low:false};
 const SC={super_high:'sh',high:'hi',regular:'re',low:'lo'};
 const SDC={super_high:'sh-d',high:'hi-d',regular:'re-d',low:'lo-d'};
 
@@ -8969,14 +8970,25 @@ function renderMgr(){
   for(const s of SEASONS){
     const sp=prices[s]?.sup||{},dp=prices[s]?.dlx||{};
     const yearStr=String(rateRangeYear);
-    html+='<div class="season-block"><div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><span class="badge '+SC[s]+'">'+SL[s]+'</span></div>';
-    html+='<div class="sub-label">期間 <span style="font-size:11px;color:var(--text3)">（'+rateRangeYear+'年）</span></div><div id="ranges-'+s+'">';
+    // 期間件数カウント（サマリー表示用）
+    var yearRangeCount=(ranges[s]||[]).filter(function(r){return r.from&&r.from.startsWith(yearStr);}).length;
+    var isOpen=!!_seasonOpen[s];
+    var summaryTxt=yearRangeCount>0?yearRangeCount+'期間設定済み':'期間未設定';
+    html+='<div class="season-block" style="padding-bottom:12px;margin-bottom:12px">';
+    // ヘッダー（クリックで開閉）
+    html+='<div onclick="toggleSeasonBlock(\''+s+'\')" style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:6px 0;user-select:none">';
+    html+='<span class="badge '+SC[s]+'">'+SL[s]+'</span>';
+    html+='<span style="font-size:12px;color:var(--text3)">'+summaryTxt+'</span>';
+    html+='<span style="margin-left:auto;font-size:16px;color:var(--text3);transition:transform .2s;'+(isOpen?'transform:rotate(180deg)':'')+'">▾</span>';
+    html+='</div>';
+    // 折りたたみ本体
+    html+='<div id="season-body-'+s+'" style="display:'+(isOpen?'block':'none')+'">';
+    html+='<div class="sub-label" style="margin-top:10px">期間 <span style="font-size:11px;color:var(--text3)">（'+rateRangeYear+'年）</span></div><div id="ranges-'+s+'">';
     var hasYearRanges=false;
     for(let i=0;i<(ranges[s]||[]).length;i++){
       const r=ranges[s][i];
-      if(r.from&&!r.from.startsWith(yearStr))continue; // 対象年以外をスキップ
+      if(r.from&&!r.from.startsWith(yearStr))continue;
       hasYearRanges=true;
-      // 月クイック入力セレクト
       var monthSel='<select onchange="applyMonthToRange(\''+s+'\','+i+',this.value)" style="padding:5px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text2);cursor:pointer"><option value="">月▼</option>';
       for(var mi=1;mi<=12;mi++)monthSel+='<option value="'+mi+'">'+mi+'月</option>';
       monthSel+='</select>';
@@ -8994,7 +9006,8 @@ function renderMgr(){
     [[1,'大人 1名'],[2,'大人 2名'],[3,'大人 3名'],[4,'大人 4名']].forEach(([k,l])=>{html+='<tr><td>デラックス</td><td>'+l+'</td><td><input type="number" value="'+(dp[k]||0)+'" onchange="updatePrice(\''+s+'\',\'dlx\','+k+',this.value)"></td></tr>';});
     html+='<tr><td>デラックス</td><td>小学生</td><td><input type="number" value="'+(dp.child||0)+'" onchange="updatePrice(\''+s+'\',\'dlx\',\'child\',this.value)"></td></tr>';
     html+='<tr><td>デラックス</td><td>幼児</td><td><input type="number" value="'+(dp.infant||0)+'" onchange="updatePrice(\''+s+'\',\'dlx\',\'infant\',this.value)"></td></tr>';
-    html+='</tbody></table><button class="save-btn" onclick="saveSeason(\''+s+'\')">保存</button><span class="saved-msg" id="msg-'+s+'">保存しました ✓</span></div>';
+    html+='</tbody></table><button class="save-btn" onclick="saveSeason(\''+s+'\')">保存</button><span class="saved-msg" id="msg-'+s+'">保存しました ✓</span>';
+    html+='</div></div>'; // season-body + season-block
   }
   html+='</div>';
   // ━━ PINコード設定 ━━
@@ -9306,6 +9319,14 @@ function updatePrice(s,room,key,val){if(!prices[s])prices[s]={sup:{},dlx:{}};if(
 function updateRange(s,i,field,val){if(!ranges[s])ranges[s]=[];ranges[s][i][field]=val;renderRateCal();}
 function addRange(s){if(!ranges[s])ranges[s]=[];var y=String(rateRangeYear);ranges[s].push({from:y+'-01-01',to:y+'-01-31'});renderMgr();}
 function setRateRangeYear(y){rateRangeYear=y;renderMgr();}
+function toggleSeasonBlock(s){
+  _seasonOpen[s]=!_seasonOpen[s];
+  var body=document.getElementById('season-body-'+s);
+  if(body) body.style.display=_seasonOpen[s]?'block':'none';
+  // 矢印を回転
+  var header=body&&body.previousElementSibling;
+  if(header){var arrow=header.querySelector('span:last-child');if(arrow)arrow.style.transform=_seasonOpen[s]?'rotate(180deg)':'';}
+}
 async function autoGenerateSeasons(){
   var year=rateRangeYear;
   var g=function(id){var el=document.getElementById(id);return el?el.value:'';};
