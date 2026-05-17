@@ -16,6 +16,8 @@
 // メイン：予約メール処理（自動実行用）
 // ============================================================
 function processReservationEmails() {
+  var _startTime = new Date().getTime();
+  var _timeLimit = 5 * 60 * 1000; // 5分
   var newQueries = [
     'subject:公式HP予約システム newer_than:3d',
     'subject:楽天トラベル newer_than:3d',
@@ -23,7 +25,9 @@ function processReservationEmails() {
     'subject:Booking.com newer_than:3d',
     'subject:Agoda newer_than:3d',
     'subject:Yahoo newer_than:3d',
-    'subject:一休 newer_than:3d'
+    'subject:一休 newer_than:3d',
+    'from:info@489ban.net newer_than:3d',        // 旧公式HP（489ban）
+    'from:sales@travel.rakuten.co.jp subject:R-WITH newer_than:3d'  // 旧公式HP（R-WITH）
   ];
   var cancelQueries = [
     'subject:予約キャンセル確認 newer_than:3d',
@@ -37,6 +41,7 @@ function processReservationEmails() {
     'subject:CXL newer_than:3d'
   ];
   for (var q = 0; q < newQueries.length; q++) {
+    if (new Date().getTime() - _startTime > _timeLimit) { Logger.log('クエリループ：時間制限に達したため中断'); return; }
     try {
       var threads = GmailApp.search(newQueries[q], 0, 10);
       for (var i = 0; i < threads.length; i++) {
@@ -44,6 +49,7 @@ function processReservationEmails() {
           var msgs = threads[i].getMessages();
           for (var j = 0; j < msgs.length; j++) {
             try {
+              if (new Date().getTime() - _startTime > _timeLimit) { Logger.log('時間制限に達したため処理を中断'); return; }
               var msg = msgs[j];
               var subject = msg.getSubject();
               var body = msg.getPlainBody();
@@ -53,7 +59,7 @@ function processReservationEmails() {
                 var data = parseEmail(src, body);
                 if (!data.guest_name) {
                   GmailApp.sendEmail(
-                    Session.getActiveUser().getEmail(),
+                    'wassa@wassa-okinawa.com',
                     '【要確認】予約メールの取り込み失敗: ' + subject,
                     '以下のメールから予約情報を抽出できませんでした。手動で確認してください。\n\n' +
                     '件名: ' + subject + '\n\n' + body.slice(0, 500)
@@ -81,6 +87,7 @@ function processReservationEmails() {
     } catch(queryErr) { Logger.log('クエリエラー [' + newQueries[q] + ']: ' + queryErr); }
   }
   for (var q2 = 0; q2 < cancelQueries.length; q2++) {
+    if (new Date().getTime() - _startTime > _timeLimit) { Logger.log('キャンセルループ：時間制限に達したため中断'); return; }
     try {
       var cThreads = GmailApp.search(cancelQueries[q2], 0, 10);
       for (var i2 = 0; i2 < cThreads.length; i2++) {
@@ -154,7 +161,8 @@ function isDuplicate(reservationNo, checkIn, guestName) {
           ? CONFIG.SUPABASE_URL + '/rest/v1/reservations?check_in=eq.' + checkIn + '&guest_name=eq.' + encodeURIComponent(guestName) + '&select=id'
           : null);
     if (!url) return false;
-    var r = UrlFetchApp.fetch(url, {headers:{'apikey':CONFIG.SUPABASE_KEY,'Authorization':'Bearer '+CONFIG.SUPABASE_KEY}});
+    var r = UrlFetchApp.fetch(url, {headers:{'apikey':CONFIG.SUPABASE_KEY,'Authorization':'Bearer '+CONFIG.SUPABASE_KEY}, muteHttpExceptions:true});
+    if (r.getResponseCode() !== 200) return false;
     return JSON.parse(r.getContentText()).length > 0;
   } catch(e) { return false; }
 }
@@ -216,6 +224,9 @@ function detectSource(s) {
   if (s.indexOf('Agoda')    !== -1) return 'Agoda';
   if (s.indexOf('じゃらん') !== -1) return 'じゃらん';
   if (s.indexOf('Yahoo')    !== -1) return '一休';
+  // 旧公式HPシステム
+  if (s.indexOf('R-WITH')   !== -1) return '公式HP';  // 旧楽天R-WITHシステム
+  if (s.indexOf('予約番')   !== -1) return '公式HP';  // 旧489banシステム
   return null;
 }
 
@@ -432,6 +443,34 @@ function parseDailyDetail(src, body) {
     }
 
   } else if (src === '公式HP') {
+    // R-WITHフォーマット（本文が楽天形式）
+    if (body.indexOf('楽天トラベル') !== -1 && body.indexOf('チェックイン日時') !== -1) {
+      return parseDailyDetail('楽天', body);
+    }
+    // 489banフォーマット: [1泊目](YYYY/MM/DD)
+    if (body.indexOf('[1泊目]') !== -1 || /\[\d+泊目\]\(\d{4}\//.test(body)) {
+      var blocks4b = body.split(/\[\d+泊目\]\((\d{4}\/\d{1,2}\/\d{1,2})\)/);
+      for (var i4b = 1; i4b < blocks4b.length; i4b += 2) {
+        var date4b = toYMD(blocks4b[i4b]); if (!date4b) continue;
+        var block4b = blocks4b[i4b+1]||'', items4b = [];
+        // 男性・女性 → 合算して大人宿泊料金
+        var _mM = block4b.match(/男性[\s　]+([\d,]+)円[\s　]*[×xｘＸ×][\s　]*(\d+)/);
+        var _fM = block4b.match(/女性[\s　]+([\d,]+)円[\s　]*[×xｘＸ×][\s　]*(\d+)/);
+        if (_mM || _fM) {
+          var _aTotal = 0, _aQty = 0;
+          if (_mM)  { _aTotal += toInt(_mM[1])  * parseInt(_mM[2]);  _aQty += parseInt(_mM[2]); }
+          if (_fM)  { _aTotal += toInt(_fM[1])  * parseInt(_fM[2]);  _aQty += parseInt(_fM[2]); }
+          if (_aQty > 0) items4b.push({item:'大人宿泊料金', qty:_aQty, price:Math.round(_aTotal/_aQty)});
+        }
+        var _cM4b = block4b.match(/小学生[\s　]+([\d,]+)円[\s　]*[×xｘＸ×][\s　]*(\d+)/);
+        if (_cM4b) items4b.push({item:'小学生宿泊料金', qty:parseInt(_cM4b[2]), price:toInt(_cM4b[1])});
+        var _iM4b = block4b.match(/子供\(3才未満\)[\s　]+([\d,]+)円[\s　]*[×xｘＸ×][\s　]*(\d+)/);
+        if (_iM4b) items4b.push({item:'幼児（食事無・布団無）', qty:parseInt(_iM4b[2]), price:toInt(_iM4b[1])});
+        if (items4b.length > 0) days.push({date:date4b, items:items4b});
+      }
+      return days;
+    }
+    // 現在の公式HPフォーマット
     var blocks4 = body.split(/\d+泊目\s*[：:]\s*(\d{4}\/\d{1,2}\/\d{1,2})/);
     for (var i4 = 1; i4 < blocks4.length; i4 += 2) {
       var date4 = toYMD(blocks4[i4]); if (!date4) continue;
@@ -651,6 +690,51 @@ function parseEmail(src, body) {
     }
 
   } else if (src === '公式HP') {
+
+    // ── フォーマット自動判定 ──────────────────────────────────
+    // R-WITHフォーマット（旧楽天R-WITHシステム）：楽天パーサーに委譲
+    if (body.indexOf('楽天トラベル') !== -1 && body.indexOf('チェックイン日時') !== -1) {
+      return parseEmail('楽天', body);
+    }
+    // 489banフォーマット（旧公式HP予約システム、〜2024年）
+    if (body.indexOf('[宿泊日]') !== -1 || body.indexOf('info@489ban.net') !== -1 || body.indexOf('予約番（株式会社') !== -1) {
+      d.source         = '公式HP';
+      d.reservation_no = ex(body, '\\[予約番号\\][\\s　]*：[\\s　]*([0-9]+)');
+      d.plan_name      = ex(body, '\\[プラン名\\][\\s　]*：[\\s　]*([^\\n]+)').trim();
+      d.room_type      = ex(body, '\\[部屋タイプ\\][\\s　]*：[\\s　]*([^\\n]+)').trim();
+      var _4d = ex(body, '\\[宿泊日\\][\\s　]*：[\\s　]*(\\d{4}年\\d{2}月\\d{2}日)');
+      var _4n = parseInt(ex(body, 'から(\\d+)泊') || '1');
+      if (_4d) { d.check_in = toYMD(_4d); d.check_out = calcCheckOut(d.check_in, _4n); }
+      d.check_in_time  = ex(body, '\\[チェックイン予定時間\\][\\s　]*：[\\s　]*(\\d{1,2}:\\d{2})');
+      var _4name = ex(body, '\\[氏名\\][\\s　]*：[\\s　]*([^（(\\n]+)').replace(/様\s*$/, '').trim();
+      d.guest_name = _4name;
+      var _4kana = ex(body, '\\[氏名\\][\\s　]*：[^（(]+[（(]([^）)]+)[）)]');
+      if (_4kana) { var _4kp = _4kana.trim().split(/[\s　]+/); d.sei_kana = _4kp[0]||''; d.mei_kana = _4kp.slice(1).join('')||''; }
+      d.email   = ex(body, '\\[Ｅメール\\][\\s　]*：[\\s　]*([^\\s\\n]+@[^\\s\\n]+)');
+      d.phone   = ex(body, '携帯電話[\\s　]*：[\\s　]*([0-9][0-9\\-]+)')
+               || ex(body, '自宅電話[\\s　]*：[\\s　]*([0-9][0-9\\-]+)');
+      var _4zip  = ex(body, '\\[郵便番号\\][\\s　]*：[\\s　]*([0-9]+)');
+      var _4addr = ex(body, '\\[ご住所\\][\\s　]*：[\\s　]*([^\\n]+)');
+      d.zip = _4zip.replace(/-/,'');
+      if (_4addr) { var _4pm = _4addr.match(/^([^\s　]*?[都道府県])/); d.pref = _4pm?_4pm[1]:''; var _4ar = _4pm?_4addr.slice(d.pref.length).trim():_4addr.trim(); var _4cm = _4ar.match(/^([^\s　]*?[市区町村郡])/); d.city = _4cm?_4cm[1]:''; d.address = _4cm?_4ar.slice(d.city.length).trim():_4ar; }
+      var _4fd = ex(body, '\\[お食事\\][\\s　]*：[\\s　]*([^\\n]+)');
+      if (/朝夕|朝・夕|両食|2食|二食/.test(_4fd)) d.meal = 'both';
+      else if (/夕/.test(_4fd)) d.meal = 'din';
+      else if (/朝/.test(_4fd)) d.meal = 'bf';
+      else d.meal = 'none';
+      var _4ml = parseInt(ex(body,'男性[\\s　]+(\\d+)名')||'0');
+      var _4fl = parseInt(ex(body,'女性[\\s　]+(\\d+)名')||'0');
+      d.adults   = (_4ml+_4fl) || parseInt(ex(body,'大人[^0-9]*(\\d+)名?')||'0');
+      d.children = parseInt(ex(body,'小学生[^0-9]*(\\d+)名')||'0');
+      d.infants  = parseInt(ex(body,'子供\\(3才未満\\)[\\s\\S]{0,30}(\\d+)名')||'0');
+      d.total_amount = toInt(ex(body, '合計：([0-9,]+)円'));
+      d.payment      = '現地決済';
+      var _4note = ex(body, '(?:備考|要望)[^：:]*：([^\\n]+)');
+      if (_4note && _4note.trim()) d.notes = _4note.trim();
+      return d;
+    }
+    // ── 現在の公式HPフォーマット（以下既存コード） ──────────────
+
     d.reservation_no = ex(body, '予約番号[\\s\\u3000]*[：:][\\s\\u3000]*([^\\n\\s\\u3000]+)');
     // 氏名（ふりがな付き）: "宇津 宏（ウヅヒロシ）" → guest_name=宇津 宏, kana=ウヅヒロシ
     d.guest_name     = (ex(body, '(?:宿泊者氏名|宿泊者名)[\\s\\u3000]*[：:][\\s\\u3000]*([^\\n(（]+)') || '').trim();
@@ -983,4 +1067,172 @@ function updateRoomType(reservationNo, roomLabel) {
       payload: JSON.stringify({room_type:roomLabel})
     });
   } catch(e) {}
+}
+
+// ============================================================
+// 一括請求再取り込み（GASエディタから手動実行）
+// ============================================================
+//
+// 使い方:
+//   1. GASエディタで startBulkReprocessBilling() を選択して「実行」
+//   2. 2分ごとに自動継続、完了時に wassa@wassa-okinawa.com にメール通知
+//   3. 進捗確認: checkBulkBillingStatus() を実行
+//   4. 中断したい場合: stopBulkReprocessBilling() を実行
+//
+// 対象: billing=null のOTA予約（楽天・じゃらん・一休・Booking.com・Agoda・公式HP）
+// 直予約はスキップ
+// メールが見つからない予約は billing=[] で保存（次回から除外）
+// ============================================================
+
+function startBulkReprocessBilling() {
+  var props = PropertiesService.getScriptProperties();
+  props.setProperty('bulk_status', 'active');
+  props.setProperty('bulk_done',   '0');
+  props.setProperty('bulk_skip',   '0');
+  props.setProperty('bulk_error',  '0');
+  Logger.log('=== 一括請求取り込み開始 ===');
+  continueBulkReprocessBilling();
+}
+
+function stopBulkReprocessBilling() {
+  var props = PropertiesService.getScriptProperties();
+  props.deleteProperty('bulk_status');
+  ScriptApp.getProjectTriggers().forEach(function(t){
+    if (t.getHandlerFunction() === 'continueBulkReprocessBilling') ScriptApp.deleteTrigger(t);
+  });
+  Logger.log('一括処理を中断しました。done=' + props.getProperty('bulk_done')
+    + ' skip=' + props.getProperty('bulk_skip'));
+}
+
+function checkBulkBillingStatus() {
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty('bulk_status') !== 'active') {
+    Logger.log('処理は実行中ではありません');
+    return;
+  }
+  Logger.log('処理中 — 成功: ' + props.getProperty('bulk_done')
+    + '件 / スキップ: ' + props.getProperty('bulk_skip')
+    + '件 / エラー: ' + props.getProperty('bulk_error') + '件');
+}
+
+function continueBulkReprocessBilling() {
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty('bulk_status') !== 'active') return;
+
+  var startTime = new Date().getTime();
+  var timeLimit = 4.5 * 60 * 1000; // 4分30秒で次回に引き渡し
+
+  var done   = parseInt(props.getProperty('bulk_done')  || '0');
+  var skip   = parseInt(props.getProperty('bulk_skip')  || '0');
+  var errors = parseInt(props.getProperty('bulk_error') || '0');
+
+  var otaSources = ['楽天', 'じゃらん', '一休', 'Booking.com', 'Agoda', '公式HP'];
+  var srcParam   = '(' + otaSources.map(function(s){ return encodeURIComponent(s); }).join(',') + ')';
+
+  while (true) {
+    // 時間切れチェック
+    if (new Date().getTime() - startTime > timeLimit) {
+      props.setProperty('bulk_done',  done.toString());
+      props.setProperty('bulk_skip',  skip.toString());
+      props.setProperty('bulk_error', errors.toString());
+      _setBulkBillingTrigger();
+      Logger.log('時間切れ・継続予約。成功: ' + done + ' スキップ: ' + skip);
+      return;
+    }
+
+    // billing=null のOTA予約を30件取得
+    var url = CONFIG.SUPABASE_URL + '/rest/v1/reservations'
+      + '?billing=is.null&source=in.' + srcParam
+      + '&select=id,source,guest_name,check_in,reservation_no'
+      + '&order=check_in.asc&limit=30';
+    var res = UrlFetchApp.fetch(url, {
+      headers: {'apikey': CONFIG.SUPABASE_KEY, 'Authorization': 'Bearer ' + CONFIG.SUPABASE_KEY},
+      muteHttpExceptions: true
+    });
+    var batch = null;
+    try { batch = JSON.parse(res.getContentText()); } catch(e) { errors++; break; }
+
+    if (!batch || !Array.isArray(batch) || batch.length === 0) {
+      // 全件完了
+      _finalizeBulkBilling(props, done, skip, errors);
+      return;
+    }
+
+    for (var i = 0; i < batch.length; i++) {
+      if (new Date().getTime() - startTime > timeLimit) {
+        props.setProperty('bulk_done',  done.toString());
+        props.setProperty('bulk_skip',  skip.toString());
+        props.setProperty('bulk_error', errors.toString());
+        _setBulkBillingTrigger();
+        Logger.log('時間切れ（ループ内）。成功: ' + done + ' スキップ: ' + skip);
+        return;
+      }
+
+      var resv = batch[i];
+      try {
+        var result = reprocessBillingFromEmail({
+          reservation_id: resv.id,
+          source:         resv.source || '',
+          guest_name:     resv.guest_name || '',
+          check_in:       resv.check_in || '',
+          reservation_no: resv.reservation_no || '',
+          bulk_mode:      true   // メールなしの場合 billing=[] で保存してスキップ
+        });
+        if (result.ok) {
+          done++;
+          Logger.log('✅ ' + resv.guest_name + ' ' + resv.check_in + ' (' + result.count + '行)');
+        } else {
+          // メール未発見 → billing=[] で保存（次回クエリから除外）
+          _markBillingEmpty(resv.id);
+          skip++;
+          Logger.log('⏭ ' + (resv.guest_name||'?') + ' ' + (resv.check_in||'?') + ': ' + result.error);
+        }
+      } catch(e) {
+        _markBillingEmpty(resv.id);
+        errors++;
+        Logger.log('❌ ' + (resv.guest_name||'?') + ': ' + e.toString());
+      }
+    }
+  }
+
+  // whileを抜けた場合（fetchエラー等）
+  props.setProperty('bulk_done',  done.toString());
+  props.setProperty('bulk_skip',  skip.toString());
+  props.setProperty('bulk_error', errors.toString());
+  _setBulkBillingTrigger();
+}
+
+function _markBillingEmpty(reservationId) {
+  try {
+    UrlFetchApp.fetch(CONFIG.SUPABASE_URL + '/rest/v1/reservations?id=eq.' + reservationId, {
+      method: 'PATCH',
+      contentType: 'application/json',
+      headers: {'apikey': CONFIG.SUPABASE_KEY, 'Authorization': 'Bearer ' + CONFIG.SUPABASE_KEY, 'Prefer': 'return=minimal'},
+      payload: JSON.stringify({billing: []}),
+      muteHttpExceptions: true
+    });
+  } catch(e) {}
+}
+
+function _setBulkBillingTrigger() {
+  ScriptApp.getProjectTriggers().forEach(function(t){
+    if (t.getHandlerFunction() === 'continueBulkReprocessBilling') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('continueBulkReprocessBilling').timeBased().after(2 * 60 * 1000).create();
+}
+
+function _finalizeBulkBilling(props, done, skip, errors) {
+  ScriptApp.getProjectTriggers().forEach(function(t){
+    if (t.getHandlerFunction() === 'continueBulkReprocessBilling') ScriptApp.deleteTrigger(t);
+  });
+  props.deleteProperty('bulk_status');
+  props.deleteProperty('bulk_done');
+  props.deleteProperty('bulk_skip');
+  props.deleteProperty('bulk_error');
+  var msg = '一括請求取り込みが完了しました。\n\n'
+    + '取り込み成功: ' + done + '件\n'
+    + 'スキップ（メールなし）: ' + skip + '件\n'
+    + 'エラー: ' + errors + '件';
+  Logger.log('=== 完了 ===\n' + msg);
+  GmailApp.sendEmail('wassa@wassa-okinawa.com', '【一括請求取り込み完了】' + done + '件成功', msg);
 }

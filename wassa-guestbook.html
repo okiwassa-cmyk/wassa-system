@@ -1195,6 +1195,7 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
       <button class="btn btn-ghost btn-sm owner-only" onclick="addBillingRow()" style="margin-top:8px">＋ 行を追加</button>
       <button class="btn btn-ghost btn-sm owner-only" onclick="addLodgingTax()" style="margin-top:8px;margin-left:6px">🏛 宿泊税を追加</button>
       <button class="btn btn-sm owner-only" onclick="genQuoteUrlForLine()" style="margin-top:8px;margin-left:6px;background:var(--green);color:#fff;border:none">🔗 LINE用見積書URLを生成</button>
+      <button id="btn-reimport-billing" class="btn btn-sm owner-only" onclick="reprocessBillingFromGas()" style="margin-top:8px;margin-left:6px;background:var(--ocean2);color:#fff;border:none;display:none">📧 メールから再取り込み</button>
 
       <!-- 集計パネル -->
       <div style="margin-top:16px;border:1px solid var(--sand2);border-radius:10px;overflow:hidden">
@@ -2981,6 +2982,12 @@ function fillResForm(r){
       +'<span style="margin-left:10px;color:var(--ocean2)">'+_pax+'</span>';
     if(r.plan_name)_si.innerHTML+='<div style="margin-top:4px;font-size:10px;color:var(--text3)">📋 '+escHtml(r.plan_name)+'</div>';
   }
+  // OTA予約のみ「メールから再取り込み」ボタンを表示
+  var _reimportBtn=document.getElementById('btn-reimport-billing');
+  if(_reimportBtn){
+    var _otaSrcs=['楽天','じゃらん','一休','Booking.com','Agoda','公式HP'];
+    _reimportBtn.style.display=(_otaSrcs.indexOf(r.source||'')!==-1)?'':'none';
+  }
   renderBillingRows();
   currentFoodRecords=[];if(document.getElementById('food-records-list'))document.getElementById('food-records-list').innerHTML='';loadFoodRecords(r.id);
   const rec=r.stay_record?(typeof r.stay_record==='string'?JSON.parse(r.stay_record):r.stay_record):{};
@@ -3493,6 +3500,47 @@ function removeBillingRow(i){
     }
   }
   renderBillingRows();
+}
+async function reprocessBillingFromGas(){
+  var r=allReservations.find(function(x){return x.id===currentEditId;});
+  if(!r){toast('予約を開いてください');return;}
+  var otaSrcs=['楽天','じゃらん','一休','Booking.com','Agoda','公式HP'];
+  if(otaSrcs.indexOf(r.source||'')===-1){toast('OTA予約のみ対応しています');return;}
+  if(billingRows.length>0&&!confirm('現在の明細をメールから取り込んだ内容で上書きします。続けますか？'))return;
+  toast('⏳ Gmailを検索中...');
+  try{
+    var res=await fetch(GAS_URL,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify({
+        action:'reprocessBilling',
+        reservation_id:r.id,
+        source:r.source||'',
+        guest_name:r.guest_name||'',
+        check_in:r.check_in||'',
+        reservation_no:r.reservation_no||''
+      })
+    });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    var data=await res.json();
+    if(!data.ok) throw new Error(data.error||'GASエラー');
+    // 取り込み前に確認ダイアログ（メールから読み取った情報を表示）
+    var confirmMsg='以下のメールが見つかりました。取り込みますか？\n\n'
+      +'氏名: '+data.found_guest+'\n'
+      +'CI日: '+data.found_checkin+'\n'
+      +(data.found_no?'予約番号: '+data.found_no+'\n':'')
+      +'\n明細行数: '+data.count+'行';
+    if(!confirm(confirmMsg)) return;
+    billingRows=data.billing;
+    // メモリ上の予約データも更新
+    var idx=allReservations.findIndex(function(x){return x.id===currentEditId;});
+    if(idx!==-1) allReservations[idx].billing=billingRows;
+    renderBillingRows();
+    toast('✅ '+data.count+'行を取り込みました');
+  }catch(e){
+    toast('取り込み失敗: '+e.message);
+    console.error('reprocessBilling error:',e);
+  }
 }
 function autoGenBillingRows(){
   var r=allReservations.find(function(x){return x.id===currentEditId;});
