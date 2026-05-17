@@ -2564,9 +2564,12 @@ async function quickCheckin(id){
     // グループの場合は全室更新
     if(r && r.group_id){
       var siblings = allReservations.filter(function(x){return x.group_id===r.group_id&&x.id!==id&&x.status!=='cancelled';});
+      var _failedRooms=[];
       for(var i=0;i<siblings.length;i++){
-        try{await sbPatch('reservations',siblings[i].id,{status:'checkin'});siblings[i].status='checkin';}catch(e2){}
+        try{await sbPatch('reservations',siblings[i].id,{status:'checkin'});siblings[i].status='checkin';}
+        catch(e2){_failedRooms.push(siblings[i].room_type||siblings[i].id);}
       }
+      if(_failedRooms.length) toast('⚠️ 以下の室のCI更新に失敗: '+_failedRooms.join(', '));
     }
     // UI更新
     var statusEl = document.getElementById('edit-status');
@@ -3176,9 +3179,12 @@ async function saveReservation(andClose){
     // グループ貸切：チェックイン時は全室を自動同期
     if(payload.status==='checkin' && payload.group_id){
       var groupSiblings=allReservations.filter(function(r){return r.group_id===payload.group_id&&r.id!==savedResId&&r.status!=='cancelled';});
+      var _gFailedRooms=[];
       for(var gi=0;gi<groupSiblings.length;gi++){
-        try{await sbPatch('reservations',groupSiblings[gi].id,{status:'checkin'});groupSiblings[gi].status='checkin';}catch(e2){}
+        try{await sbPatch('reservations',groupSiblings[gi].id,{status:'checkin'});groupSiblings[gi].status='checkin';}
+        catch(e2){_gFailedRooms.push(groupSiblings[gi].room_type||groupSiblings[gi].id);}
       }
+      if(_gFailedRooms.length) toast('⚠️ 以下の室のCI更新に失敗: '+_gFailedRooms.join(', '));
     }
     _resDirty=false;_setDirtyIndicator('res-modal',false);renderDashboard();renderReservations();renderCalendar();
     localStorage.removeItem('wassa_res_draft'); // 保存成功時は下書きを削除
@@ -9083,8 +9089,23 @@ async function saveCommon(){
   try{await supa('price_common?id=eq.1','PATCH',{bf_adult:common.bf_adult,bf_child:common.bf_child,bf_infant:common.bf_infant,din_adult:common.din_adult,din_child_rate:common.din_child_rate,din_child_price:common.din_child_price,din_infant:common.din_infant,updated_at:new Date().toISOString()});showMsg('msg-common');renderMgr();}catch(e){alert('保存に失敗しました: '+e.message);}
 }
 async function saveSeason(s){
-  try{const p=prices[s];const rows=[];for(const room of['sup','dlx']){const rp=p[room]||{};for(const k of[1,2,3,4])if(rp[k]!==undefined)rows.push({season:s,room,pax:k,pax_type:'adult',price:rp[k]});if(rp.child!==undefined)rows.push({season:s,room,pax:null,pax_type:'child',price:rp.child});if(room==='sup'){if(rp.infant_futon!==undefined)rows.push({season:s,room,pax:null,pax_type:'infant_futon',price:rp.infant_futon});if(rp.infant_no_futon!==undefined)rows.push({season:s,room,pax:null,pax_type:'infant_no_futon',price:rp.infant_no_futon});}else{if(rp.infant!==undefined)rows.push({season:s,room,pax:null,pax_type:'infant',price:rp.infant});}}
-  await supa('price_master?season=eq.'+s,'DELETE');if(rows.length)await supa('price_master','POST',rows);showMsg('msg-'+s);}catch(e){alert('保存に失敗しました: '+e.message);}
+  try{
+    const p=prices[s];const rows=[];
+    for(const room of['sup','dlx']){const rp=p[room]||{};for(const k of[1,2,3,4])if(rp[k]!==undefined)rows.push({season:s,room,pax:k,pax_type:'adult',price:rp[k]});if(rp.child!==undefined)rows.push({season:s,room,pax:null,pax_type:'child',price:rp.child});if(room==='sup'){if(rp.infant_futon!==undefined)rows.push({season:s,room,pax:null,pax_type:'infant_futon',price:rp.infant_futon});if(rp.infant_no_futon!==undefined)rows.push({season:s,room,pax:null,pax_type:'infant_no_futon',price:rp.infant_no_futon});}else{if(rp.infant!==undefined)rows.push({season:s,room,pax:null,pax_type:'infant',price:rp.infant});}}
+    // 既存データをバックアップ
+    var backup=await supa('price_master?season=eq.'+s);
+    // POSTを先に試す（失敗しても既存データは残る）
+    if(rows.length) await supa('price_master','POST',rows);
+    // POST成功後にバックアップ行を削除
+    if(backup&&backup.length){
+      for(var _bi=0;_bi<backup.length;_bi++){
+        await supa('price_master?id=eq.'+backup[_bi].id,'DELETE');
+      }
+    }
+    showMsg('msg-'+s);
+  }catch(e){
+    alert('保存に失敗しました: '+e.message);
+  }
 }
 function showMsg(id){const el=document.getElementById(id);if(!el)return;el.style.opacity='1';setTimeout(()=>el.style.opacity='0',2500);}
 
