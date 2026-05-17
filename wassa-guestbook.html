@@ -1870,7 +1870,7 @@ const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const SB_HEADERS = {'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=representation'};
 // ━━ システムアカウント（Supabase Auth）━━
 const WASSA_AUTH_EMAIL = 'oki.wassa@gmail.com';
-const WASSA_AUTH_PASS  = 'gTNJYTBKuHvXtpQN';
+const WASSA_AUTH_PASS  = 'wassards2022system';
 async function signInToSupabase(){
   try{
     const r=await fetch(SB_URL+'/auth/v1/token?grant_type=password',{
