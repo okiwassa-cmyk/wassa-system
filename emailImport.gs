@@ -1115,12 +1115,14 @@ function checkBulkBillingStatus() {
     + '件 / エラー: ' + props.getProperty('bulk_error') + '件');
 }
 
+// 年単位バッチ方式：1年分のメールをまとめて取得→メモリ上で全予約とマッチング
+// Gmail API呼び出し回数を大幅削減（1件ずつ検索→1年分まとめて検索）
 function continueBulkReprocessBilling() {
   var props = PropertiesService.getScriptProperties();
   if (props.getProperty('bulk_status') !== 'active') return;
 
   var startTime = new Date().getTime();
-  var timeLimit = 4.5 * 60 * 1000; // 4分30秒で次回に引き渡し
+  var timeLimit = 4.5 * 60 * 1000;
 
   var done   = parseInt(props.getProperty('bulk_done')  || '0');
   var skip   = parseInt(props.getProperty('bulk_skip')  || '0');
@@ -1129,9 +1131,119 @@ function continueBulkReprocessBilling() {
   var otaSources = ['楽天', 'じゃらん', '一休', 'Booking.com', 'Agoda', '公式HP'];
   var srcParam   = '(' + otaSources.map(function(s){ return encodeURIComponent(s); }).join(',') + ')';
 
-  while (true) {
-    // 時間切れチェック
-    if (new Date().getTime() - startTime > timeLimit) {
+  var subjectMap = {
+    '楽天': 'subject:楽天トラベル',
+    'じゃらん': 'subject:じゃらん',
+    '一休': 'subject:一休',
+    'Booking.com': 'subject:Booking.com',
+    'Agoda': 'subject:Agoda',
+    '公式HP': 'subject:公式HP予約システム'
+  };
+
+  while (new Date().getTime() - startTime < timeLimit) {
+    // billing=null の最古のチェックイン日を取得
+    var minUrl = CONFIG.SUPABASE_URL + '/rest/v1/reservations'
+      + '?billing=is.null&source=in.' + srcParam
+      + '&select=check_in&order=check_in.asc&limit=1';
+    var minRes = UrlFetchApp.fetch(minUrl, {
+      headers: {'apikey': CONFIG.SUPABASE_KEY, 'Authorization': 'Bearer ' + CONFIG.SUPABASE_KEY},
+      muteHttpExceptions: true
+    });
+    var minData = null;
+    try { minData = JSON.parse(minRes.getContentText()); } catch(e) { errors++; break; }
+
+    if (!minData || !Array.isArray(minData) || minData.length === 0) {
+      _finalizeBulkBilling(props, done, skip, errors);
+      return;
+    }
+
+    var year = minData[0].check_in.slice(0, 4); // "2016"
+
+    // その年のbilling=null予約を全件取得（最大1000件）
+    var batchUrl = CONFIG.SUPABASE_URL + '/rest/v1/reservations'
+      + '?billing=is.null&source=in.' + srcParam
+      + '&check_in=gte.' + year + '-01-01'
+      + '&check_in=lte.' + year + '-12-31'
+      + '&select=id,source,guest_name,check_in,reservation_no'
+      + '&order=check_in.asc&limit=1000';
+    var batchRes = UrlFetchApp.fetch(batchUrl, {
+      headers: {'apikey': CONFIG.SUPABASE_KEY, 'Authorization': 'Bearer ' + CONFIG.SUPABASE_KEY},
+      muteHttpExceptions: true
+    });
+    var batch = null;
+    try { batch = JSON.parse(batchRes.getContentText()); } catch(e) { errors++; break; }
+
+    if (!batch || !Array.isArray(batch) || batch.length === 0) break;
+
+    Logger.log('=== 年次バッチ: ' + year + ' (' + batch.length + '件) ===');
+
+    // Gmail検索: (year-1)/01/01 〜 (year+1)/12/31 の幅で検索
+    // 予約メールはCI日より数ヶ月前に届くため前年分も含める
+    var afterDate  = (parseInt(year) - 1) + '/01/01';
+    var beforeDate = (parseInt(year) + 1) + '/12/31';
+
+    // この年のbatchで必要なsourceを収集
+    var sourcesNeeded = {};
+    batch.forEach(function(r) { sourcesNeeded[r.source] = true; });
+
+    // emailCache: source -> [{check_in, guest_name, billingRows, plan_name}]
+    var emailCache = {};
+    var timeOver = false;
+
+    var srcKeys = Object.keys(sourcesNeeded);
+    for (var si = 0; si < srcKeys.length; si++) {
+      if (new Date().getTime() - startTime > timeLimit) { timeOver = true; break; }
+      var src = srcKeys[si];
+      emailCache[src] = [];
+
+      var queries = [];
+      if (src === '公式HP') {
+        queries.push('subject:公式HP予約システム after:' + afterDate + ' before:' + beforeDate);
+        queries.push('from:info@489ban.net after:' + afterDate + ' before:' + beforeDate);
+        queries.push('from:sales@travel.rakuten.co.jp subject:R-WITH after:' + afterDate + ' before:' + beforeDate);
+      } else if (subjectMap[src]) {
+        queries.push(subjectMap[src] + ' after:' + afterDate + ' before:' + beforeDate);
+      }
+
+      for (var qi = 0; qi < queries.length; qi++) {
+        if (new Date().getTime() - startTime > timeLimit) { timeOver = true; break; }
+        try {
+          var start = 0;
+          while (start < 500) {
+            if (new Date().getTime() - startTime > timeLimit) { timeOver = true; break; }
+            var threads = GmailApp.search(queries[qi], start, 50);
+            if (!threads || threads.length === 0) break;
+            for (var ti = 0; ti < threads.length; ti++) {
+              var msgs = threads[ti].getMessages();
+              for (var mi = 0; mi < msgs.length; mi++) {
+                try {
+                  var body = msgs[mi].getPlainBody();
+                  var parsed = parseEmail(src, body);
+                  if (parsed && parsed.check_in) {
+                    parsed._body = body;
+                    var billingRows = buildBillingFromEmail(parsed);
+                    emailCache[src].push({
+                      check_in:   parsed.check_in,
+                      guest_name: (parsed.guest_name || '').replace(/[\s　]/g, ''),
+                      billingRows: billingRows || [],
+                      plan_name:  parsed.plan_name || ''
+                    });
+                  }
+                } catch(e2) {}
+              }
+            }
+            start += 50;
+            if (threads.length < 50) break;
+          }
+        } catch(e) {
+          Logger.log('Gmail検索エラー [' + queries[qi] + ']: ' + e);
+        }
+      }
+      Logger.log('  ' + src + ': ' + (emailCache[src] || []).length + '件のメール取得');
+    }
+
+    if (timeOver) {
+      // 時間切れ：この年の処理は次回に持ち越し（billing=nullのまま）
       props.setProperty('bulk_done',  done.toString());
       props.setProperty('bulk_skip',  skip.toString());
       props.setProperty('bulk_error', errors.toString());
@@ -1140,66 +1252,65 @@ function continueBulkReprocessBilling() {
       return;
     }
 
-    // billing=null のOTA予約を30件取得
-    var url = CONFIG.SUPABASE_URL + '/rest/v1/reservations'
-      + '?billing=is.null&source=in.' + srcParam
-      + '&select=id,source,guest_name,check_in,reservation_no'
-      + '&order=check_in.asc&limit=30';
-    var res = UrlFetchApp.fetch(url, {
-      headers: {'apikey': CONFIG.SUPABASE_KEY, 'Authorization': 'Bearer ' + CONFIG.SUPABASE_KEY},
-      muteHttpExceptions: true
-    });
-    var batch = null;
-    try { batch = JSON.parse(res.getContentText()); } catch(e) { errors++; break; }
+    // 各予約をemailCacheとマッチング
+    for (var bi = 0; bi < batch.length; bi++) {
+      var resv = batch[bi];
+      var cache = emailCache[resv.source] || [];
+      var ciDate    = (resv.check_in || '').slice(0, 10);
+      var nameClean = (resv.guest_name || '').replace(/[\s　]/g, '');
+      var name3     = nameClean.slice(0, 3);
 
-    if (!batch || !Array.isArray(batch) || batch.length === 0) {
-      // 全件完了
-      _finalizeBulkBilling(props, done, skip, errors);
-      return;
-    }
-
-    for (var i = 0; i < batch.length; i++) {
-      if (new Date().getTime() - startTime > timeLimit) {
-        props.setProperty('bulk_done',  done.toString());
-        props.setProperty('bulk_skip',  skip.toString());
-        props.setProperty('bulk_error', errors.toString());
-        _setBulkBillingTrigger();
-        Logger.log('時間切れ（ループ内）。成功: ' + done + ' スキップ: ' + skip);
-        return;
+      var matched = null;
+      for (var k = 0; k < cache.length; k++) {
+        var em = cache[k];
+        var dateMatch = em.check_in && em.check_in.slice(0, 10) === ciDate;
+        var eName3    = em.guest_name.slice(0, 3);
+        var nameMatch = name3.length >= 2 && eName3.length >= 2 &&
+                        (em.guest_name.indexOf(name3) !== -1 || nameClean.indexOf(eName3) !== -1);
+        if (dateMatch && nameMatch) { matched = em; break; }
       }
 
-      var resv = batch[i];
-      try {
-        var result = reprocessBillingFromEmail({
-          reservation_id: resv.id,
-          source:         resv.source || '',
-          guest_name:     resv.guest_name || '',
-          check_in:       resv.check_in || '',
-          reservation_no: resv.reservation_no || '',
-          bulk_mode:      true   // メールなしの場合 billing=[] で保存してスキップ
-        });
-        if (result.ok) {
+      if (matched && matched.billingRows && matched.billingRows.length > 0) {
+        var mealInfo = detectMealPlan(matched.plan_name || '');
+        var mealCode = mealInfo.hasBf && mealInfo.hasDin ? 'both'
+                     : mealInfo.hasDin ? 'din' : mealInfo.hasBf ? 'bf' : 'none';
+        var patch = {billing: matched.billingRows};
+        if (matched.plan_name) patch.plan_name = matched.plan_name;
+        if (mealCode !== 'none' || matched.plan_name) patch.meal = mealCode;
+        try {
+          UrlFetchApp.fetch(CONFIG.SUPABASE_URL + '/rest/v1/reservations?id=eq.' + resv.id, {
+            method: 'PATCH',
+            contentType: 'application/json',
+            headers: {'apikey': CONFIG.SUPABASE_KEY, 'Authorization': 'Bearer ' + CONFIG.SUPABASE_KEY, 'Prefer': 'return=minimal'},
+            payload: JSON.stringify(patch),
+            muteHttpExceptions: true
+          });
           done++;
-          Logger.log('✅ ' + resv.guest_name + ' ' + resv.check_in + ' (' + result.count + '行)');
-        } else {
-          // メール未発見 → billing=[] で保存（次回クエリから除外）
+          Logger.log('✅ ' + resv.guest_name + ' ' + resv.check_in + ' (' + matched.billingRows.length + '行)');
+        } catch(e) {
           _markBillingEmpty(resv.id);
-          skip++;
-          Logger.log('⏭ ' + (resv.guest_name||'?') + ' ' + (resv.check_in||'?') + ': ' + result.error);
+          errors++;
+          Logger.log('❌ ' + (resv.guest_name||'?') + ': ' + e.toString());
         }
-      } catch(e) {
+      } else {
         _markBillingEmpty(resv.id);
-        errors++;
-        Logger.log('❌ ' + (resv.guest_name||'?') + ': ' + e.toString());
+        skip++;
+        Logger.log('⏭ ' + (resv.guest_name||'?') + ' ' + (resv.check_in||'?') + ': メール未発見');
       }
     }
+
+    props.setProperty('bulk_done',  done.toString());
+    props.setProperty('bulk_skip',  skip.toString());
+    props.setProperty('bulk_error', errors.toString());
+    Logger.log('年次バッチ完了: ' + year + ' 累計: done=' + done + ' skip=' + skip);
   }
 
-  // whileを抜けた場合（fetchエラー等）
+  // 時間切れ（while条件）
   props.setProperty('bulk_done',  done.toString());
   props.setProperty('bulk_skip',  skip.toString());
   props.setProperty('bulk_error', errors.toString());
   _setBulkBillingTrigger();
+  Logger.log('時間切れ・継続予約。成功: ' + done + ' スキップ: ' + skip);
 }
 
 function _markBillingEmpty(reservationId) {
