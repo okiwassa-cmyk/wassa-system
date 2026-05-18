@@ -2467,19 +2467,35 @@ function openReservation(id){
   var r=allReservations.find(function(x){return x.id===id;});if(!r)return;
   _resDirty=false;
   currentEditId=id;
-  // この予約が何回目かを計算（check_in昇順でのランク）
-  var _stRank = 0;
-  if(r.customer_id){
-    var _same = allReservations.filter(function(x){return x.customer_id===r.customer_id&&x.status!=='cancelled';}).sort(function(a,b){return a.check_in<b.check_in?-1:1;});
-    _stRank = _same.findIndex(function(x){return x.id===r.id;}) + 1;
-  }
-  if(!_stRank && r.guest_name){
-    var _n = (r.guest_name||'').replace(/[\s　]/g,'');
-    var _sameN = allReservations.filter(function(x){return (x.guest_name||'').replace(/[\s　]/g,'')===_n&&x.status!=='cancelled';}).sort(function(a,b){return a.check_in<b.check_in?-1:1;});
-    _stRank = _sameN.findIndex(function(x){return x.id===r.id;}) + 1;
-  }
-  var _stSuffix = _stRank===1 ? '　（初めてのご利用）' : _stRank>=2 ? '　（'+_stRank+'回目のご利用）' : '';
-  document.getElementById('res-modal-title').textContent=(r.guest_name||'予約詳細')+_stSuffix+(r.guest_name_kana?' 　('+r.guest_name_kana+')':'');
+  // タイトルをすぐ表示（仮）、その後DBから正確な順位を取得して更新
+  var _titleBase = (r.guest_name||'予約詳細')+(r.guest_name_kana?' 　('+r.guest_name_kana+')':'');
+  document.getElementById('res-modal-title').textContent=_titleBase;
+  // DB問い合わせで正確な「何回目」を非同期取得
+  (async function(){
+    var _rank=0, _params='';
+    if(r.customer_id){
+      _params='customer_id=eq.'+r.customer_id+'&status=not.in.(cancelled)&select=id,check_in&order=check_in.asc';
+    } else if(r.guest_name){
+      _params='guest_name=eq.'+encodeURIComponent(r.guest_name)+'&status=not.in.(cancelled)&select=id,check_in&order=check_in.asc';
+    }
+    if(_params){
+      try{
+        var _res=await _sbWithRefresh(async function(){
+          var _r=await fetch(SB_URL+'/rest/v1/reservations?'+_params,{headers:{'apikey':SB_KEY,'Authorization':SB_HEADERS['Authorization']}});
+          return await _r.json();
+        });
+        if(Array.isArray(_res)){
+          var _idx=_res.findIndex(function(x){return x.id===r.id;});
+          if(_idx>=0) _rank=_idx+1;
+        }
+      }catch(e){}
+    }
+    // まだ同じ予約が開いている場合のみ更新
+    if(currentEditId===id){
+      var _suffix=_rank===1?'　（初めてのご利用）':_rank>=2?'　（'+_rank+'回目のご利用）':'';
+      document.getElementById('res-modal-title').textContent=_titleBase+_suffix;
+    }
+  })();
   document.getElementById('del-res-btn').style.display='';fillResForm(r);openModal('res-modal');
   var ciBtn=document.getElementById('checkin-start-btn');var showCi=r.status!=='cancelled'&&r.status!=='checkout';
   ciBtn.style.display=showCi?'':'none';
