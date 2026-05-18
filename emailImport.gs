@@ -1084,13 +1084,25 @@ function updateRoomType(reservationNo, roomLabel) {
 // メールが見つからない予約は billing=[] で保存（次回から除外）
 // ============================================================
 
+// yoyaku@ 用：2017年以降を処理
 function startBulkReprocessBilling() {
+  _startBulkWithRange('2017', '2099');
+}
+
+// wassa@ 用：2015〜2016年を処理
+function startBulkReprocessBillingWassa() {
+  _startBulkWithRange('2015', '2016');
+}
+
+function _startBulkWithRange(minYear, maxYear) {
   var props = PropertiesService.getScriptProperties();
-  props.setProperty('bulk_status', 'active');
-  props.setProperty('bulk_done',   '0');
-  props.setProperty('bulk_skip',   '0');
-  props.setProperty('bulk_error',  '0');
-  Logger.log('=== 一括請求取り込み開始 ===');
+  props.setProperty('bulk_status',   'active');
+  props.setProperty('bulk_done',     '0');
+  props.setProperty('bulk_skip',     '0');
+  props.setProperty('bulk_error',    '0');
+  props.setProperty('bulk_min_year', minYear || '2000');
+  props.setProperty('bulk_max_year', maxYear || '2099');
+  Logger.log('=== 一括請求取り込み開始 ' + minYear + '〜' + maxYear + ' ===');
   continueBulkReprocessBilling();
 }
 
@@ -1127,6 +1139,8 @@ function continueBulkReprocessBilling() {
   var done   = parseInt(props.getProperty('bulk_done')  || '0');
   var skip   = parseInt(props.getProperty('bulk_skip')  || '0');
   var errors = parseInt(props.getProperty('bulk_error') || '0');
+  var minYear = props.getProperty('bulk_min_year') || '2000';
+  var maxYear = props.getProperty('bulk_max_year') || '2099';
 
   var otaSources = ['楽天', 'じゃらん', '一休', 'Booking.com', 'Agoda', '公式HP'];
   var srcParam   = '(' + otaSources.map(function(s){ return encodeURIComponent(s); }).join(',') + ')';
@@ -1141,9 +1155,11 @@ function continueBulkReprocessBilling() {
   };
 
   while (new Date().getTime() - startTime < timeLimit) {
-    // billing=null の最古のチェックイン日を取得
+    // billing=null の最古のチェックイン日を取得（年範囲フィルタ付き）
     var minUrl = CONFIG.SUPABASE_URL + '/rest/v1/reservations'
       + '?billing=is.null&source=in.' + srcParam
+      + '&check_in=gte.' + minYear + '-01-01'
+      + '&check_in=lte.' + maxYear + '-12-31'
       + '&select=check_in&order=check_in.asc&limit=1';
     var minRes = UrlFetchApp.fetch(minUrl, {
       headers: {'apikey': CONFIG.SUPABASE_KEY, 'Authorization': 'Bearer ' + CONFIG.SUPABASE_KEY},
@@ -1157,7 +1173,7 @@ function continueBulkReprocessBilling() {
       return;
     }
 
-    var year = minData[0].check_in.slice(0, 4); // "2016"
+    var year = minData[0].check_in.slice(0, 4);
 
     // その年のbilling=null予約を全件取得（最大1000件）
     var batchUrl = CONFIG.SUPABASE_URL + '/rest/v1/reservations'
