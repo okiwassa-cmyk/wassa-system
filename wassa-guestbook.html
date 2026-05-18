@@ -8576,6 +8576,20 @@ async function confirmReservationFromQuote(quoteId){
         if(!payload.phone && autoCust2.mobile) payload.phone = autoCust2.mobile;
         if(!payload.email && autoCust2.email) payload.email = autoCust2.email;
       }
+      // 空き確認：同室・同期間の確定済み予約が存在しないかチェック
+      var _conflictRes = await fetch(
+        SB_URL+'/rest/v1/reservations?room_type=eq.'+encodeURIComponent(qr.room_type||'')
+        +'&check_in=lt.'+qr.check_out+'&check_out=gt.'+qr.check_in
+        +'&status=not.in.(cancelled,tentative)&select=id,guest_name,check_in,check_out',
+        {headers:{'apikey':SB_KEY,'Authorization':SB_HEADERS['Authorization']}}
+      );
+      var _conflicts = await _conflictRes.json();
+      if(_conflicts && _conflicts.length>0){
+        var _cNames = _conflicts.map(function(c){return c.guest_name+'（'+c.check_in+'〜'+c.check_out+'）';}).join('\n');
+        if(!confirm('⚠️ ダブルブッキング警告\n\n'+qr.room_type+' はすでに以下の予約と重複しています：\n\n'+_cNames+'\n\nそれでも確定しますか？')){
+          toast('予約確定をキャンセルしました');return;
+        }
+      }
       const res = await sbPost('reservations', payload);
       if(res&&res[0]){
         allReservations.unshift(res[0]);
