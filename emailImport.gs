@@ -1177,10 +1177,10 @@ function continueBulkReprocessBilling() {
 
     Logger.log('=== 年次バッチ: ' + year + ' (' + batch.length + '件) ===');
 
-    // Gmail検索: (year-1)/01/01 〜 (year+1)/12/31 の幅で検索
-    // 予約メールはCI日より数ヶ月前に届くため前年分も含める
-    var afterDate  = (parseInt(year) - 1) + '/01/01';
-    var beforeDate = (parseInt(year) + 1) + '/12/31';
+    // Gmail検索: その年の6ヶ月前〜翌年1月末 に絞る（3年分→約18ヶ月に削減）
+    // 予約メールは通常CI日の半年以内に届く
+    var afterDate  = (parseInt(year) - 1) + '/07/01';
+    var beforeDate = (parseInt(year) + 1) + '/01/31';
 
     // この年のbatchで必要なsourceを収集
     var sourcesNeeded = {};
@@ -1209,7 +1209,7 @@ function continueBulkReprocessBilling() {
         if (new Date().getTime() - startTime > timeLimit) { timeOver = true; break; }
         try {
           var start = 0;
-          while (start < 500) {
+          while (start < 200) {
             if (new Date().getTime() - startTime > timeLimit) { timeOver = true; break; }
             var threads = GmailApp.search(queries[qi], start, 50);
             if (!threads || threads.length === 0) break;
