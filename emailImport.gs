@@ -1254,20 +1254,65 @@ function continueBulkReprocessBilling() {
 
     // 各予約をemailCacheとマッチング
     for (var bi = 0; bi < batch.length; bi++) {
+      if (new Date().getTime() - startTime > timeLimit) { timeOver = true; break; }
       var resv = batch[bi];
-      var cache = emailCache[resv.source] || [];
       var ciDate    = (resv.check_in || '').slice(0, 10);
       var nameClean = (resv.guest_name || '').replace(/[\s　]/g, '');
       var name3     = nameClean.slice(0, 3);
 
       var matched = null;
-      for (var k = 0; k < cache.length; k++) {
-        var em = cache[k];
-        var dateMatch = em.check_in && em.check_in.slice(0, 10) === ciDate;
-        var eName3    = em.guest_name.slice(0, 3);
-        var nameMatch = name3.length >= 2 && eName3.length >= 2 &&
-                        (em.guest_name.indexOf(name3) !== -1 || nameClean.indexOf(eName3) !== -1);
-        if (dateMatch && nameMatch) { matched = em; break; }
+
+      // guest_nameがない場合は予約番号でGmail直接検索
+      if (!resv.guest_name && resv.reservation_no) {
+        var rNo = resv.reservation_no.trim();
+        var rQueries = [];
+        if (resv.source === '楽天') {
+          rQueries.push('subject:楽天トラベル "' + rNo + '" after:' + afterDate + ' before:' + beforeDate);
+          rQueries.push('from:sales@travel.rakuten.co.jp "' + rNo + '" after:' + afterDate + ' before:' + beforeDate);
+        } else if (subjectMap[resv.source]) {
+          rQueries.push(subjectMap[resv.source] + ' "' + rNo + '" after:' + afterDate + ' before:' + beforeDate);
+        }
+        for (var rqi = 0; rqi < rQueries.length && !matched; rqi++) {
+          try {
+            var rThreads = GmailApp.search(rQueries[rqi], 0, 3);
+            for (var rti = 0; rti < rThreads.length && !matched; rti++) {
+              var rMsgs = rThreads[rti].getMessages();
+              for (var rmi = 0; rmi < rMsgs.length && !matched; rmi++) {
+                var rBody = rMsgs[rmi].getPlainBody();
+                var rParsed = parseEmail(resv.source, rBody);
+                if (rParsed && rParsed.check_in && rParsed.check_in.slice(0,10) === ciDate) {
+                  rParsed._body = rBody;
+                  var rBilling = buildBillingFromEmail(rParsed);
+                  if (rBilling && rBilling.length > 0) {
+                    matched = {billingRows: rBilling, plan_name: rParsed.plan_name || '', guest_name: rParsed.guest_name || ''};
+                    // guest_nameをDBに反映
+                    if (rParsed.guest_name) {
+                      try {
+                        UrlFetchApp.fetch(CONFIG.SUPABASE_URL + '/rest/v1/reservations?id=eq.' + resv.id, {
+                          method: 'PATCH', contentType: 'application/json',
+                          headers: {'apikey': CONFIG.SUPABASE_KEY, 'Authorization': 'Bearer ' + CONFIG.SUPABASE_KEY, 'Prefer': 'return=minimal'},
+                          payload: JSON.stringify({guest_name: rParsed.guest_name}),
+                          muteHttpExceptions: true
+                        });
+                      } catch(e3) {}
+                    }
+                  }
+                }
+              }
+            }
+          } catch(e2) { Logger.log('予約番号検索エラー [' + rNo + ']: ' + e2); }
+        }
+      } else {
+        // guest_nameあり → emailCacheで日付+名前マッチング
+        var cache = emailCache[resv.source] || [];
+        for (var k = 0; k < cache.length; k++) {
+          var em = cache[k];
+          var dateMatch = em.check_in && em.check_in.slice(0, 10) === ciDate;
+          var eName3    = em.guest_name.slice(0, 3);
+          var nameMatch = name3.length >= 2 && eName3.length >= 2 &&
+                          (em.guest_name.indexOf(name3) !== -1 || nameClean.indexOf(eName3) !== -1);
+          if (dateMatch && nameMatch) { matched = em; break; }
+        }
       }
 
       if (matched && matched.billingRows && matched.billingRows.length > 0) {
