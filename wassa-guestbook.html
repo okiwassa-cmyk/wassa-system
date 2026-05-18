@@ -1454,7 +1454,7 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
           <div class="fg"><label style="font-size:11px">めい（かな）</label><input type="text" id="fam-new-mei-kana" placeholder="はなこ"></div>
         </div>
         <div style="margin-top:6px">
-          <div class="fg full"><label style="font-size:11px">続柄</label><input type="text" id="fam-new-rel" placeholder="配偶者・長男・娘 など"></div>
+          <div class="fg full"><label style="font-size:11px">続柄</label><select id="fam-new-rel" style="font-size:13px"><option value="">続柄を選択</option><option value="配偶者">配偶者</option><option value="夫">夫</option><option value="妻">妻</option><option value="長男">長男</option><option value="長女">長女</option><option value="次男">次男</option><option value="次女">次女</option><option value="三男">三男</option><option value="三女">三女</option><option value="息子">息子</option><option value="娘">娘</option><option value="子">子</option><option value="父">父</option><option value="母">母</option><option value="兄">兄</option><option value="姉">姉</option><option value="弟">弟</option><option value="妹">妹</option><option value="祖父">祖父</option><option value="祖母">祖母</option><option value="その他">その他</option></select></div>
         </div>
         <div style="margin-top:8px">
           <button class="btn btn-primary btn-sm" onclick="addNewFamilyMember()">家族メンバーを追加</button>
@@ -5327,6 +5327,14 @@ async function linkFamilyGroup(id1, id2){
     renderCustFamily();
     toast('✅ 家族グループに追加しました');
   }catch(e){toast('エラー: '+e.message);}
+}
+
+var _REL_OPTS = ['','配偶者','夫','妻','長男','長女','次男','次女','三男','三女','息子','娘','子','父','母','兄','姉','弟','妹','祖父','祖母','その他'];
+function _relSelectHtml(currentVal, memberId){
+  var opts = _REL_OPTS.map(function(o){
+    return '<option value="'+o+'"'+(o===(currentVal||'')?' selected':'')+'>'+(o||'続柄')+'</option>';
+  }).join('');
+  return '<select onchange="updateFamilyRel('+memberId+',this.value)" onclick="event.stopPropagation()" style="width:90px;padding:3px 6px;border:1px solid var(--sand2);border-radius:4px;font-size:11px;color:var(--text2);flex-shrink:0">'+opts+'</select>';
 }
 
 // 家族メンバーの続柄を更新
@@ -9846,7 +9854,7 @@ function renderCustFamily(){
         +(mKana?'<div style="font-size:11px;color:var(--text3)">'+mKana+'</div>':'')
         +(m.mobile||m.email?'<div style="font-size:11px;color:var(--text3)">'+(m.mobile||m.email)+'</div>':'')
         +'</div>'
-        +'<input type="text" placeholder="続柄" value="'+(m.rel||'')+'" onchange="updateFamilyRel('+m.id+',this.value)" onclick="event.stopPropagation()" style="width:90px;padding:3px 8px;border:1px solid var(--sand2);border-radius:4px;font-size:11px;color:var(--text2);flex-shrink:0">'
+        +_relSelectHtml(m.rel||'', m.id)
         +'<div style="font-size:11px;color:var(--text3);white-space:nowrap">'+cnt+'回</div>'
         +'<button onclick="event.stopPropagation();unlinkFamilyMember('+m.id+')" style="background:none;border:1px solid var(--coral);border-radius:4px;color:var(--coral);font-size:11px;padding:2px 8px;cursor:pointer;white-space:nowrap">解除</button>'
         +'</div>';
