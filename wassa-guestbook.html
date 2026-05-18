@@ -1037,6 +1037,8 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
 <div class="modal-overlay" id="res-modal">
   <div class="modal">
     <div class="modal-header"><div class="modal-title" id="res-modal-title">予約詳細</div><button class="modal-close" onclick="closeModal('res-modal')">✕</button></div>
+    <!-- 貸切バナー -->
+    <div id="buyout-banner" style="display:none;margin:8px 16px 0;padding:8px 14px;background:var(--coral);border-radius:8px;font-size:13px;font-weight:700;color:#fff;letter-spacing:.05em">🏠 貸切予約</div>
     <!-- 同住所リピーター警告バナー -->
     <div id="same-address-banner" style="display:none;margin:8px 16px 0;padding:10px 14px;background:#FFF8E7;border:1.5px solid #F5C842;border-radius:10px;font-size:12px;color:#7A5C00"></div>
     <div class="modal-tabs">
@@ -2413,7 +2415,13 @@ function filterReservations(){
   list.sort(function(a,b){return a.check_in<b.check_in?1:-1;});
   const tb=document.getElementById('res-tbody');
   if(!list.length){tb.innerHTML='<tr class="empty-row"><td colspan="7">該当する予約はありません</td></tr>';return;}
-  tb.innerHTML=list.map(r=>`<tr onclick="openReservation(${r.id})" ${r.check_in===today?'id="res-row-today"':''} style="${r.check_in===today?'background:var(--ocean-light);font-weight:600;':''}"><td>${r.check_in||'—'}</td><td><strong>${r.guest_name||'—'}</strong></td><td>${shortRoom(r.room_type)}</td><td>${parseInt(r.adults)||0}名${parseInt(r.children)>0?'／小'+parseInt(r.children):''}${parseInt(r.infants)>0?'／幼'+parseInt(r.infants):''}</td><td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.plan_name||'—'}</td><td>${r.source||'—'}</td><td>${statusBadge(r.status)}</td></tr>`).join('');
+  tb.innerHTML=list.map(r=>{
+    var isBuyout=r.is_full_buyout||r.group_id;
+    var rowStyle=r.check_in===today?'background:var(--ocean-light);font-weight:600;':'';
+    if(isBuyout) rowStyle+='border-left:3px solid var(--coral);';
+    var buyoutBadge=isBuyout?'<span style="display:inline-block;background:var(--coral);color:#fff;font-size:10px;font-weight:700;padding:1px 5px;border-radius:4px;margin-left:5px;vertical-align:middle">貸切</span>':'';
+    return `<tr onclick="openReservation(${r.id})" ${r.check_in===today?'id="res-row-today"':''} style="${rowStyle}"><td>${r.check_in||'—'}</td><td><strong>${r.guest_name||'—'}</strong>${buyoutBadge}</td><td>${shortRoom(r.room_type)}</td><td>${parseInt(r.adults)||0}名${parseInt(r.children)>0?'／小'+parseInt(r.children):''}${parseInt(r.infants)>0?'／幼'+parseInt(r.infants):''}</td><td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.plan_name||'—'}</td><td>${r.source||'—'}</td><td>${statusBadge(r.status)}</td></tr>`;
+  }).join('');
   // 今日の行があればスクロールしてフォーカス
   var todayRow=document.getElementById('res-row-today');
   if(todayRow) setTimeout(function(){todayRow.scrollIntoView({behavior:'smooth',block:'center'});},50);
@@ -2923,6 +2931,9 @@ function fillResForm(r){
       buyoutLabel.style.fontWeight='';
     }
   }
+  // 貸切バナー
+  var buyoutBanner = document.getElementById('buyout-banner');
+  if(buyoutBanner) buyoutBanner.style.display=(r.group_id||r.is_full_buyout)?'':'none';
   updateGroupLinkStatus(r.group_id);
   var _kana = r.guest_name_kana||'';
   if(!_kana && r.customer_id){
