@@ -913,8 +913,12 @@ async function initMain() {
   const coutDef = new Date(cinDef); coutDef.setDate(coutDef.getDate() + 1);
   document.getElementById('f-cin').value  = paramCin  || fmtD(cinDef);
   document.getElementById('f-cout').value = paramCout || fmtD(coutDef);
-  document.getElementById('f-cin').min    = fmtD(today);
+  const minBook = new Date(today); minBook.setDate(minBook.getDate() + 2);
+  const maxBook = new Date(today); maxBook.setMonth(maxBook.getMonth() + 13);
+  document.getElementById('f-cin').min    = fmtD(minBook);
+  document.getElementById('f-cin').max    = fmtD(maxBook);
   document.getElementById('f-cout').min   = document.getElementById('f-cin').value;
+  document.getElementById('f-cout').max   = fmtD(maxBook);
   document.getElementById('f-cin').addEventListener('change', function() {
     refreshClosedDays();
     const newCin  = new Date(this.value + 'T00:00:00');

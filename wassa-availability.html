@@ -233,12 +233,16 @@ const ROOM_DEFS = [
 // 日付初期値
 const today = new Date();
 const fmtD  = d => d.toISOString().slice(0,10);
-const cin0  = new Date(today); cin0.setDate(cin0.getDate() + 1);
+const cin0  = new Date(today); cin0.setDate(cin0.getDate() + 2);
 const cout0 = new Date(cin0);  cout0.setDate(cout0.getDate() + 1);
 document.getElementById('f-cin').value  = fmtD(cin0);
 document.getElementById('f-cout').value = fmtD(cout0);
-document.getElementById('f-cin').min    = fmtD(today);
+const minBook = new Date(today); minBook.setDate(minBook.getDate() + 2);
+const maxBook = new Date(today); maxBook.setMonth(maxBook.getMonth() + 13);
+document.getElementById('f-cin').min    = fmtD(minBook);
+document.getElementById('f-cin').max    = fmtD(maxBook);
 document.getElementById('f-cout').min   = fmtD(cin0);
+document.getElementById('f-cout').max   = fmtD(maxBook);
 document.getElementById('f-cin').addEventListener('change', function() {
   const nc = new Date(this.value + 'T00:00:00');
   nc.setDate(nc.getDate() + 1);
