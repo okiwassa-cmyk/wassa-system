@@ -4128,12 +4128,17 @@ function _detectPlanType(planName, nights) {
   var p = planName || '';
   var type = p.indexOf('鮮魚') !== -1 ? 'sakana'
            : p.indexOf('アグー') !== -1 ? 'agoo'
+           : p.indexOf('BBQ') !== -1 || p.indexOf('バーベキュー') !== -1 ? 'bbq'
            : 'multi';
   if (nights <= 1) {
-    return type === 'sakana' ? 'single_sakana' : type === 'agoo' ? 'single_agoo' : 'single_agoo';
+    return type === 'sakana' ? 'single_sakana'
+         : type === 'agoo'   ? 'single_agoo'
+         : type === 'bbq'    ? 'single_bbq'
+         : 'single_agoo';
   }
   if (type === 'sakana') return 'multi_sakana';
   if (type === 'agoo')   return 'multi_agoo';
+  if (type === 'bbq')    return 'multi_bbq';
   return 'multi';
 }
 
@@ -6825,10 +6830,10 @@ async function saveDinCourses(){
 
 async function saveMealAutoRules(){
   var categories=[
-    {key:'new.single_sakana'}, {key:'new.single_agoo'},
-    {key:'new.multi_sakana'},  {key:'new.multi_agoo'}, {key:'new.multi'},
-    {key:'repeat.single_sakana'}, {key:'repeat.single_agoo'},
-    {key:'repeat.multi_sakana'},  {key:'repeat.multi_agoo'}, {key:'repeat.multi'},
+    {key:'new.single_sakana'}, {key:'new.single_agoo'}, {key:'new.single_bbq'},
+    {key:'new.multi_sakana'},  {key:'new.multi_agoo'},  {key:'new.multi_bbq'}, {key:'new.multi'},
+    {key:'repeat.single_sakana'}, {key:'repeat.single_agoo'}, {key:'repeat.single_bbq'},
+    {key:'repeat.multi_sakana'},  {key:'repeat.multi_agoo'},  {key:'repeat.multi_bbq'}, {key:'repeat.multi'},
   ];
   var rules={new:{},repeat:{}};
   categories.forEach(function(cat){
@@ -9076,23 +9081,28 @@ function renderMgr(){
   html+='<div class="section-card"><div class="section-title">食事自動セットルール</div>';
   html+='<div style="font-size:12px;color:var(--text3);margin-bottom:12px">予約の食事タブを開いたとき、プラン・新規/リピーター・泊目に応じて夕食コース名・朝食内容を自動セットします。<br>毎年コース名が変わる場合はここで更新してください。</div>';
   var _ruleCategories=[
-    {key:'new.single_sakana', label:'新規・1泊・鮮魚プラン'},
-    {key:'new.single_agoo',   label:'新規・1泊・アグープラン'},
-    {key:'new.multi_sakana',  label:'新規・連泊・鮮魚プラン（複数泊）'},
-    {key:'new.multi_agoo',    label:'新規・連泊・アグープラン（複数泊）'},
-    {key:'new.multi',         label:'新規・連泊プラン'},
-    {key:'repeat.single_sakana', label:'リピーター・1泊・鮮魚プラン'},
-    {key:'repeat.single_agoo',   label:'リピーター・1泊・アグープラン'},
-    {key:'repeat.multi_sakana',  label:'リピーター・連泊・鮮魚プラン'},
-    {key:'repeat.multi_agoo',    label:'リピーター・連泊・アグープラン'},
-    {key:'repeat.multi',         label:'リピーター・連泊プラン'},
+    {key:'new.single_sakana', label:'新規・1泊・鮮魚プラン',    minRows:1},
+    {key:'new.single_agoo',   label:'新規・1泊・アグープラン',  minRows:1},
+    {key:'new.single_bbq',    label:'新規・1泊・BBQプラン',     minRows:1},
+    {key:'new.multi_sakana',  label:'新規・連泊・鮮魚プラン',   minRows:3},
+    {key:'new.multi_agoo',    label:'新規・連泊・アグープラン', minRows:3},
+    {key:'new.multi_bbq',     label:'新規・連泊・BBQプラン',    minRows:3},
+    {key:'new.multi',         label:'新規・連泊プラン',         minRows:5},
+    {key:'repeat.single_sakana', label:'リピーター・1泊・鮮魚プラン',    minRows:1},
+    {key:'repeat.single_agoo',   label:'リピーター・1泊・アグープラン',  minRows:1},
+    {key:'repeat.single_bbq',    label:'リピーター・1泊・BBQプラン',     minRows:1},
+    {key:'repeat.multi_sakana',  label:'リピーター・連泊・鮮魚プラン',   minRows:3},
+    {key:'repeat.multi_agoo',    label:'リピーター・連泊・アグープラン', minRows:3},
+    {key:'repeat.multi_bbq',     label:'リピーター・連泊・BBQプラン',    minRows:3},
+    {key:'repeat.multi',         label:'リピーター・連泊プラン',         minRows:3},
   ];
   var _rar = mealAutoRules || {};
   html+='<div style="display:flex;flex-direction:column;gap:14px">';
   _ruleCategories.forEach(function(cat){
     var parts=cat.key.split('.');
     var custK=parts[0], planK=parts[1];
-    var arr=(_rar[custK]&&_rar[custK][planK])||[{dinner:'',breakfast:''},{dinner:'',breakfast:''}];
+    var arr=(_rar[custK]&&_rar[custK][planK])||[];
+    var minRows=cat.minRows||1;
     html+='<div><div style="font-size:11px;font-weight:600;color:var(--ocean);margin-bottom:6px">'+cat.label+'</div>';
     html+='<div style="display:grid;grid-template-columns:80px 1fr 1fr;gap:4px 8px;font-size:11px;color:var(--text3);margin-bottom:3px">';
     html+='<span>泊目</span><span>夕食コース名</span><span>朝食内容</span></div>';
@@ -9104,7 +9114,7 @@ function renderMgr(){
       menus.forEach(function(m){o+='<option value="'+escHtml(m.name||'')+'"'+(m.name===val?' selected':'')+'>'+escHtml(m.name||'')+'</option>';});
       return '<select id="'+id+'" style="'+_selStyle+'">'+o+'</select>';
     }
-    for(var ni=0;ni<Math.max(arr.length,2);ni++){
+    for(var ni=0;ni<Math.max(arr.length,minRows);ni++){
       var row=arr[ni]||{dinner:'',breakfast:''};
       html+='<div style="display:grid;grid-template-columns:80px 1fr 1fr;gap:4px 8px;margin-bottom:3px">';
       html+='<span style="font-size:12px;padding:6px 0;color:var(--text2)">'+(ni+1)+'泊目</span>';
