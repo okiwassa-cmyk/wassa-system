@@ -1216,6 +1216,12 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
             <input type="number" id="bill-points" value="0" min="0" oninput="billingMeta.points=parseFloat(this.value)||0;recalcBilling()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;width:90px;text-align:right">
             <span style="font-size:12px;color:var(--text3)">円</span>
           </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span style="font-size:12px;color:var(--text2);width:100px">ふるさと納税</span>
+            <span style="font-size:13px;color:var(--coral)">▲</span>
+            <input type="number" id="bill-furusato" value="0" min="0" oninput="billingMeta.furusato=parseFloat(this.value)||0;recalcBilling()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;width:90px;text-align:right">
+            <span style="font-size:12px;color:var(--text3)">円</span>
+          </div>
         </div>
         <!-- B: 諸費用合計 -->
         <div style="background:var(--sand);padding:8px 16px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--sand2)">
@@ -1226,17 +1232,15 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
         <div style="padding:10px 16px;border-top:1px solid var(--sand2);display:flex;gap:8px;align-items:center">
           <span style="font-size:12px;color:var(--text2);white-space:nowrap">支払方法</span>
           <select id="bill-payment" onchange="syncPaymentEdit();recalcBilling()" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;flex:1">
+            <option value="現地精算">現地精算</option>
             <option value="現金">現金</option>
             <option value="クレジット">クレジット</option>
             <option value="QR">QR</option>
-            <option value="OTA決済">OTA決済</option>
-            <option value="事前決済">事前決済</option>
-            <option value="現地精算">現地精算</option>
             <option value="事後決済">事後決済</option>
           </select>
         </div>
-        <!-- 前払い済み金額（OTA/事前決済時） -->
-        <div id="bill-prepaid-row" style="display:none;padding:8px 16px;border-top:1px solid var(--sand2);display:none;gap:8px;align-items:center;flex-wrap:wrap">
+        <!-- 前払い済み金額 -->
+        <div id="bill-prepaid-row" style="padding:8px 16px;border-top:1px solid var(--sand2);display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <span style="font-size:12px;color:var(--coral);white-space:nowrap">前払い済み額</span>
           <span style="font-size:12px;color:var(--coral)">▲</span>
           <input type="number" id="bill-prepaid" value="0" min="0" placeholder="0" style="font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;width:120px;text-align:right" oninput="recalcBilling()">
@@ -1920,7 +1924,7 @@ let allReservations=[], allCustomers=[], allMenus=[], allQuotes=[], allBillingPr
 let billingRows=[], foodDays=[], calYear, calMonth;
 // 定休日設定（Supabaseから読み込み）
 let _closedWeekdays=[3], _openExceptions=[], _closedExceptions=[];
-let billingMeta={plan_name:'',coupon:0,points:0};
+let billingMeta={plan_name:'',coupon:0,points:0,furusato:0};
 var currentDinCourseName='おまかせコース';
 // 夕食コース: Supabase(price_common.din_courses)から読み込む。ローカルフォールバック
 var dinCoursePresets=[{name:'おまかせコース',price:7700,is_default:true},{name:'アグーコース',price:6600},{name:'鮮魚コース',price:8800},{name:'BBQコース',price:8800}];
@@ -2890,7 +2894,7 @@ function clearResForm(){
   document.getElementById('edit-status').value='confirmed';updateTentativeBanner();_setDate('edit-checkin',dateStr(new Date()));
   _setDate('edit-checkout',dateStr(new Date(Date.now()+86400000)));document.getElementById('edit-citime').value='16:00';
   var _rs2=document.getElementById('edit-room-select');if(_rs2)_rs2.value='01';
-  billingRows=[];billingMeta={plan_name:'',coupon:0,points:0};foodDays=[];renderBillingRows();renderFoodDays();resetRecordForm();
+  billingRows=[];billingMeta={plan_name:'',coupon:0,points:0,furusato:0};foodDays=[];renderBillingRows();renderFoodDays();resetRecordForm();
 }
 function fillResForm(r){
   const set=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val||'';};
@@ -2988,16 +2992,17 @@ function fillResForm(r){
   // 前払い済み額リセット（他の予約の値が残らないように）
   var prepaidEl = document.getElementById('bill-prepaid'); if(prepaidEl) prepaidEl.value = r.prepaid_amount||0;
   var prepaidRow = document.getElementById('bill-prepaid-row');
-  if(prepaidRow) prepaidRow.style.display = (epay==='事前決済')?'flex':'none';
+  // 前払い済み額は常時表示のため制御不要
   var _rt=r.room_type||'';var roomVal=_rt.indexOf('02')!==-1?'02':_rt.indexOf('デラックス')!==-1||_rt==='DX'?'DX':'01';var _rs=document.getElementById('edit-room-select');if(_rs)_rs.value=roomVal;
   // billing読み込み
   var _b=r.billing?(typeof r.billing==='string'?JSON.parse(r.billing):r.billing):[];
   billingRows=Array.isArray(_b)?_b:(_b.rows&&Array.isArray(_b.rows)?_b.rows:[]);
-  billingMeta={plan_name:(!Array.isArray(_b)&&_b.plan_name)||'', coupon:(!Array.isArray(_b)&&parseFloat(_b.coupon))||0, points:(!Array.isArray(_b)&&parseFloat(_b.points))||0};
+  billingMeta={plan_name:(!Array.isArray(_b)&&_b.plan_name)||'', coupon:(!Array.isArray(_b)&&parseFloat(_b.coupon))||0, points:(!Array.isArray(_b)&&parseFloat(_b.points))||0, furusato:(!Array.isArray(_b)&&parseFloat(_b.furusato))||0};
   // billing UI更新
   var _planSel=document.getElementById('bill-plan-name'); if(_planSel) _planSel.value=billingMeta.plan_name;
   var _couponEl=document.getElementById('bill-coupon'); if(_couponEl) _couponEl.value=billingMeta.coupon;
   var _pointsEl=document.getElementById('bill-points'); if(_pointsEl) _pointsEl.value=billingMeta.points;
+  var _furusatoEl=document.getElementById('bill-furusato'); if(_furusatoEl) _furusatoEl.value=billingMeta.furusato||0;
   // 宿泊日程＋人数内訳表示
   var _si=document.getElementById('bill-stay-info');
   if(_si){
@@ -3110,6 +3115,7 @@ async function saveReservation(andClose){
     discount:parseInt(document.getElementById('edit-discount')?document.getElementById('edit-discount').value:0)||0,
     local_charge:parseInt(document.getElementById('edit-local-charge')?document.getElementById('edit-local-charge').value:0)||0,
     prepaid_amount:parseInt((document.getElementById('bill-prepaid')||{}).value||0)||0,
+    furusato_amount:parseInt((document.getElementById('bill-furusato')||{}).value||0)||0,
     total_amount:document.getElementById('edit-total-amt')?document.getElementById('edit-total-amt').value:'',
     payment:document.getElementById('edit-payment')?document.getElementById('edit-payment').value:(document.getElementById('bill-payment')?document.getElementById('bill-payment').value:''),
     billing:collectBilling(),food_days:collectFood(),stay_record:collectRecord(),
@@ -3377,6 +3383,15 @@ function renderBillingRows(){
     html+='</div>';
   });
   container.innerHTML=html;
+  // 事前決済・振込済みの場合、宿泊料金分を前払い済み額に自動セット
+  var bpay=(document.getElementById('bill-payment')||{}).value||'';
+  if(bpay==='事前決済'||bpay==='振込済み'){
+    var prepaidEl=document.getElementById('bill-prepaid');
+    if(prepaidEl&&parseInt(prepaidEl.value||0)===0){
+      var roomTotal=billingRows.reduce(function(s,r){return s+(!r.is_ref&&r.cat==='宿泊料金'?_billingRowAmt(r):0);},0);
+      if(roomTotal>0) prepaidEl.value=roomTotal;
+    }
+  }
   recalcBilling();
 }
 function billUpdate(i,key,val){
@@ -3601,6 +3616,7 @@ function autoGenBillingRows(){
     var planSel=document.getElementById('bill-plan-name'); if(planSel) planSel.value=billingMeta.plan_name||'';
     var couponEl=document.getElementById('bill-coupon'); if(couponEl) couponEl.value=billingMeta.coupon||0;
     var pointsEl=document.getElementById('bill-points'); if(pointsEl) pointsEl.value=billingMeta.points||0;
+    var furusatoEl=document.getElementById('bill-furusato'); if(furusatoEl) furusatoEl.value=billingMeta.furusato||0;
     renderBillingRows();
     toast(r.source==='直予約'?'お客様にご提示した料金を復元しました。':'予約取り込み時の明細を復元しました。');
     return;
@@ -3711,6 +3727,7 @@ function autoGenBillingRows(){
   var planSel=document.getElementById('bill-plan-name'); if(planSel) planSel.value=billingMeta.plan_name||'';
   var couponEl=document.getElementById('bill-coupon'); if(couponEl) couponEl.value=billingMeta.coupon||0;
   var pointsEl=document.getElementById('bill-points'); if(pointsEl) pointsEl.value=billingMeta.points||0;
+  var furusatoEl2=document.getElementById('bill-furusato'); if(furusatoEl2) furusatoEl2.value=billingMeta.furusato||0;
   renderBillingRows();
   toast('基本行を生成しました。金額を入力してください。');
 }
@@ -3915,7 +3932,7 @@ async function genQuoteUrlForLine(){
   // 合計計算（参考行除外）
   var total=billingRows.filter(function(row){return !row.is_ref;})
     .reduce(function(s,row){return s+((row.price||0)-(row.discount||0))*(row.qty||1);},0);
-  total-=(billingMeta.coupon||0)+(billingMeta.points||0);
+  total-=(billingMeta.coupon||0)+(billingMeta.points||0)+(billingMeta.furusato||0);
   var validUntil=new Date();validUntil.setDate(validUntil.getDate()+7);
   var roomKey=(r.room_type||'').indexOf('デラックス')!==-1?'dlx':'sup';
   var payload={
@@ -3955,19 +3972,15 @@ function recalcBilling(){
   var totalA=billingRows.reduce(function(s,r){return s+_billingRowAmt(r);},0);
   var coupon=billingMeta.coupon||0;
   var points=billingMeta.points||0;
-  var totalB=-(coupon+points);
-  var payMethod=(document.getElementById('bill-payment')||{}).value||'現地精算';
-  var onsiteTotal;
-  if(payMethod==='OTA決済'){
-    // OTA経由で全額精算済み → 現地請求なし
-    onsiteTotal=0;
-  } else if(payMethod==='事前決済'){
-    var prepaid=parseFloat((document.getElementById('bill-prepaid')||{}).value||0);
-    onsiteTotal=Math.max(0,totalA+totalB-prepaid);
-  } else {
-    // 現地精算・事後決済
-    onsiteTotal=Math.max(0,totalA+totalB);
-  }
+  var furusato=billingMeta.furusato||0;
+  var totalB=-(coupon+points+furusato);
+  var basePayMethod=(document.getElementById('edit-payment')||{}).value||'現地精算';
+  var billPayMethod=(document.getElementById('bill-payment')||{}).value||'';
+  // ラベル更新
+  var prepaid=parseFloat((document.getElementById('bill-prepaid')||{}).value||0);
+  var lbl=document.getElementById('bill-onsite-label');
+  if(lbl) lbl.textContent=prepaid>0?'現地精算額（A + B - 前払い）':'現地精算額（A + B）';
+  var onsiteTotal=Math.max(0,totalA+totalB-prepaid);
   var elA=document.getElementById('bill-total-A'); if(elA) elA.textContent='¥'+fmt(totalA);
   var elB=document.getElementById('bill-total-B'); if(elB) elB.textContent=totalB<0?'▲¥'+fmt(coupon+points):'¥0';
   var elOnsite=document.getElementById('bill-onsite-total'); if(elOnsite) elOnsite.textContent='¥'+fmt(onsiteTotal);
@@ -3984,8 +3997,8 @@ function recalcBilling(){
 }
 function recalcChange(){
   var total=billingRows.reduce(function(s,r){return s+_billingRowAmt(r);},0);
-  var coupon=billingMeta.coupon||0, points=billingMeta.points||0;
-  var onsiteTotal=Math.max(0,total-coupon-points);
+  var coupon=billingMeta.coupon||0, points=billingMeta.points||0, furusato2=billingMeta.furusato||0;
+  var onsiteTotal=Math.max(0,total-coupon-points-furusato2);
   var recv=parseFloat((document.getElementById('bill-receive')||{}).value)||0;
   var el=document.getElementById('bill-change');
   if(el) el.textContent=recv?'¥'+fmt(recv-onsiteTotal):'—';
@@ -3996,6 +4009,7 @@ function collectBilling(){
     plan_name:billingMeta.plan_name||'',
     coupon:billingMeta.coupon||0,
     points:billingMeta.points||0,
+    furusato:billingMeta.furusato||0,
     payment:(document.getElementById('bill-payment')||{}).value||'',
     receive:(document.getElementById('bill-receive')||{}).value||'',
     total:billingRows.reduce(function(s,r){return s+_billingRowAmt(r);},0)
@@ -4523,15 +4537,10 @@ function syncPaymentSelect(){} // 後方互換：不要になったが呼び出�
 function syncPaymentEdit(){
   var v=(document.getElementById('bill-payment')||{}).value||'';
   var ep=document.getElementById('edit-payment'); if(ep) ep.value=v;
-  // 前払い行の表示切替（事前決済のみ表示・OTA決済は不要）
-  var prepaidRow=document.getElementById('bill-prepaid-row');
-  if(prepaidRow) prepaidRow.style.display=(v==='事前決済')?'flex':'none';
   // ラベル更新
   var lbl=document.getElementById('bill-onsite-label');
   if(lbl){
-    if(v==='OTA決済') lbl.textContent='現地請求額（OTA精算済み）';
-    else if(v==='事前決済') lbl.textContent='現地精算額（A + B - 前払い）';
-    else if(v==='事後決済') lbl.textContent='請求合計額';
+    if(v==='事後決済') lbl.textContent='請求合計額';
     else lbl.textContent='現地精算額（A + B）';
   }
 }
