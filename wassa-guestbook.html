@@ -5373,7 +5373,7 @@ async function linkFamilyGroup(id1, id2){
   }catch(e){toast('エラー: '+e.message);}
 }
 
-var _REL_OPTS = ['','配偶者','夫','妻','長男','長女','次男','次女','三男','三女','息子','娘','子','父','母','兄','姉','弟','妹','祖父','祖母','その他'];
+var _REL_OPTS = ['','配偶者','子','親','兄弟・姉妹','祖父','祖母','その他'];
 function _relSelectHtml(currentVal, memberId){
   var opts = _REL_OPTS.map(function(o){
     return '<option value="'+o+'"'+(o===(currentVal||'')?' selected':'')+'>'+(o||'続柄')+'</option>';
@@ -10240,7 +10240,7 @@ function renderCompanionRows(){
     html += '<input type="checkbox" '+isFam+' onchange="toggleCompanionFamily('+i+',this.checked)" style="width:15px;height:15px;cursor:pointer">';
     html += '代表者と同じ家族（住所・連絡先不要）</label>';
     if(c.isFamily){
-      var relOpts=['配偶者','子','親','兄弟・姉妹','その他家族'];
+      var relOpts=['配偶者','子','親','兄弟・姉妹','祖父','祖母','その他'];
       html += '<div style="margin-bottom:6px"><label style="font-size:11px;color:var(--text3)">続柄</label>';
       html += '<select onchange="editCompanions['+i+'].rel=this.value" style="width:100%;padding:6px 10px;border:1px solid var(--sand2);border-radius:6px;font-size:13px">';
       html += '<option value="">選択してください</option>';
@@ -10256,7 +10256,8 @@ function renderCompanionRows(){
           var _fk = fc.kana || '';
           var _label = _fn + (fc.rel ? ' ('+fc.rel+')' : '');
           if(!_fn) return;
-          html += '<button type="button" onclick="applyFamilyCandidate('+i+',\''+_fn.replace(/'/g,'\\\'')+ '\',\''+_fk.replace(/'/g,'\\\'')+'\')" '
+          var _fr = (fc.rel||'').replace(/'/g,'\\\'');
+          html += '<button type="button" onclick="applyFamilyCandidate('+i+',\''+_fn.replace(/'/g,'\\\'')+ '\',\''+_fk.replace(/'/g,'\\\'')+ '\',\''+_fr+'\')" '
             +'style="padding:4px 10px;background:var(--ocean-light);border:1px solid var(--ocean2);border-radius:20px;font-size:12px;color:var(--ocean2);cursor:pointer">'+_label+'</button>';
         });
         html += '</div></div>';
@@ -10328,9 +10329,10 @@ function getFamilyCandidates(){
   return Object.values(seen);
 }
 
-function applyFamilyCandidate(i, name, kana){
+function applyFamilyCandidate(i, name, kana, rel){
   editCompanions[i].name = name;
   editCompanions[i].kana = kana;
+  if(rel) editCompanions[i].rel = rel;
   renderCompanionRows();
 }
 
