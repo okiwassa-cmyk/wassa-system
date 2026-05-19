@@ -3982,13 +3982,16 @@ function recalcBilling(){
   if(lbl) lbl.textContent=prepaid>0?'現地精算額（A + B - 前払い）':'現地精算額（A + B）';
   var onsiteTotal=Math.max(0,totalA+totalB-prepaid);
   var elA=document.getElementById('bill-total-A'); if(elA) elA.textContent='¥'+fmt(totalA);
-  var elB=document.getElementById('bill-total-B'); if(elB) elB.textContent=totalB<0?'▲¥'+fmt(coupon+points):'¥0';
+  var elB=document.getElementById('bill-total-B'); if(elB) elB.textContent=totalB<0?'▲¥'+fmt(coupon+points+furusato):'¥0';
   var elOnsite=document.getElementById('bill-onsite-total'); if(elOnsite) elOnsite.textContent='¥'+fmt(onsiteTotal);
   var elNote=document.getElementById('bill-onsite-note');
-  if(payMethod==='OTA決済'){
+  if(billPayMethod==='OTA決済'){
     if(elNote) elNote.textContent='OTA経由で精算済み';
   } else {
-    if(elNote) elNote.textContent=(coupon+points>0)?'クーポン¥'+fmt(coupon)+' ＋ ポイント¥'+fmt(points)+' 差引き済み':'';
+    var noteArr=[];
+    if(coupon+points>0) noteArr.push('クーポン¥'+fmt(coupon)+' ＋ ポイント¥'+fmt(points)+' 差引き済み');
+    if(furusato>0) noteArr.push('ふるさと納税¥'+fmt(furusato)+' 差引き済み');
+    if(elNote) elNote.textContent=noteArr.join(' / ');
   }
   // 保存用hidden更新
   var lc=document.getElementById('edit-local-charge'); if(lc) lc.value=onsiteTotal;
