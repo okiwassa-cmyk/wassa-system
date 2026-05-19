@@ -9096,12 +9096,20 @@ function renderMgr(){
     html+='<div><div style="font-size:11px;font-weight:600;color:var(--ocean);margin-bottom:6px">'+cat.label+'</div>';
     html+='<div style="display:grid;grid-template-columns:80px 1fr 1fr;gap:4px 8px;font-size:11px;color:var(--text3);margin-bottom:3px">';
     html+='<span>泊目</span><span>夕食コース名</span><span>朝食内容</span></div>';
+    var _dinMenus=(allMenus||[]).filter(function(m){return m.category==='ディナー'||m.category==='夕食';});
+    var _bfMenus=(allMenus||[]).filter(function(m){return m.category==='朝食';});
+    var _selStyle='font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--sand)';
+    function _menuSel(id,menus,val){
+      var o='<option value="">（セットなし）</option>';
+      menus.forEach(function(m){o+='<option value="'+escHtml(m.name||'')+'"'+(m.name===val?' selected':'')+'>'+escHtml(m.name||'')+'</option>';});
+      return '<select id="'+id+'" style="'+_selStyle+'">'+o+'</select>';
+    }
     for(var ni=0;ni<Math.max(arr.length,2);ni++){
       var row=arr[ni]||{dinner:'',breakfast:''};
       html+='<div style="display:grid;grid-template-columns:80px 1fr 1fr;gap:4px 8px;margin-bottom:3px">';
       html+='<span style="font-size:12px;padding:6px 0;color:var(--text2)">'+(ni+1)+'泊目</span>';
-      html+='<input type="text" value="'+escHtml(row.dinner||'')+'" id="mar-'+custK+'-'+planK+'-din-'+ni+'" placeholder="空欄=セットなし" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px">';
-      html+='<input type="text" value="'+escHtml(row.breakfast||'')+'" id="mar-'+custK+'-'+planK+'-bf-'+ni+'" placeholder="空欄=セットなし" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px">';
+      html+=_menuSel('mar-'+custK+'-'+planK+'-din-'+ni, _dinMenus, row.dinner||'');
+      html+=_menuSel('mar-'+custK+'-'+planK+'-bf-'+ni, _bfMenus, row.breakfast||'');
       html+='</div>';
     }
     html+='</div>';
