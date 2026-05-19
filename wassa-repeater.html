@@ -717,6 +717,17 @@ function isClosedDay(ds) {
   if (ce.includes(ds)) return true;
   return wd.includes(new Date(ds+'T00:00:00').getDay());
 }
+// 滞在期間中にメンテナンス日が含まれるか確認し、最初の該当日を返す
+function _closedNightInStay(cin, cout) {
+  let d = new Date(cin + 'T00:00:00');
+  const end = new Date(cout + 'T00:00:00');
+  while (d < end) {
+    const ds = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    if (isClosedDay(ds)) return ds;
+    d.setDate(d.getDate() + 1);
+  }
+  return null;
+}
 
 function checkCapacity() {
   const adults   = parseInt(document.getElementById('f-adults').value)||0;
@@ -896,7 +907,8 @@ function updateEstimate() {
   const roomLabel = ROOM_LABEL[room] || room;
   const titleHtml = `<div class="est-title">${roomLabel}　${nights.length}泊　${MEAL_LABEL[meal]||''}<br><span style="font-size:12px;font-weight:400;color:var(--text2)">${paxDesc}</span></div>`;
 
-  const closedWarn = isClosedDay(cin) ? '<div style="color:var(--rose);font-size:12px;margin-bottom:8px">⚠️ チェックイン日はメンテナンス日です</div>' : '';
+  const _closedNight = _closedNightInStay(cin, cout);
+  const closedWarn = _closedNight ? `<div style="color:var(--rose);font-size:12px;margin-bottom:8px">⚠️ ${_closedNight.slice(5).replace('-','/')} はメンテナンス日のためご利用いただけません</div>` : '';
   document.getElementById('estimate-rows').innerHTML = closedWarn + titleHtml + nightHtml;
   document.getElementById('estimate-total').textContent = total > 0 ? `¥${fmt(total)}` : '—';
   document.getElementById('estimate-wrap').style.display = total > 0 ? 'block' : 'none';
@@ -904,8 +916,8 @@ function updateEstimate() {
   // リアルタイム空室・メンテナンス日チェック
   const _errEl = document.getElementById('form-error');
   const _btn   = document.getElementById('submit-btn');
-  if (isClosedDay(cin)) {
-    _errEl.textContent = 'チェックイン日はメンテナンス日のためご利用いただけません。別の日程をお選びください。';
+  if (_closedNight) {
+    _errEl.textContent = `${_closedNight.slice(5).replace('-','/')} はメンテナンス日のためご利用いただけません。別の日程をお選びください。`;
     _errEl.dataset.source = 'avail';
     _btn.disabled = true;
   } else {
@@ -1059,7 +1071,8 @@ async function submitBooking() {
   if (!phone)             { errEl.textContent = '電話番号を入力してください。'; return; }
   if (!cin || !cout)      { errEl.textContent = 'チェックイン・チェックアウト日を選択してください。'; return; }
   if (cin >= cout)        { errEl.textContent = 'チェックアウトはチェックインより後の日付を選択してください。'; return; }
-  if (isClosedDay(cin))   { errEl.textContent = 'チェックイン日はメンテナンス日のためご利用いただけません。別の日程をお選びください。'; return; }
+  const _cn = _closedNightInStay(cin, cout);
+  if (_cn) { errEl.textContent = `${_cn.slice(5).replace('-','/')} はメンテナンス日のためご利用いただけません。別の日程をお選びください。`; return; }
 
   const btn = document.getElementById('submit-btn');
   btn.disabled = true;
