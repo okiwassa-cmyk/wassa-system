@@ -1073,6 +1073,7 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
         </div>
         <div class="fg"><label>決済方法</label>
           <select id="edit-payment">
+            <option value="">— 不明 —</option>
             <option value="現地精算">現地精算</option>
             <option value="事前決済">事前決済</option>
             <option value="振込済み">振込済み</option>
@@ -1602,6 +1603,7 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
       </div>
       <div class="fg"><label>決済方法</label>
         <select id="dr-payment">
+          <option value="">— 不明 —</option>
           <option value="現地精算">現地精算</option>
           <option value="事前決済">事前決済</option>
           <option value="振込済み">振込済み</option>
@@ -2908,7 +2910,7 @@ function fillResForm(r){
   if(rn2row) rn2row.style.display = (r.reservation_no2||r.resno2||'') ? '' : 'none';
   // ③決済方法セット
   var epay = document.getElementById('edit-payment');
-  if(epay) epay.value = r.payment || '現地精算';
+  if(epay) epay.value = r.payment || '';
   // ⑤アレルギー・苦手食材表示
   var custForAllergy = r.customer_id ? allCustomers.find(function(c){return c.id===r.customer_id;}) : null;
   var allergyRow = document.getElementById('allergy-display-row');
