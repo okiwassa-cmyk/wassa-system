@@ -764,6 +764,8 @@ function updateEstimate() {
 
   if (!cin || !cout || cin >= cout) {
     document.getElementById('estimate-wrap').style.display = 'none';
+    const _e = document.getElementById('form-error');
+    if (_e && _e.dataset.source === 'avail') { _e.textContent = ''; delete _e.dataset.source; }
     return;
   }
 
@@ -898,6 +900,59 @@ function updateEstimate() {
   document.getElementById('estimate-rows').innerHTML = closedWarn + titleHtml + nightHtml;
   document.getElementById('estimate-total').textContent = total > 0 ? `¥${fmt(total)}` : '—';
   document.getElementById('estimate-wrap').style.display = total > 0 ? 'block' : 'none';
+
+  // リアルタイム空室・メンテナンス日チェック
+  const _errEl = document.getElementById('form-error');
+  const _btn   = document.getElementById('submit-btn');
+  if (isClosedDay(cin)) {
+    _errEl.textContent = 'チェックイン日はメンテナンス日のためご利用いただけません。別の日程をお選びください。';
+    _errEl.dataset.source = 'avail';
+    _btn.disabled = true;
+  } else {
+    if (_errEl.dataset.source === 'avail') { _errEl.textContent = ''; delete _errEl.dataset.source; }
+    clearTimeout(_availTimer);
+    _availTimer = setTimeout(_checkAvail, 500);
+  }
+}
+
+let _availTimer = null;
+async function _checkAvail() {
+  const cin     = document.getElementById('f-cin').value;
+  const cout    = document.getElementById('f-cout').value;
+  const roomKey = document.getElementById('f-room').value;
+  const errEl   = document.getElementById('form-error');
+  const btn     = document.getElementById('submit-btn');
+  if (!cin || !cout || cin >= cout) return;
+  try {
+    const r = await fetch(
+      `${SB_URL}/rest/v1/reservations?status=neq.cancelled&check_in=lt.${cout}&check_out=gt.${cin}&select=room_type,check_in,check_out`,
+      { headers: SB_H }
+    );
+    const rsvs = await r.json();
+    const isSupMatch = rt => rt && (rt.indexOf('01')!==-1||rt.indexOf('02')!==-1) && rt.indexOf('デラックス')===-1 && rt!=='DX';
+    const isDlxMatch = rt => rt && (rt.indexOf('デラックス')!==-1||rt==='DX');
+    const matchFn = roomKey === 'dlx' ? isDlxMatch : isSupMatch;
+    const total   = roomKey === 'dlx' ? 1 : 2;
+    let isFull = false;
+    let d = new Date(cin + 'T00:00:00');
+    const end = new Date(cout + 'T00:00:00');
+    while (d < end) {
+      const ds = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+      const cnt = rsvs.filter(rv => matchFn(rv.room_type) && rv.check_in <= ds && rv.check_out > ds).length;
+      if (cnt >= total) { isFull = true; break; }
+      d.setDate(d.getDate() + 1);
+    }
+    if (isFull) {
+      const roomLabel = roomKey === 'dlx' ? 'デラックス' : 'スーペリアツイン';
+      errEl.textContent = `${roomLabel}はこの日程で満室です。日程またはお部屋をご変更ください。`;
+      errEl.dataset.source = 'avail';
+      btn.disabled = true;
+    } else {
+      if (errEl.dataset.source === 'avail') { errEl.textContent = ''; delete errEl.dataset.source; }
+      const capOver = document.getElementById('cap-warn') && document.getElementById('cap-warn').style.display !== 'none';
+      if (!capOver) btn.disabled = false;
+    }
+  } catch(e) { /* 確認失敗時はそのまま */ }
 }
 
 // ── メイン初期化 ──
