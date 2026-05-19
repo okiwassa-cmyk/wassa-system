@@ -1929,6 +1929,8 @@ let billingMeta={plan_name:'',coupon:0,points:0};
 var currentDinCourseName='おまかせコース';
 // 夕食コース: Supabase(price_common.din_courses)から読み込む。ローカルフォールバック
 var dinCoursePresets=[{name:'おまかせコース',price:7700,is_default:true},{name:'アグーコース',price:6600},{name:'鮮魚コース',price:8800},{name:'BBQコース',price:8800}];
+// 食事自動セットルール: Supabase(price_common.meal_auto_rules)から読み込む
+var mealAutoRules = null;
 function saveDinCoursePresets(){/* Supabase保存に移行 - saveDinCourses()を使用 */}
 let currentEditId=null, editType=null;
 let common={bf_adult:2200,bf_child:2200,bf_infant:2200,din_adult:7700,din_child_rate:0.65,din_child_price:null,din_infant:3300};
@@ -2145,6 +2147,8 @@ async function loadRateData(){
       if(Array.isArray(c.din_courses) && c.din_courses.length>0){
         dinCoursePresets = c.din_courses;
       }
+      // 食事自動セットルール
+      if(c.meal_auto_rules && typeof c.meal_auto_rules==='object') mealAutoRules=c.meal_auto_rules;
       // キャンセルポリシー
       if(c.cancel_policy) _cancelPolicy=c.cancel_policy;
       if(c.repeater_pass) _repeaterPass=c.repeater_pass;
@@ -4119,31 +4123,66 @@ async function fixFoodMisalignment(){
     toast('✅ 日程を修正しました（削除'+toDelete.length+'件・追加'+added+'件）');
   }catch(e){toast('エラー: '+e.message);}
 }
+// 宿泊プラン名から種別を判定（鮮魚/アグー/連泊/その他）
+function _detectPlanType(planName, nights) {
+  var p = planName || '';
+  var type = p.indexOf('鮮魚') !== -1 ? 'sakana'
+           : p.indexOf('アグー') !== -1 ? 'agoo'
+           : 'multi';
+  if (nights <= 1) {
+    return type === 'sakana' ? 'single_sakana' : type === 'agoo' ? 'single_agoo' : 'single_agoo';
+  }
+  if (type === 'sakana') return 'multi_sakana';
+  if (type === 'agoo')   return 'multi_agoo';
+  return 'multi';
+}
+
 async function autoSetupFoodRecords(resvId, checkIn, checkOut){
   // CI日: 夕食のみ / 中間日: 朝食+夕食 / CO日: 朝食のみ（素泊まり含む全プラン）
   var meals=[];
   var cur=new Date(checkIn+'T00:00:00');
   var coDate=new Date(checkOut+'T00:00:00');
+  var nightIdx=0; // 何泊目か（0始まり）
   while(cur<coDate){
     var ds=dateStr(cur);
     if(ds===checkIn){
-      meals.push({served_date:ds,category:'夕食'});
+      meals.push({served_date:ds,category:'夕食',nightIdx:nightIdx});
     } else {
-      meals.push({served_date:ds,category:'朝食'});
-      meals.push({served_date:ds,category:'夕食'}); // 中間日は必ず朝食+夕食
+      meals.push({served_date:ds,category:'朝食',nightIdx:nightIdx});
+      meals.push({served_date:ds,category:'夕食',nightIdx:nightIdx});
     }
+    nightIdx++;
     cur.setDate(cur.getDate()+1);
   }
   // CO日の朝食
-  if(checkOut!==checkIn) meals.push({served_date:checkOut,category:'朝食'});
+  if(checkOut!==checkIn) meals.push({served_date:checkOut,category:'朝食',nightIdx:nightIdx});
+
+  // 自動セットルール取得
+  var resv = allReservations.find(function(r){return r.id===resvId;});
+  var nights = nightIdx; // 総泊数
+  var isRepeat = false;
+  if(resv && resv.customer_id){
+    isRepeat = allReservations.some(function(r){
+      return r.customer_id===resv.customer_id && r.status!=='cancelled' && r.id!==resvId && r.check_out && r.check_out < resv.check_in;
+    });
+  }
+  var custKey = isRepeat ? 'repeat' : 'new';
+  var planKey = mealAutoRules ? _detectPlanType(resv ? resv.plan_name : '', nights) : null;
+  var ruleArr = (mealAutoRules && mealAutoRules[custKey] && mealAutoRules[custKey][planKey]) || [];
 
   try{
     for(var i=0;i<meals.length;i++){
+      var m = meals[i];
+      var rule = ruleArr[m.nightIdx] || {};
+      var isBf = m.category === '朝食';
+      var menuName = isBf ? null : (rule.dinner || null);
+      var mealDetail = isBf ? (rule.breakfast || null) : null;
       var res=await sbPost('food_records',{
         reservation_id:resvId,
-        served_date:meals[i].served_date,
-        category:meals[i].category,
-        meal_detail:null,
+        served_date:m.served_date,
+        category:m.category,
+        menu_name:menuName,
+        meal_detail:mealDetail,
         kids_meal_detail:null
       });
       if(res&&res[0]) currentFoodRecords.push(res[0]);
@@ -6784,6 +6823,34 @@ async function saveDinCourses(){
   }catch(e){alert('保存に失敗しました: '+e.message);}
 }
 
+async function saveMealAutoRules(){
+  var categories=[
+    {key:'new.single_sakana'}, {key:'new.single_agoo'},
+    {key:'new.multi_sakana'},  {key:'new.multi_agoo'}, {key:'new.multi'},
+    {key:'repeat.single_sakana'}, {key:'repeat.single_agoo'},
+    {key:'repeat.multi_sakana'},  {key:'repeat.multi_agoo'}, {key:'repeat.multi'},
+  ];
+  var rules={new:{},repeat:{}};
+  categories.forEach(function(cat){
+    var parts=cat.key.split('.');
+    var custK=parts[0], planK=parts[1];
+    var arr=[];
+    var ni=0;
+    while(document.getElementById('mar-'+custK+'-'+planK+'-din-'+ni)){
+      var d=(document.getElementById('mar-'+custK+'-'+planK+'-din-'+ni).value||'').trim();
+      var b=(document.getElementById('mar-'+custK+'-'+planK+'-bf-'+ni).value||'').trim();
+      arr.push({dinner:d,breakfast:b});
+      ni++;
+    }
+    rules[custK][planK]=arr;
+  });
+  try{
+    await supa('price_common?id=eq.1','PATCH',{meal_auto_rules:rules});
+    mealAutoRules=rules;
+    showMsg('msg-meal-auto-rules');
+  }catch(e){alert('保存に失敗しました: '+e.message);}
+}
+
 // オプション料金 CRUD
 function addExtraOption(){
   // アクティブ室のestimateに追加（複数室対応）
@@ -9005,6 +9072,46 @@ function renderMgr(){
   html+='<button class="save-btn" onclick="saveDinCourses()">保存</button>';
   html+='<span class="saved-msg" id="msg-din-courses">保存しました ✓</span>';
   html+='</div></div>';
+  // ── 食事自動セットルール ──────────────────────────────────
+  html+='<div class="section-card"><div class="section-title">食事自動セットルール</div>';
+  html+='<div style="font-size:12px;color:var(--text3);margin-bottom:12px">予約の食事タブを開いたとき、プラン・新規/リピーター・泊目に応じて夕食コース名・朝食内容を自動セットします。<br>毎年コース名が変わる場合はここで更新してください。</div>';
+  var _ruleCategories=[
+    {key:'new.single_sakana', label:'新規・1泊・鮮魚プラン'},
+    {key:'new.single_agoo',   label:'新規・1泊・アグープラン'},
+    {key:'new.multi_sakana',  label:'新規・連泊・鮮魚プラン（複数泊）'},
+    {key:'new.multi_agoo',    label:'新規・連泊・アグープラン（複数泊）'},
+    {key:'new.multi',         label:'新規・連泊プラン'},
+    {key:'repeat.single_sakana', label:'リピーター・1泊・鮮魚プラン'},
+    {key:'repeat.single_agoo',   label:'リピーター・1泊・アグープラン'},
+    {key:'repeat.multi_sakana',  label:'リピーター・連泊・鮮魚プラン'},
+    {key:'repeat.multi_agoo',    label:'リピーター・連泊・アグープラン'},
+    {key:'repeat.multi',         label:'リピーター・連泊プラン'},
+  ];
+  var _rar = mealAutoRules || {};
+  html+='<div style="display:flex;flex-direction:column;gap:14px">';
+  _ruleCategories.forEach(function(cat){
+    var parts=cat.key.split('.');
+    var custK=parts[0], planK=parts[1];
+    var arr=(_rar[custK]&&_rar[custK][planK])||[{dinner:'',breakfast:''},{dinner:'',breakfast:''}];
+    html+='<div><div style="font-size:11px;font-weight:600;color:var(--ocean);margin-bottom:6px">'+cat.label+'</div>';
+    html+='<div style="display:grid;grid-template-columns:80px 1fr 1fr;gap:4px 8px;font-size:11px;color:var(--text3);margin-bottom:3px">';
+    html+='<span>泊目</span><span>夕食コース名</span><span>朝食内容</span></div>';
+    for(var ni=0;ni<Math.max(arr.length,2);ni++){
+      var row=arr[ni]||{dinner:'',breakfast:''};
+      html+='<div style="display:grid;grid-template-columns:80px 1fr 1fr;gap:4px 8px;margin-bottom:3px">';
+      html+='<span style="font-size:12px;padding:6px 0;color:var(--text2)">'+(ni+1)+'泊目</span>';
+      html+='<input type="text" value="'+escHtml(row.dinner||'')+'" id="mar-'+custK+'-'+planK+'-din-'+ni+'" placeholder="空欄=セットなし" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px">';
+      html+='<input type="text" value="'+escHtml(row.breakfast||'')+'" id="mar-'+custK+'-'+planK+'-bf-'+ni+'" placeholder="空欄=セットなし" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px">';
+      html+='</div>';
+    }
+    html+='</div>';
+  });
+  html+='</div>';
+  html+='<div style="margin-top:12px;display:flex;gap:8px;align-items:center">';
+  html+='<button class="save-btn" onclick="saveMealAutoRules()">保存</button>';
+  html+='<span class="saved-msg" id="msg-meal-auto-rules">保存しました ✓</span>';
+  html+='</div></div>';
+  // ────────────────────────────────────────────────────────────
   html+='<div class="section-card"><div class="section-title">食事・幼児料金（共通）</div>';
   html+='<div class="opt-row"><label>朝食（大人）</label><input type="number" id="c-bf-adult" value="'+common.bf_adult+'"></div>';
   html+='<div class="opt-row"><label>朝食（小学生）</label><input type="number" id="c-bf-child" value="'+common.bf_child+'"></div>';
