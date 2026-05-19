@@ -941,18 +941,15 @@ async function _checkAvail() {
       { headers: SB_H }
     );
     const rsvs = await r.json();
-    const isSupMatch = rt => rt && (rt.indexOf('01')!==-1||rt.indexOf('02')!==-1) && rt.indexOf('デラックス')===-1 && rt!=='DX';
-    const isDlxMatch = rt => rt && (rt.indexOf('デラックス')!==-1||rt==='DX');
-    const matchFn = roomKey === 'dlx' ? isDlxMatch : isSupMatch;
-    const total   = roomKey === 'dlx' ? 1 : 2;
+    const isS01 = rt => rt && rt.indexOf('01')!==-1 && rt.indexOf('デラックス')===-1 && rt!=='DX';
+    const isS02 = rt => rt && rt.indexOf('02')!==-1 && rt.indexOf('デラックス')===-1 && rt!=='DX';
+    const isDlx = rt => rt && (rt.indexOf('デラックス')!==-1||rt==='DX');
+    // 部屋ごとに「滞在期間に重複する予約があるか」で判定（泊ごとカウントより正確）
     let isFull = false;
-    let d = new Date(cin + 'T00:00:00');
-    const end = new Date(cout + 'T00:00:00');
-    while (d < end) {
-      const ds = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-      const cnt = rsvs.filter(rv => matchFn(rv.room_type) && rv.check_in <= ds && rv.check_out > ds).length;
-      if (cnt >= total) { isFull = true; break; }
-      d.setDate(d.getDate() + 1);
+    if (roomKey === 'dlx') {
+      isFull = rsvs.some(rv => isDlx(rv.room_type));
+    } else {
+      isFull = rsvs.some(rv => isS01(rv.room_type)) && rsvs.some(rv => isS02(rv.room_type));
     }
     if (isFull) {
       const roomLabel = roomKey === 'dlx' ? 'デラックス' : 'スーペリアツイン';
@@ -1086,12 +1083,13 @@ async function submitBooking() {
     );
     const booked = await chkRes.json();
     const roomKey = document.getElementById('f-room').value;
-    const isSupMatch = rt => rt && (rt.indexOf('01')!==-1||rt.indexOf('02')!==-1) && rt.indexOf('デラックス')===-1 && rt!=='DX';
-    const isDlxMatch = rt => rt && (rt.indexOf('デラックス')!==-1||rt==='DX');
-    const matchFn = roomKey === 'dlx' ? isDlxMatch : isSupMatch;
-    const total   = roomKey === 'dlx' ? 1 : 2;
-    const bookedCount = booked.filter(r => matchFn(r.room_type)).length;
-    if (bookedCount >= total) {
+    const _isS01 = rt => rt && rt.indexOf('01')!==-1 && rt.indexOf('デラックス')===-1 && rt!=='DX';
+    const _isS02 = rt => rt && rt.indexOf('02')!==-1 && rt.indexOf('デラックス')===-1 && rt!=='DX';
+    const _isDlx = rt => rt && (rt.indexOf('デラックス')!==-1||rt==='DX');
+    const isFull2 = roomKey === 'dlx'
+      ? booked.some(r => _isDlx(r.room_type))
+      : booked.some(r => _isS01(r.room_type)) && booked.some(r => _isS02(r.room_type));
+    if (isFull2) {
       errEl.textContent = '申し訳ありません。送信中にご希望のお部屋が埋まってしまいました。日程・お部屋をご確認ください。';
       btn.disabled = false;
       btn.textContent = '予約リクエストを送る';
