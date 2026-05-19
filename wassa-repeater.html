@@ -894,7 +894,7 @@ function updateEstimate() {
   const roomLabel = ROOM_LABEL[room] || room;
   const titleHtml = `<div class="est-title">${roomLabel}　${nights.length}泊　${MEAL_LABEL[meal]||''}<br><span style="font-size:12px;font-weight:400;color:var(--text2)">${paxDesc}</span></div>`;
 
-  const closedWarn = isClosedDay(cin) ? '<div style="color:var(--rose);font-size:12px;margin-bottom:8px">⚠️ チェックイン日は定休日です</div>' : '';
+  const closedWarn = isClosedDay(cin) ? '<div style="color:var(--rose);font-size:12px;margin-bottom:8px">⚠️ チェックイン日はメンテナンス日です</div>' : '';
   document.getElementById('estimate-rows').innerHTML = closedWarn + titleHtml + nightHtml;
   document.getElementById('estimate-total').textContent = total > 0 ? `¥${fmt(total)}` : '—';
   document.getElementById('estimate-wrap').style.display = total > 0 ? 'block' : 'none';
@@ -905,7 +905,7 @@ async function initMain() {
   await loadPriceData();
   // 日付デフォルト（空室確認ページからのパラメータを優先）
   const today = new Date();
-  const fmtD  = d => d.toISOString().slice(0,10);
+  const fmtD  = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   const params = new URLSearchParams(location.search);
   const paramCin  = params.get('cin');
   const paramCout = params.get('cout');
@@ -1004,7 +1004,7 @@ async function submitBooking() {
   if (!phone)             { errEl.textContent = '電話番号を入力してください。'; return; }
   if (!cin || !cout)      { errEl.textContent = 'チェックイン・チェックアウト日を選択してください。'; return; }
   if (cin >= cout)        { errEl.textContent = 'チェックアウトはチェックインより後の日付を選択してください。'; return; }
-  if (isClosedDay(cin))   { errEl.textContent = 'チェックイン日は定休日のためご利用いただけません。別の日程をお選びください。'; return; }
+  if (isClosedDay(cin))   { errEl.textContent = 'チェックイン日はメンテナンス日のためご利用いただけません。別の日程をお選びください。'; return; }
 
   const btn = document.getElementById('submit-btn');
   btn.disabled = true;

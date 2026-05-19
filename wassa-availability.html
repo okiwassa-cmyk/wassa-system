@@ -232,7 +232,7 @@ const ROOM_DEFS = [
 
 // 日付初期値
 const today = new Date();
-const fmtD  = d => d.toISOString().slice(0,10);
+const fmtD  = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const cin0  = new Date(today); cin0.setDate(cin0.getDate() + 2);
 const cout0 = new Date(cin0);  cout0.setDate(cout0.getDate() + 1);
 document.getElementById('f-cin').value  = fmtD(cin0);
@@ -296,7 +296,7 @@ async function checkAvailability() {
     while (d < end) { nights.push(fmtD(d)); d.setDate(d.getDate()+1); }
 
     if (isClosedDay(cin)) {
-      errEl.textContent = 'チェックイン日は定休日のためご利用いただけません。';
+      errEl.textContent = 'チェックイン日はメンテナンス日のためご利用いただけません。';
       btn.disabled = false; btn.innerHTML = '空室を確認する';
       document.getElementById('result').style.display = 'none';
       return;
