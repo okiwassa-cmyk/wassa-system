@@ -3365,8 +3365,8 @@ function renderBillingRows(){
     html+='<div style="display:flex;gap:8px;align-items:center">';
     html+='<span style="font-size:12px;font-weight:600;color:var(--ocean2)">計 ¥'+fmt(dateSubtotal)+'</span>';
     if(!_staffMode&&date!=='__nodate__'){
-      html+='<button onclick="addBillingRowForDate(\''+date+'\',false)" title="参考行から差し引く" style="background:var(--ocean2);color:var(--white);border:none;border-radius:6px;padding:1px 8px;font-size:13px;cursor:pointer;line-height:1.6">➖</button>';
-      html+='<button onclick="addBillingRowForDate(\''+date+'\',true)" title="追加料金（参考行に影響しない）" style="background:var(--green,#3a8060);color:var(--white);border:none;border-radius:6px;padding:1px 8px;font-size:13px;cursor:pointer;line-height:1.6">➕</button>';
+      html+='<button onclick="addBillingRowForDate(\''+date+'\',false)" title="参考行から差し引く" style="background:var(--ocean2);color:var(--white);border:none;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-weight:500">− 差引</button>';
+      html+='<button onclick="addBillingRowForDate(\''+date+'\',true)" title="追加料金（参考行に影響しない）" style="background:var(--green,#3a8060);color:var(--white);border:none;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-weight:500">＋ 追加</button>';
     }
     html+='</div>';
     html+='</div>';
