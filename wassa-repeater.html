@@ -6,6 +6,9 @@
   <title>リピーター様専用 | WASSA WASSA</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ja.js"></script>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     :root{
@@ -364,6 +367,21 @@
     .spin{display:inline-block;width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--ocean);border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-bottom:8px}
     @keyframes spin{to{transform:rotate(360deg)}}
 
+    /* Flatpickr WASSA theme */
+    .flatpickr-wrapper{width:100%}
+    .flatpickr-calendar{font-family:'Noto Sans JP',sans-serif!important;border:1px solid var(--border);border-radius:16px;box-shadow:0 4px 20px rgba(26,107,122,0.12)}
+    .flatpickr-month{background:var(--ocean);border-radius:14px 14px 0 0;padding:6px 0}
+    .flatpickr-current-month,.flatpickr-current-month .flatpickr-monthDropdown-months,.flatpickr-current-month input.numInput{color:#fff!important;font-weight:500}
+    .flatpickr-prev-month svg,.flatpickr-next-month svg{fill:#fff!important}
+    .flatpickr-weekday{color:var(--text2);font-size:11px;font-weight:500}
+    .flatpickr-day{border-radius:8px;font-size:14px;color:var(--text)}
+    .flatpickr-day.today{border-color:var(--ocean);color:var(--ocean);font-weight:600}
+    .flatpickr-day.today:hover{background:var(--ocean-lt)}
+    .flatpickr-day.selected,.flatpickr-day.selected:hover{background:var(--ocean);border-color:var(--ocean);color:#fff}
+    .flatpickr-day:hover{background:var(--ocean-lt);border-color:transparent}
+    .flatpickr-day.disabled,.flatpickr-day.disabled:hover{color:#ccc;text-decoration:line-through;background:transparent}
+    input.form-input.flatpickr-input{cursor:pointer}
+
   </style>
 </head>
 <body>
@@ -429,11 +447,11 @@
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">チェックイン<span class="req">*</span></label>
-          <input class="form-input" id="f-cin" type="date">
+          <input class="form-input" id="f-cin" type="text" readonly placeholder="日付を選択">
         </div>
         <div class="form-group">
           <label class="form-label">チェックアウト<span class="req">*</span></label>
-          <input class="form-input" id="f-cout" type="date">
+          <input class="form-input" id="f-cout" type="text" readonly placeholder="日付を選択">
         </div>
       </div>
       <div class="form-row">
@@ -975,24 +993,36 @@ async function initMain() {
   const paramCout = params.get('cout');
   const cinDef  = new Date(today); cinDef.setDate(cinDef.getDate() + 7);
   const coutDef = new Date(cinDef); coutDef.setDate(coutDef.getDate() + 1);
-  document.getElementById('f-cin').value  = paramCin  || fmtD(cinDef);
-  document.getElementById('f-cout').value = paramCout || fmtD(coutDef);
   const minBook = new Date(today); minBook.setDate(minBook.getDate() + 2);
   const maxBook = new Date(today); maxBook.setMonth(maxBook.getMonth() + 13);
-  document.getElementById('f-cin').min    = fmtD(minBook);
-  document.getElementById('f-cin').max    = fmtD(maxBook);
-  document.getElementById('f-cout').min   = document.getElementById('f-cin').value;
-  document.getElementById('f-cout').max   = fmtD(maxBook);
-  document.getElementById('f-cin').addEventListener('change', function() {
-    refreshClosedDays();
-    const newCin  = new Date(this.value + 'T00:00:00');
-    const newCout = new Date(newCin); newCout.setDate(newCout.getDate() + 1);
-    document.getElementById('f-cout').min = this.value;
-    if (document.getElementById('f-cout').value <= this.value)
-      document.getElementById('f-cout').value = fmtD(newCout);
-    updateEstimate();
+  const cinInit  = paramCin  || fmtD(cinDef);
+  const coutInit = paramCout || fmtD(coutDef);
+  const _fpDisable = [date => {
+    const ds = date.getFullYear()+'-'+String(date.getMonth()+1).padStart(2,'0')+'-'+String(date.getDate()).padStart(2,'0');
+    return isClosedDay(ds);
+  }];
+  let fpCout;
+  const fpCin = flatpickr('#f-cin', {
+    dateFormat: 'Y-m-d', locale: 'ja', disableMobile: true,
+    defaultDate: cinInit, minDate: fmtD(minBook), maxDate: fmtD(maxBook),
+    disable: _fpDisable,
+    onChange: function(sel, dateStr) {
+      refreshClosedDays();
+      if (sel[0]) {
+        const newCout = new Date(sel[0]); newCout.setDate(newCout.getDate() + 1);
+        fpCout.set('minDate', dateStr);
+        if (!fpCout.selectedDates[0] || fpCout.selectedDates[0] <= sel[0])
+          fpCout.setDate(fmtD(newCout), false);
+      }
+      updateEstimate();
+    }
   });
-  document.getElementById('f-cout').addEventListener('change', updateEstimate);
+  fpCout = flatpickr('#f-cout', {
+    dateFormat: 'Y-m-d', locale: 'ja', disableMobile: true,
+    defaultDate: coutInit, minDate: cinInit, maxDate: fmtD(maxBook),
+    disable: _fpDisable,
+    onChange: function() { updateEstimate(); }
+  });
   ['f-adults','f-children','f-meal','f-room'].forEach(id => {
     document.getElementById(id).addEventListener('change', () => { checkCapacity(); updateEstimate(); });
   });

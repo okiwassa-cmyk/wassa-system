@@ -6,6 +6,9 @@
   <title>空室確認 | WASSA WASSA</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ja.js"></script>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     :root{
@@ -75,7 +78,6 @@
       text-align:left;box-sizing:border-box;min-width:0;
       -webkit-appearance:none;appearance:none;
     }
-    input[type="date"].form-input{-webkit-appearance:auto;appearance:auto}
     .form-input:focus{border-color:var(--ocean);box-shadow:0 0 0 3px rgba(26,107,122,0.1)}
     .check-btn{
       width:100%;padding:15px;background:var(--ocean);color:#fff;border:none;
@@ -153,6 +155,21 @@
     @keyframes spin{to{transform:rotate(360deg)}}
 
     .error-msg{font-size:13px;color:var(--rose);margin-top:10px;min-height:18px}
+
+    /* Flatpickr WASSA theme */
+    .flatpickr-wrapper{width:100%}
+    .flatpickr-calendar{font-family:'Noto Sans JP',sans-serif!important;border:1px solid var(--border);border-radius:16px;box-shadow:0 4px 20px rgba(26,107,122,0.12)}
+    .flatpickr-month{background:var(--ocean);border-radius:14px 14px 0 0;padding:6px 0}
+    .flatpickr-current-month,.flatpickr-current-month .flatpickr-monthDropdown-months,.flatpickr-current-month input.numInput{color:#fff!important;font-weight:500}
+    .flatpickr-prev-month svg,.flatpickr-next-month svg{fill:#fff!important}
+    .flatpickr-weekday{color:var(--text2);font-size:11px;font-weight:500}
+    .flatpickr-day{border-radius:8px;font-size:14px;color:var(--text)}
+    .flatpickr-day.today{border-color:var(--ocean);color:var(--ocean);font-weight:600}
+    .flatpickr-day.today:hover{background:var(--ocean-lt)}
+    .flatpickr-day.selected,.flatpickr-day.selected:hover{background:var(--ocean);border-color:var(--ocean);color:#fff}
+    .flatpickr-day:hover{background:var(--ocean-lt);border-color:transparent}
+    .flatpickr-day.disabled,.flatpickr-day.disabled:hover{color:#ccc;text-decoration:line-through;background:transparent}
+    input.form-input.flatpickr-input{cursor:pointer}
   </style>
 </head>
 <body>
@@ -174,11 +191,11 @@
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">チェックイン</label>
-        <input class="form-input" type="date" id="f-cin">
+        <input class="form-input" type="text" id="f-cin" readonly placeholder="日付を選択">
       </div>
       <div class="form-group">
         <label class="form-label">チェックアウト</label>
-        <input class="form-input" type="date" id="f-cout">
+        <input class="form-input" type="text" id="f-cout" readonly placeholder="日付を選択">
       </div>
     </div>
     <div class="error-msg" id="form-err"></div>
@@ -236,24 +253,26 @@ const today = new Date();
 const fmtD  = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const cin0  = new Date(today); cin0.setDate(cin0.getDate() + 2);
 const cout0 = new Date(cin0);  cout0.setDate(cout0.getDate() + 1);
-document.getElementById('f-cin').value  = fmtD(cin0);
-document.getElementById('f-cout').value = fmtD(cout0);
 const minBook = new Date(today); minBook.setDate(minBook.getDate() + 2);
 const maxBook = new Date(today); maxBook.setMonth(maxBook.getMonth() + 13);
-document.getElementById('f-cin').min    = fmtD(minBook);
-document.getElementById('f-cin').max    = fmtD(maxBook);
-document.getElementById('f-cout').min   = fmtD(cin0);
-document.getElementById('f-cout').max   = fmtD(maxBook);
-document.getElementById('f-cin').addEventListener('change', function() {
-  const nc = new Date(this.value + 'T00:00:00');
-  nc.setDate(nc.getDate() + 1);
-  document.getElementById('f-cout').min = this.value;
-  if (document.getElementById('f-cout').value <= this.value)
-    document.getElementById('f-cout').value = fmtD(nc);
-  document.getElementById('result').style.display = 'none';
+let fpCout;
+const fpCin = flatpickr('#f-cin', {
+  dateFormat: 'Y-m-d', locale: 'ja', disableMobile: true,
+  defaultDate: fmtD(cin0), minDate: fmtD(minBook), maxDate: fmtD(maxBook),
+  onChange: function(sel, dateStr) {
+    if (sel[0]) {
+      const nc = new Date(sel[0]); nc.setDate(nc.getDate() + 1);
+      fpCout.set('minDate', dateStr);
+      if (!fpCout.selectedDates[0] || fpCout.selectedDates[0] <= sel[0])
+        fpCout.setDate(fmtD(nc), false);
+    }
+    document.getElementById('result').style.display = 'none';
+  }
 });
-document.getElementById('f-cout').addEventListener('change', function() {
-  document.getElementById('result').style.display = 'none';
+fpCout = flatpickr('#f-cout', {
+  dateFormat: 'Y-m-d', locale: 'ja', disableMobile: true,
+  defaultDate: fmtD(cout0), minDate: fmtD(cin0), maxDate: fmtD(maxBook),
+  onChange: function() { document.getElementById('result').style.display = 'none'; }
 });
 updateRepeaterLink();
 
