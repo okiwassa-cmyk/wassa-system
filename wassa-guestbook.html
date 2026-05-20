@@ -7778,9 +7778,8 @@ async function saveDirectReservation(){
     } else {
       if(e.infDlx&&r.infDlxRoom) billing.push({cat:'宿泊料金', date:r.date||r.label, item:_hasMeal?'幼児（食事有）':'幼児（食事無）', qty:e.infDlx, price:r.infDlxUnit, discount:0});
     }
-    var bfNextDate=(function(ds){var d=new Date(ds);d.setDate(d.getDate()+1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');})(r.date||r.label);
-    if(r.bfAdultOn&&r.bfAdultAmt) billing.push({cat:'朝食', date:bfNextDate, item:'朝食（大人）', qty:e.adult, price:Math.round(r.bfAdultAmt/(e.adult||1)), discount:0});
-    if(r.bfChildOn&&r.bfChildAmt) billing.push({cat:'朝食', date:bfNextDate, item:'朝食（小学生）', qty:e.child, price:Math.round(r.bfChildAmt/(e.child||1)), discount:0});
+    if(r.bfAdultOn&&r.bfAdultAmt) billing.push({cat:'朝食', date:r.date||r.label, item:'朝食（大人）', qty:e.adult, price:Math.round(r.bfAdultAmt/(e.adult||1)), discount:0});
+    if(r.bfChildOn&&r.bfChildAmt) billing.push({cat:'朝食', date:r.date||r.label, item:'朝食（小学生）', qty:e.child, price:Math.round(r.bfChildAmt/(e.child||1)), discount:0});
     if(r.dinAdultOn&&r.dinAdultAmt) billing.push({cat:'ディナー', date:r.date||r.label, item:'ディナー（大人）', qty:e.adult, price:Math.round(r.dinAdultAmt/(e.adult||1)), discount:0});
     if(r.dinChildOn&&r.dinChildAmt) billing.push({cat:'ディナー', date:r.date||r.label, item:'ディナー（小学生）', qty:e.child, price:Math.round(r.dinChildAmt/(e.child||1)), discount:0});
   }
@@ -7827,7 +7826,6 @@ async function saveDirectReservation(){
         var estBilling=[];
         for(var bri=0;bri<est.rows.length;bri++){
           var br=est.rows[bri];
-          var bfNext=(function(ds){var d=new Date(ds);d.setDate(d.getDate()+1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');})(br.date||br.label);
           var _estMeal=(est.meal&&est.meal!=='none');
           estBilling.push({cat:'宿泊料金',date:br.date||br.label,item:'大人宿泊料金',qty:br.ak,price:br.baseUnit,discount:0});
           if(est.child&&br.childRoom) estBilling.push({cat:'宿泊料金',date:br.date||br.label,item:'小学生宿泊料金',qty:est.child,price:br.childUnit,discount:0});
@@ -7837,8 +7835,8 @@ async function saveDirectReservation(){
           } else {
             if(est.infDlx&&br.infDlxRoom) estBilling.push({cat:'宿泊料金',date:br.date||br.label,item:_estMeal?'幼児（食事有）':'幼児（食事無）',qty:est.infDlx,price:br.infDlxUnit,discount:0});
           }
-          if(br.bfAdultOn&&br.bfAdultAmt) estBilling.push({cat:'朝食',date:bfNext,item:'朝食（大人）',qty:est.adult,price:Math.round(br.bfAdultAmt/(est.adult||1)),discount:0});
-          if(br.bfChildOn&&br.bfChildAmt) estBilling.push({cat:'朝食',date:bfNext,item:'朝食（小学生）',qty:est.child,price:Math.round(br.bfChildAmt/(est.child||1)),discount:0});
+          if(br.bfAdultOn&&br.bfAdultAmt) estBilling.push({cat:'朝食',date:br.date||br.label,item:'朝食（大人）',qty:est.adult,price:Math.round(br.bfAdultAmt/(est.adult||1)),discount:0});
+          if(br.bfChildOn&&br.bfChildAmt) estBilling.push({cat:'朝食',date:br.date||br.label,item:'朝食（小学生）',qty:est.child,price:Math.round(br.bfChildAmt/(est.child||1)),discount:0});
           if(br.dinAdultOn&&br.dinAdultAmt) estBilling.push({cat:'ディナー',date:br.date||br.label,item:'ディナー（大人）',qty:est.adult,price:Math.round(br.dinAdultAmt/(est.adult||1)),discount:0});
           if(br.dinChildOn&&br.dinChildAmt) estBilling.push({cat:'ディナー',date:br.date||br.label,item:'ディナー（小学生）',qty:est.child,price:Math.round(br.dinChildAmt/(est.child||1)),discount:0});
         }
