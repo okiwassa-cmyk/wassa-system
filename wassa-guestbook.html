@@ -3404,7 +3404,6 @@ function renderBillingRows(){
           html+='<input type="number" value="'+(row.qty||1)+'" min="1" oninput="billUpdate('+i+',\'qty\',this.value)" style="font-size:12px;padding:5px 4px;border:1px solid var(--border);border-radius:6px;width:44px;text-align:center">';
           html+='<span id="bill-row-amt-'+i+'" style="font-size:12px;font-weight:600;color:var(--ocean2);min-width:80px;text-align:right">=¥'+fmt(subtotal)+'</span>';
           html+='<button onclick="removeBillingRow('+i+')" style="background:var(--coral-lt);border:none;border-radius:6px;color:var(--coral);cursor:pointer;padding:4px 8px;font-size:12px">✕</button>';
-          html+='<input type="date" value="'+(row.date||'')+'" onchange="billUpdate('+i+',\'date\',this.value);renderBillingRows()" style="font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;color:var(--text3);width:130px">';
         }
         html+='</div>';
       }
