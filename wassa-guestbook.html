@@ -3431,18 +3431,21 @@ function billUpdate(i,key,val){
   if((_cr.cat==='朝食'||_cr.cat==='夕食')&&(key==='price'||key==='qty')){
     var _crDate=_cr.date||'';
     var _tier=(_cr.item||'').indexOf('大人')!==-1?'大人':(_cr.item||'').indexOf('小学生')!==-1?'小学生':(_cr.item||'').indexOf('幼児')!==-1?'幼児':'';
-    if(_tier){
-      var _ref=billingRows.find(function(r){return r.is_ref&&(r.date||'')===_crDate&&(r.item||'').indexOf(_tier)!==-1;});
-      var _ri=billingRows.findIndex(function(r){return !r.is_ref&&r.cat==='宿泊料金'&&(r.date||'')===_crDate&&(r.item||'').indexOf(_tier)!==-1;});
-      if(_ref&&_ri!==-1){
-        var _bfR=billingRows.find(function(r){return !r.is_ref&&r.cat==='朝食'&&(r.date||'')===_crDate&&(r.item||'').indexOf(_tier)!==-1;});
-        var _dnR=billingRows.find(function(r){return !r.is_ref&&r.cat==='夕食'&&(r.date||'')===_crDate&&(r.item||'').indexOf(_tier)!==-1;});
-        var _np=Math.max(0,(parseFloat(_ref.price)||0)-(parseFloat(_bfR&&_bfR.price)||0)-(parseFloat(_dnR&&_dnR.price)||0));
-        billingRows[_ri].price=_np;
-        var _rq=parseFloat(billingRows[_ri].qty)||1;
-        var _rae=document.getElementById('bill-row-amt-'+_ri);if(_rae)_rae.textContent='=¥'+fmt(_np*_rq);
-        var _rpe=document.getElementById('bill-price-'+_ri);if(_rpe)_rpe.value=_np;
-      }
+    var _crQty=parseFloat(_cr.qty)||1;
+    // tierが判明している場合はtier名で照合、不明な場合はqtyで照合
+    var _matchRef=function(r){return r.is_ref&&(r.date||'')===_crDate&&(_tier?(r.item||'').indexOf(_tier)!==-1:parseFloat(r.qty)===_crQty);};
+    var _matchRoom=function(r){return !r.is_ref&&r.cat==='宿泊料金'&&(r.date||'')===_crDate&&(_tier?(r.item||'').indexOf(_tier)!==-1:parseFloat(r.qty)===_crQty);};
+    var _matchMeal=function(r){return !r.is_ref&&r.cat!=='宿泊料金'&&r.cat!=='諸費用'&&r.cat!=='その他'&&(r.date||'')===_crDate&&(_tier?(r.item||'').indexOf(_tier)!==-1:parseFloat(r.qty)===_crQty);};
+    var _ref=billingRows.find(_matchRef);
+    var _ri=billingRows.findIndex(_matchRoom);
+    if(_ref&&_ri!==-1){
+      var _mealTot=billingRows.reduce(function(s,r){return _matchMeal(r)?s+(parseFloat(r.price)||0)*(parseFloat(r.qty)||1):s;},0);
+      var _refTot=(parseFloat(_ref.price)||0)*(parseFloat(_ref.qty)||1);
+      var _rq=parseFloat(billingRows[_ri].qty)||1;
+      var _np=Math.max(0,Math.round((_refTot-_mealTot)/_rq));
+      billingRows[_ri].price=_np;
+      var _rae=document.getElementById('bill-row-amt-'+_ri);if(_rae)_rae.textContent='=¥'+fmt(_np*_rq);
+      var _rpe=document.getElementById('bill-price-'+_ri);if(_rpe)_rpe.value=_np;
     }
   }
   recalcBilling();
