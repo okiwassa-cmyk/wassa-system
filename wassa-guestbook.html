@@ -3363,7 +3363,7 @@ function renderBillingRows(){
     html+='<div style="background:var(--ocean-light,#e8f4f6);padding:6px 12px;display:flex;justify-content:space-between;align-items:center">';
     html+='<span style="font-size:12px;font-weight:600;color:var(--ocean2)">'+dateLabel+'</span>';
     html+='<div style="display:flex;gap:8px;align-items:center">';
-    html+='<span style="font-size:12px;font-weight:600;color:var(--ocean2)">計 ¥'+fmt(dateSubtotal)+'</span>';
+    html+='<span id="date-sub-'+date+'" style="font-size:12px;font-weight:600;color:var(--ocean2)">計 ¥'+fmt(dateSubtotal)+'</span>';
     if(!_staffMode&&date!=='__nodate__'){
       html+='<button onclick="addBillingRowForDate(\''+date+'\',false)" title="参考行から差し引く" style="background:var(--ocean2);color:var(--white);border:none;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-weight:500">− 差引</button>';
       html+='<button onclick="addBillingRowForDate(\''+date+'\',true)" title="追加料金（参考行に影響しない）" style="background:var(--green,#3a8060);color:var(--white);border:none;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-weight:500">＋ 追加</button>';
@@ -3426,6 +3426,15 @@ function billUpdate(i,key,val){
   billingRows[i][key]=val;
   var amtEl=document.getElementById('bill-row-amt-'+i);
   if(amtEl) amtEl.textContent='=¥'+fmt(_billingRowAmt(billingRows[i]));
+  // 日付ヘッダーの小計をリアルタイム更新
+  if(key==='price'||key==='qty'){
+    var _rowDate=billingRows[i].date||'__nodate__';
+    var _subEl=document.getElementById('date-sub-'+_rowDate);
+    if(_subEl){
+      var _sub=billingRows.reduce(function(s,r){return (r.date||'__nodate__')===_rowDate?s+_billingRowAmt(r):s;},0);
+      _subEl.textContent='計 ¥'+fmt(_sub);
+    }
+  }
   // 食事行の単価変更時に素泊まり単価を自動再計算（参考行がある場合・同日同区分のみ）
   // 計算式: 素泊まり単価 = 参考行の1名単価 − 朝食単価 − 夕食単価
   var _cr=billingRows[i];
