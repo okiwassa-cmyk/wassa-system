@@ -4008,16 +4008,16 @@ function applyMealPlanToBilling(planName){
   billingRows.forEach(function(r){
     if(r.cat==='宿泊料金'&&!r.is_ref&&!/素泊まり/.test(r.item||'')){
       var qty=parseFloat(r.qty)||1, price=parseFloat(r.price)||0, pay=r.payment||'';
-      var isAdult=/大人/.test(r.item||''), isChild=/小学生/.test(r.item||'');
-      var dinP=isChild?Math.round((common.din_adult||7700)*(common.din_child_rate||0.65)):(common.din_adult||7700);
-      var bfP =isChild?(common.bf_child||2200):(common.bf_adult||2200);
+      var isAdult=/大人/.test(r.item||''), isChild=/小学生/.test(r.item||''), isInfant=/幼児/.test(r.item||'');
+      var dinP=isChild?Math.round((common.din_adult||7700)*(common.din_child_rate||0.65)):isInfant?(common.din_infant||3300):(common.din_adult||7700);
+      var bfP =isChild?(common.bf_child||2200):isInfant?(common.bf_infant||2200):(common.bf_adult||2200);
       var deduct=(hasDin?dinP:0)+(hasBf?bfP:0);
       var sonoLabel=(r.item||'宿泊料金').replace('宿泊料金','素泊まり料金');
-      var personLabel=isChild?'小学生':isAdult?'大人':'';
+      var personLabel=isChild?'小学生':isAdult?'大人':isInfant?'幼児':'';
       newRows2.push(Object.assign({},r,{is_ref:true}));
-      newRows2.push({cat:'宿泊料金',date:r.date,item:sonoLabel,qty:qty,discount:0,price:Math.max(0,price-deduct),payment:pay});
-      if(hasBf) newRows2.push({cat:'朝食',date:r.date,item:'朝食（'+personLabel+'）',qty:qty,discount:0,price:bfP,payment:pay});
-      if(hasDin) newRows2.push({cat:'夕食',date:r.date,item:'夕食（'+personLabel+'）',qty:qty,discount:0,price:dinP,payment:pay});
+      newRows2.push({cat:'宿泊料金',date:r.date,item:sonoLabel,qty:qty,discount:0,price:Math.max(0,price-deduct),payment:pay,_tier:personLabel});
+      if(hasBf) newRows2.push({cat:'朝食',date:r.date,item:'朝食（'+personLabel+'）',qty:qty,discount:0,price:bfP,payment:pay,_tier:personLabel});
+      if(hasDin) newRows2.push({cat:'夕食',date:r.date,item:'夕食（'+personLabel+'）',qty:qty,discount:0,price:dinP,payment:pay,_tier:personLabel});
     }else{
       newRows2.push(r);
     }
