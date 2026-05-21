@@ -3309,11 +3309,14 @@ function fmtDW(ds){
   var dow=['日','月','火','水','木','金','土'][d.getDay()];
   return (d.getMonth()+1)+'月'+d.getDate()+'日（'+dow+'）';
 }
-function itemSortKey(item){
-  item=item||'';
-  if(item.indexOf('大人')!==-1) return 0;
-  if(item.indexOf('小学生')!==-1) return 1;
-  if(item.indexOf('幼児')!==-1) return 2;
+function itemSortKey(item, _tier){
+  item=item||''; _tier=_tier||'';
+  var is大人=_tier==='大人'||item.indexOf('大人')!==-1;
+  var is小学生=_tier==='小学生'||item.indexOf('小学生')!==-1;
+  var is幼児=_tier==='幼児'||item.indexOf('幼児')!==-1;
+  if(is大人) return 0;
+  if(is小学生) return 1;
+  if(is幼児) return 2;
   if(item.indexOf('朝食')!==-1) return 10;
   if(item.indexOf('ディナー')!==-1||item.indexOf('夕食')!==-1) return 11;
   return 20;
@@ -3326,14 +3329,21 @@ function addRowForRef(refIdx, isExtra){
   var ref=billingRows[refIdx];
   if(!ref) return;
   var _t=(ref.item||'').indexOf('大人')!==-1?'大人':(ref.item||'').indexOf('小学生')!==-1?'小学生':(ref.item||'').indexOf('幼児')!==-1?'幼児':'';
-  billingRows.push({cat:'宿泊料金',date:ref.date||'',item:'',qty:ref.qty||1,discount:0,price:0,payment:ref.payment||'',is_extra:isExtra?true:false,_tier:_t,_isNew:true});
+  // 参考行の子行の末尾（次の参考行 or 別日付の手前）に挿入
+  var insertIdx=refIdx+1;
+  for(var k=refIdx+1;k<billingRows.length;k++){
+    if(billingRows[k].is_ref) break;
+    if((billingRows[k].date||'')!==(ref.date||'')) break;
+    insertIdx=k+1;
+  }
+  billingRows.splice(insertIdx,0,{cat:'宿泊料金',date:ref.date||'',item:'',qty:ref.qty||1,discount:0,price:0,payment:ref.payment||'',is_extra:isExtra?true:false,_tier:_t,_isNew:true});
   renderBillingRows();
 }
 function renderBillingRows(){
   billingRows.sort(function(a,b){
     var da=a.date||'9999', db=b.date||'9999';
     if(da!==db) return da>db?1:-1;
-    return itemSortKey(a.item)-itemSortKey(b.item);
+    return itemSortKey(a.item,a._tier)-itemSortKey(b.item,b._tier);
   });
   const container=document.getElementById('billing-rows');
   var _staffMode=document.body.classList.contains('staff-mode');
@@ -3452,10 +3462,10 @@ function billUpdate(i,key,val){
     // is_extra=true の行は参考行から引かない（追加料金扱い）
     if(_cr.is_extra){recalcBilling();return;}
     var _crDate=_cr.date||'';
-    var _tier=(_cr.item||'').indexOf('大人')!==-1?'大人':(_cr.item||'').indexOf('小学生')!==-1?'小学生':(_cr.item||'').indexOf('幼児')!==-1?'幼児':'';
+    var _tier=(_cr._tier&&_cr._tier!=='')?_cr._tier:((_cr.item||'').indexOf('大人')!==-1?'大人':(_cr.item||'').indexOf('小学生')!==-1?'小学生':(_cr.item||'').indexOf('幼児')!==-1?'幼児':'');
     var _crQty=parseFloat(_cr.qty)||1;
     var _matchRef=function(r){return r.is_ref&&(r.date||'')===_crDate&&(_tier?(r.item||'').indexOf(_tier)!==-1:parseFloat(r.qty)===_crQty);};
-    var _matchRoom=function(r){return !r.is_ref&&r.cat==='宿泊料金'&&(r.date||'')===_crDate&&(_tier?(r.item||'').indexOf(_tier)!==-1:parseFloat(r.qty)===_crQty);};
+    var _matchRoom=function(r){return !r.is_ref&&r.cat==='宿泊料金'&&(r.date||'')===_crDate&&(_tier?((r.item||'').indexOf(_tier)!==-1||(r._tier&&r._tier===_tier)):parseFloat(r.qty)===_crQty);};
     // 食事合計はプランに含まれるカテゴリのみ
     var _matchMeal=function(r){return !r.is_ref&&!r.is_extra&&r.cat!=='宿泊料金'&&r.cat!=='諸費用'&&r.cat!=='その他'&&(r.date||'')===_crDate&&(_tier?((r.item||'').indexOf(_tier)!==-1||(r._tier&&r._tier===_tier)):parseFloat(r.qty)===_crQty);};
     var _ref=billingRows.find(_matchRef);
@@ -3595,13 +3605,15 @@ function removeBillingRow(i){
   // 計算式: 素泊まり単価 = 参考行の1名単価 − 朝食単価 − 夕食単価
   if(removed&&(removed.cat==='朝食'||removed.cat==='夕食')){
     var _d=removed.date||'';
-    var _tier2=(_removed_item=removed.item||'').indexOf('大人')!==-1?'大人':_removed_item.indexOf('小学生')!==-1?'小学生':_removed_item.indexOf('幼児')!==-1?'幼児':'';
+    var _removed_item=removed.item||'';
+    var _tier2=(removed._tier&&removed._tier!=='')?removed._tier:(_removed_item.indexOf('大人')!==-1?'大人':_removed_item.indexOf('小学生')!==-1?'小学生':_removed_item.indexOf('幼児')!==-1?'幼児':'');
+    var _tmatch2=function(r){return _tier2?((r.item||'').indexOf(_tier2)!==-1||(r._tier&&r._tier===_tier2)):false;};
     if(_tier2){
-      var _ref2=billingRows.find(function(r){return r.is_ref&&(r.date||'')===_d&&(r.item||'').indexOf(_tier2)!==-1;});
-      var _ri2=billingRows.findIndex(function(r){return !r.is_ref&&r.cat==='宿泊料金'&&(r.date||'')===_d&&(r.item||'').indexOf(_tier2)!==-1;});
+      var _ref2=billingRows.find(function(r){return r.is_ref&&(r.date||'')===_d&&_tmatch2(r);});
+      var _ri2=billingRows.findIndex(function(r){return !r.is_ref&&r.cat==='宿泊料金'&&(r.date||'')===_d&&_tmatch2(r);});
       if(_ref2&&_ri2!==-1){
-        var _bfR2=billingRows.find(function(r){return !r.is_ref&&r.cat==='朝食'&&(r.date||'')===_d&&(r.item||'').indexOf(_tier2)!==-1;});
-        var _dnR2=billingRows.find(function(r){return !r.is_ref&&r.cat==='夕食'&&(r.date||'')===_d&&(r.item||'').indexOf(_tier2)!==-1;});
+        var _bfR2=billingRows.find(function(r){return !r.is_ref&&r.cat==='朝食'&&(r.date||'')===_d&&_tmatch2(r);});
+        var _dnR2=billingRows.find(function(r){return !r.is_ref&&r.cat==='夕食'&&(r.date||'')===_d&&_tmatch2(r);});
         billingRows[_ri2].price=Math.max(0,(parseFloat(_ref2.price)||0)-(parseFloat(_bfR2&&_bfR2.price)||0)-(parseFloat(_dnR2&&_dnR2.price)||0));
       }
     }
@@ -3932,7 +3944,7 @@ function _recalcRoomFromRef(){
       var refTotal=(parseFloat(ref.price)||0)*refQty;
       var roomRow=billingRows.find(function(r){
         return !r.is_ref&&r.cat==='宿泊料金'&&(r.date||'')===date&&
-          (tier?(r.item||'').indexOf(tier)!==-1:parseFloat(r.qty)===refQty);
+          (tier?((r.item||'').indexOf(tier)!==-1||(r._tier&&r._tier===tier)):parseFloat(r.qty)===refQty);
       });
       if(!roomRow) return;
       // is_extra=falseの行のみ差し引く（追加料金は対象外）
