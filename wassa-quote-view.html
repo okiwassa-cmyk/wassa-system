@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>見積書 | WASSA WASSA</title>
-<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;600&family=Zen+Kaku+Gothic+New:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600&family=Shippori+Mincho:wght@400;500;600&family=Zen+Kaku+Gothic+New:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   :root {
     --ocean:   #1a6b7a;
@@ -36,16 +36,16 @@
     text-align: center;
     padding: 20px 20px 16px;
   }
-  .site-header .logo {
-    font-family: 'Shippori Mincho', serif;
-    font-size: 18px;
-    letter-spacing: .2em;
-    margin-bottom: 3px;
-  }
   .site-header .tagline {
     font-size: 10px;
-    opacity: .6;
-    letter-spacing: .12em;
+    opacity: .85;
+    letter-spacing: .18em;
+    margin-bottom: 5px;
+  }
+  .site-header .logo {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 20px;
+    letter-spacing: .25em;
   }
 
   /* ── コンテナ ── */
@@ -76,7 +76,7 @@
   .quote-tbl tr.sub-row td { padding: 4px 10px 4px 24px; font-size: 10px; }
   .quote-total { display: flex; justify-content: space-between; align-items: center; background: var(--ocean); color: var(--white); padding: 12px 16px; border-radius: var(--radius-sm); margin-bottom: 16px; }
   .quote-total .label { font-size: 13px; font-weight: 500; }
-  .quote-total .amount { font-size: 22px; font-weight: 600; }
+  .quote-total .amount { font-size: 26px; font-weight: 500; font-family: 'Cormorant Garamond', serif; letter-spacing: .04em; }
   .quote-note { font-size: 11px; color: var(--text2); line-height: 1.7; margin-bottom: 14px; }
   .quote-note p { margin-bottom: 3px; }
   .quote-footer { text-align: center; font-size: 10px; color: var(--text3); padding-top: 12px; border-top: 1px solid var(--border); line-height: 1.8; }
@@ -121,11 +121,14 @@
   .btn-print:hover { background: var(--sand2); }
 
   @media print {
+    @page { size: A4 portrait; margin: 12mm 10mm; }
     .site-header, .btn-print { display: none; }
     body { background: #fff; }
     .card { box-shadow: none; border-radius: 0; margin: 0; padding: 16px; }
-    .container { margin: 0; }
+    .container { margin: 0; padding: 0; }
+    :root { --ocean: #155f6d; --ocean2: #1a7a8b; }
     .quote-total { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .quote-tbl th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
   @media (max-width: 480px) {
     .card { padding: 20px 16px; }
@@ -135,8 +138,8 @@
 <body>
 
 <header class="site-header" id="site-header">
+  <div class="tagline">海と星空の小さな宿</div>
   <div class="logo">WASSA WASSA</div>
-  <div class="tagline">海と星空の小さな宿　大宜味村</div>
 </header>
 
 <div class="container">
@@ -194,7 +197,7 @@ function render(q, cancelPolicy) {
 
   // ドキュメント種別
   var isConfirmation = q.doc_type === 'confirmation';
-  var docTitle = isConfirmation ? '予　約　確　認　書' : '見　積　書';
+  var docTitle = isConfirmation ? '予約確認書' : '見　積　書';
   var totalLabel = isConfirmation ? 'ご宿泊料金合計（税込）' : 'お見積り合計金額（税込）';
 
   // 有効期限チェック
@@ -268,8 +271,7 @@ function render(q, cancelPolicy) {
       + (validFmt && !isConfirmation ? '<div>有効期限：' + validFmt + expiredHtml + '</div>' : '')
     + '</div>'
     // タイトル
-    + '<div style="text-align:center;font-size:22px;font-weight:700;letter-spacing:.3em;margin-bottom:' + (planName?'8':'18') + 'px">' + docTitle + '</div>'
-    + (planName ? '<div style="text-align:center;font-size:13px;color:var(--ocean2);font-weight:600;margin-bottom:14px;letter-spacing:.05em">' + escHtml(planName) + '</div>' : '')
+    + '<div style="text-align:center;font-size:22px;font-weight:700;' + (isConfirmation ? '' : 'letter-spacing:.3em;') + 'font-family:\'Shippori Mincho\',serif;margin-bottom:18px">' + docTitle + '</div>'
     + (roomHeader || '')
     // お客様名 ＋ 事業所情報
     + '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid var(--ocean)">'
@@ -283,12 +285,15 @@ function render(q, cancelPolicy) {
           + '<img src="' + STAMP_URL + '" style="width:36px;height:36px;object-fit:contain;mix-blend-mode:multiply">'
         + '</div>'
         + '<div style="font-size:10px;color:var(--text2);line-height:1.9">'
-          + '<div style="font-size:12px;font-weight:700;color:var(--ocean)">海と星空の小さな宿　WASSA WASSA</div>'
+          + '<div style="font-size:10px;color:var(--text2);letter-spacing:.1em;margin-bottom:2px">海と星空の小さな宿</div>'
+          + '<div style="font-size:13px;font-weight:700;color:var(--ocean);font-family:\'Shippori Mincho\',serif;letter-spacing:.1em">WASSA WASSA</div>'
           + '<div>〒905-1307 沖縄県国頭郡大宜味村根路銘97番地</div>'
           + '<div>wassa@wassa-okinawa.com</div>'
         + '</div>'
       + '</div>'
     + '</div>'
+    // プラン名（明細直上）
+    + (planName ? '<div style="font-size:11px;color:var(--ocean2);font-weight:600;margin-bottom:8px;letter-spacing:.04em">' + escHtml(planName) + '</div>' : '')
     // 明細テーブル
     + '<table class="quote-tbl"><thead><tr><th>日付</th><th>内容</th><th>単価</th><th>数量</th><th>金額</th></tr></thead><tbody>' + rows + '</tbody></table>'
     // 合計
@@ -300,7 +305,7 @@ function render(q, cancelPolicy) {
     // キャンセルポリシー
     + cancelHtml
     // フッター
-    + '<div class="quote-footer">海と星空の小さな宿 WASSA WASSA<br>ご予約・お問い合わせ：wassa@wassa-okinawa.com</div>'
+    + '<div class="quote-footer">海と星空の小さな宿 WASSA WASSA<br>ご予約・お問い合わせ：wassa@wassa-okinawa.com<br>LINE公式アカウント：@979ygbub</div>'
     // 印刷ボタン
     + (function(){
         var isIOS = /iP(hone|ad|od)/.test(navigator.userAgent);
