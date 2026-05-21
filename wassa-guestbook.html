@@ -276,7 +276,7 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
 .quote-tbl td{padding:5px 10px;border:1px solid var(--border);color:var(--text2)}
 .quote-tbl td:last-child{text-align:right;color:var(--text)}
 .quote-tbl tr.night-row td{background:var(--bg);font-weight:600;color:var(--text);font-size:11px}
-.quote-tbl tr.sub-row td{padding:4px 10px 4px 24px;font-size:10px}
+.quote-tbl tr.sub-row td{padding:4px 10px 4px 24px;font-size:11px}
 .quote-total{display:flex;justify-content:space-between;align-items:center;background:var(--ocean);color:var(--white);padding:12px 16px;border-radius:var(--radius-sm);margin-bottom:16px}
 .quote-total .label{font-size:13px;font-weight:500}.quote-total .amount{font-size:22px;font-weight:600}
 .quote-note{font-size:11px;color:var(--text2);line-height:1.7;margin-bottom:14px}
@@ -6841,7 +6841,7 @@ function _quoteStyleTag(){
     +'.quote-tbl tr.night-row td{background:#f5f8f9!important;font-weight:600;color:#1C2E35;font-size:11px;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
     +'.quote-tbl th:nth-child(3),.quote-tbl th:nth-child(4),.quote-tbl th:last-child{text-align:right}'
     +'.quote-tbl td:nth-child(3),.quote-tbl td:nth-child(4),.quote-tbl td:last-child{text-align:right;color:#1C2E35}'
-    +'.quote-tbl tr.sub-row td{padding:4px 10px 4px 24px;font-size:10px}'
+    +'.quote-tbl tr.sub-row td{padding:4px 10px 4px 24px;font-size:11px}'
     +'.quote-total{display:flex;justify-content:space-between;align-items:center;background:#155f6d!important;color:#fff!important;padding:12px 16px;border-radius:6px;margin-bottom:16px;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
     +'.quote-total .label{font-size:13px;font-weight:500}'
     +'.quote-total .amount{font-size:26px;font-weight:500;font-family:"Cormorant Garamond",serif;letter-spacing:.04em}'
@@ -8316,7 +8316,7 @@ async function saveQuoteToDb(){
         if(r.dinInfDlxOn&&r.dinInfDlxAmt) brows.push({cat:'ディナー',date:_ds,item:'ディナー（幼児）',qty:e.infDlx,price:Math.round(r.dinInfDlxAmt/(e.infDlx||1)),discount:0});
         // 素泊まり・夕食付きの場合のみ朝食を別行で残す
         if(!hasBf){
-          if(r.bfAdultOn&&r.bfAdultAmt) brows.push({cat:'朝食',date:_ds,item:'朝食（大人）',qty:e.adult,price:Math.round(r.bfAdultAmt/(e.adult||1)),discount:0});
+          if(r.bfAdultOn&&r.bfAdultAmt) brows.push({cat:'朝食',date:_ds,item:'大人宿泊（朝食付き）',qty:e.adult,price:Math.round(r.bfAdultAmt/(e.adult||1)),discount:0});
           if(r.bfChildOn&&r.bfChildAmt) brows.push({cat:'朝食',date:_ds,item:'朝食（小学生）',qty:e.child,price:Math.round(r.bfChildAmt/(e.child||1)),discount:0});
         }
       }
@@ -8690,7 +8690,7 @@ function buildQuoteHtmlCore(guest,today,validity,rows,total,roomHeader,totalSuff
           +'<img src="'+stampUrl+'" style="width:36px;height:36px;object-fit:contain;mix-blend-mode:multiply">'
         +'</div>'
         +'<div style="font-size:10px;color:var(--text2);line-height:1.9">'
-          +'<div style="font-size:10px;color:var(--text2);letter-spacing:.1em;margin-bottom:2px">海と星空の小さな宿</div>'
+          +'<div style="font-size:10px;color:var(--ocean);letter-spacing:.1em;margin-bottom:2px">海と星空の小さな宿</div>'
           +'<div style="font-size:13px;font-weight:700;color:var(--ocean);font-family:\'Shippori Mincho\',serif;letter-spacing:.1em;margin-bottom:4px">WASSA WASSA</div>'
           +'<div>〒905-1307 沖縄県国頭郡大宜味村根路銘97番地</div>'
           +'<div>TEL: 0980-50-2500</div>'

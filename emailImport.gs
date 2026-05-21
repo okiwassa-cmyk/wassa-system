@@ -35,6 +35,7 @@ function processReservationEmails() {
     'subject:Yahoo newer_than:3d',
     'subject:一休 newer_than:3d',
     'from:info@489ban.net newer_than:3d',        // 旧公式HP（489ban）
+    'from:jalan-yoyakutsutsi@jalan.net newer_than:3d', // じゃらんnet自社サイト予約
     'subject:R-WITH newer_than:3d'  // 旧公式HP（R-WITH）
   ];
   var cancelQueries = [
@@ -60,18 +61,29 @@ function processReservationEmails() {
               if (new Date().getTime() - _startTime > _timeLimit) { Logger.log('時間制限に達したため処理を中断'); return; }
               var msg = msgs[j];
               var subject = msg.getSubject();
+              var fromAddr = msg.getFrom();
+              // ── ループ防止：自分（wassa-okinawa.com）からの通知メールはスキップ ──
+              if (fromAddr.indexOf('wassa-okinawa.com') !== -1 || subject.indexOf('【要確認】') !== -1) {
+                msg.markRead(); continue;
+              }
               var body = msg.getPlainBody();
               if (isCancelEmail(subject, body)) { processCancelEmail(subject, body); msg.markRead(); continue; }
-              var src = detectSource(subject);
+              var src = detectSource(subject, body);
               if (src) {
                 var data = parseEmail(src, body);
                 if (!data.guest_name) {
-                  GmailApp.sendEmail(
-                    'wassa@wassa-okinawa.com',
-                    '【要確認】予約メールの取り込み失敗: ' + subject,
-                    '以下のメールから予約情報を抽出できませんでした。手動で確認してください。\n\n' +
-                    '件名: ' + subject + '\n\n' + body.slice(0, 500)
-                  );
+                  // ── 通知は1メッセージにつき1回のみ ──
+                  var _props = PropertiesService.getScriptProperties();
+                  var _msgKey = 'notified_' + msg.getId();
+                  if (!_props.getProperty(_msgKey)) {
+                    GmailApp.sendEmail(
+                      'wassa@wassa-okinawa.com',
+                      '【要確認】予約メールの取り込み失敗: ' + subject,
+                      '以下のメールから予約情報を抽出できませんでした。手動で確認してください。\n\n' +
+                      '件名: ' + subject + '\n\n' + body.slice(0, 500)
+                    );
+                    _props.setProperty(_msgKey, '1');
+                  }
                   msg.markRead();
                   continue;
                 }
@@ -103,7 +115,12 @@ function processReservationEmails() {
           var cMsgs = cThreads[i2].getMessages();
           for (var j2 = 0; j2 < cMsgs.length; j2++) {
             try {
-              processCancelEmail(cMsgs[j2].getSubject(), cMsgs[j2].getPlainBody());
+              var _cFrom = cMsgs[j2].getFrom();
+              var _cSubj = cMsgs[j2].getSubject();
+              if (_cFrom.indexOf('wassa-okinawa.com') !== -1 || _cSubj.indexOf('【要確認】') !== -1) {
+                cMsgs[j2].markRead(); continue;
+              }
+              processCancelEmail(_cSubj, cMsgs[j2].getPlainBody());
               cMsgs[j2].markRead();
             } catch(e) { Logger.log('キャンセルメッセージエラー [' + cancelQueries[q2] + ']: ' + e); }
           }
@@ -230,6 +247,7 @@ function detectSource(s) {
   if (s.indexOf('楽天')     !== -1) return '楽天';
   if (s.indexOf('Booking')  !== -1) return 'Booking.com';
   if (s.indexOf('Agoda')    !== -1) return 'Agoda';
+  if (s.indexOf('じゃらんnet_予約通知') !== -1) return '公式HP'; // じゃらんnet自社サイト予約
   if (s.indexOf('じゃらん') !== -1) return 'じゃらん';
   if (s.indexOf('Yahoo')    !== -1) return '一休';
   // 旧公式HPシステム
@@ -509,6 +527,39 @@ function parseDailyDetail(src, body) {
       }
       return days;
     }
+    // じゃらんnet自社サイト予約フォーマット: "N泊目［YYYY年MM月DD日］"
+    if (body.indexOf('じゃらんnet_予約通知') !== -1 || /\d+泊目[\s　]*[\[［]/.test(body)) {
+      var re_jl = /(\d+)泊目[\s　]*[\[［][\s　]*([0-9]{4}年[0-9]{1,2}月[0-9]{1,2}日)/g, m_jl;
+      var splits_jl = [];
+      while ((m_jl = re_jl.exec(body)) !== null) {
+        splits_jl.push({date: toYMD(m_jl[2]), start: re_jl.lastIndex});
+      }
+      for (var ijl = 0; ijl < splits_jl.length; ijl++) {
+        var date_jl = splits_jl[ijl].date; if (!date_jl) continue;
+        var blockEnd_jl = ijl+1 < splits_jl.length ? splits_jl[ijl+1].start : body.length;
+        var block_jl = body.slice(splits_jl[ijl].start, blockEnd_jl);
+        var items_jl = [], totAd = 0, totAdP = 0;
+        // "22,000円（大人：男 2、女 0）　×  2名＝ 44,000円"
+        var rPat = /([\d,]+)円[（(]大人[：:]男[\s　]*(\d+)[、,]女[\s　]*(\d+)[）)][^=＝]*[×xｘＸ×][^=＝]*(\d+)名/g, rm;
+        while ((rm = rPat.exec(block_jl)) !== null) {
+          var p=parseInt(rm[1].replace(/,/g,'')), q=parseInt(rm[4]);
+          totAd += q; totAdP += p*q;
+        }
+        if (totAd === 0) {
+          var sp = /([\d,]+)円[^×xｘＸ×]*[×xｘＸ×][\s　]*(\d+)名[\s　]*＝/g, sm;
+          while ((sm = sp.exec(block_jl)) !== null) {
+            var q2=parseInt(sm[2]); totAd+=q2; totAdP+=parseInt(sm[1].replace(/,/g,''))*q2;
+          }
+        }
+        if (totAd > 0) items_jl.push({item:'大人宿泊料金', qty:totAd, price:Math.round(totAdP/totAd)});
+        var cPat = /([\d,]+)円[（(]小学生[）)][^=＝]*[×xｘＸ×][\s　]*(\d+)名/g, cm;
+        while ((cm = cPat.exec(block_jl)) !== null) {
+          items_jl.push({item:'小学生宿泊料金', qty:parseInt(cm[2]), price:parseInt(cm[1].replace(/,/g,''))});
+        }
+        if (items_jl.length > 0) days.push({date:date_jl, items:items_jl});
+      }
+      if (days.length > 0) return days;
+    }
     // 現在の公式HPフォーマット
     var blocks4 = body.split(/\d+泊目\s*[：:]\s*(\d{4}\/\d{1,2}\/\d{1,2})/);
     for (var i4 = 1; i4 < blocks4.length; i4 += 2) {
@@ -645,7 +696,7 @@ function buildBillingFromEmail(data) {
       // 食事行を追加（管理設定の共通単価で）
       if (mp) {
         if (meal.hasBf) {
-          if (adultQty > 0)   rows.push({cat:'朝食', date:day.date, item:'朝食（大人）',   qty:adultQty,   discount:0, price:mp.bf_adult,  payment:pay});
+          if (adultQty > 0)   rows.push({cat:'朝食', date:day.date, item:'大人宿泊（朝食付き）',   qty:adultQty,   discount:0, price:mp.bf_adult,  payment:pay});
           if (childQty > 0)   rows.push({cat:'朝食', date:day.date, item:'朝食（小学生）', qty:childQty,   discount:0, price:mp.bf_child,  payment:pay});
           if (infMealQty > 0) rows.push({cat:'朝食', date:day.date, item:'朝食（幼児）',   qty:infMealQty, discount:0, price:mp.bf_infant, payment:pay});
         }
@@ -748,35 +799,92 @@ function parseEmail(src, body) {
     if (body.indexOf('楽天トラベル') !== -1 && body.indexOf('チェックイン日時') !== -1) {
       return parseEmail('楽天', body);
     }
+    // じゃらんnet自社サイト予約フォーマット（2024〜）
+    if (body.indexOf('じゃらんnet_予約通知') !== -1) {
+      d.reservation_no = ex(body, '予約番号[\\s\\u3000]+[：:][\\s\\u3000]+([A-Z0-9a-z]+)');
+      var _jlName = ex(body, '宿泊代表者氏名[\\s\\u3000]+[：:][\\s\\u3000]+([^\\n（(]+)');
+      d.guest_name = _jlName.replace(/[\\s　]*様[\\s　]*$/, '').trim();
+      var _jlKana = ex(body, '宿泊代表者氏名（カナ）[\\s\\u3000]+[：:][\\s\\u3000]+([^\\n（(]+)').replace(/[\\s　]*様[\\s　]*$/, '').trim();
+      if (_jlKana) { var _jlKP = _jlKana.split(/[\\s　]+/); d.sei_kana = _jlKP[0]||''; d.mei_kana = _jlKP.slice(1).join('')||''; }
+      d.phone = ex(body, '宿泊代表者連絡先[\\s\\u3000]+[：:][\\s\\u3000]+([0-9][0-9\\-]+)');
+      d.email = ex(body, '予約者Ｅメールアドレス[\\s\\u3000]*[：:][\\s\\u3000]*([^\\s\\n]+@[^\\s\\n]+)');
+      var _jlDate = ex(body, '宿泊日時[\\s\\u3000]*[：:][\\s\\u3000]*([0-9]{4}年[0-9]{1,2}月[0-9]{1,2}日)');
+      d.check_in = toYMD(_jlDate);
+      d.check_in_time = ex(body, '宿泊日時[^\\n]*([0-9]{2}:[0-9]{2})');
+      var _jlNights = parseInt(ex(body, '泊数[\\s\\u3000]*[：:][\\s\\u3000]*([0-9]+)泊')||'1');
+      d.check_out = calcCheckOut(d.check_in, _jlNights);
+      d.room_type = ex(body, '部屋タイプ[\\s\\u3000]*[：:][\\s\\u3000]*([^\\n]+)');
+      d.plan_name = ex(body, 'プラン[\\s\\u3000]*[：:][\\s\\u3000]*([^\\n]+)').replace(/^■/, '').trim();
+      var _jlMeal = ex(body, '食事[\\s\\u3000]*[：:][\\s\\u3000]*([^\\n]+)');
+      if (/朝あり.*夕あり|夕あり.*朝あり/.test(_jlMeal)) d.meal = 'both';
+      else if (/夕あり/.test(_jlMeal)) d.meal = 'din';
+      else if (/朝あり/.test(_jlMeal)) d.meal = 'bf';
+      else d.meal = 'none';
+      var _jlAd = 0;
+      var _jlRoomPat = /[0-9]+部屋目[\s\u3000]*[：:][\s\u3000]*大人[：:]([0-9]+)名/g, _jlRm;
+      while ((_jlRm = _jlRoomPat.exec(body)) !== null) _jlAd += parseInt(_jlRm[1]);
+      d.adults = _jlAd || parseInt(ex(body,'大人[：:]([0-9]+)名'))||0;
+      d.children = parseInt(ex(body,'子供[：:]([0-9]+)名'))||0;
+      d.infants  = parseInt(ex(body,'幼児[：:]([0-9]+)名'))||0;
+      var _jlAddr = ex(body, '住所[\\s\\u3000]*[：:][\\s\\u3000]*([^\\n]+)');
+      if (_jlAddr) {
+        var _jlZip = _jlAddr.match(/〒([0-9]{3}-?[0-9]{4})/);
+        d.zip = _jlZip ? _jlZip[1].replace(/-/,'') : '';
+        var _jlRest = _jlAddr.replace(/〒[0-9-]+\s*/, '').trim();
+        var _jlPref = _jlRest.match(/^([^\s　]*?[都道府県])/);
+        d.pref = _jlPref ? _jlPref[1] : '';
+        var _jlRest2 = _jlPref ? _jlRest.slice(d.pref.length).trim() : _jlRest;
+        var _jlCity = _jlRest2.match(/^([^\s　]*?[市区町村郡])/);
+        d.city = _jlCity ? _jlCity[1] : '';
+        d.address = _jlCity ? _jlRest2.slice(d.city.length).trim() : _jlRest2;
+      }
+      var _jlPayTxt = ex(body, '決済情報[\\s\\u3000]*[：:][\\s\\u3000]*([^\\n━]+)').trim();
+      d.payment = /カード|精算不要|オンライン/.test(_jlPayTxt) ? '事前決済' : '現地決済';
+      d.total_amount = toInt(ex(body, '合計[：:]([0-9,]+)円'));
+      var _jlQSec = body.match(/■予約者に対する質問[：:]([\s\S]*?)(?=■|$)/);
+      var _jlASec = body.match(/■予約者からの回答[：:]([\s\S]*?)(?=■|$)/);
+      if (_jlQSec && _jlASec) {
+        var _jlQLines = _jlQSec[1].replace(/\r/g,'').split('\n').map(function(s){return s.trim();}).filter(function(s){return /^[・･]/.test(s);});
+        var _jlALines = _jlASec[1].replace(/\r/g,'').trim().split('\n').map(function(s){return s.trim();}).filter(Boolean);
+        var _jlNotes = [];
+        for (var _jlI=0; _jlI<_jlQLines.length; _jlI++) {
+          var _jlQ = _jlQLines[_jlI].replace(/^[・･]/,'').trim();
+          var _jlA = _jlALines[_jlI]||'';
+          if (_jlQ && _jlA) _jlNotes.push(_jlQ+'：'+_jlA);
+        }
+        if (_jlNotes.length>0) d.notes = _jlNotes.join('\n');
+      }
+      return d;
+    }
     // 489banフォーマット（旧公式HP予約システム、〜2024年）
     if (body.indexOf('[宿泊日]') !== -1 || body.indexOf('info@489ban.net') !== -1 || body.indexOf('予約番（株式会社') !== -1) {
       d.source         = '公式HP';
-      d.reservation_no = ex(body, '\\[予約番号\\][\\s　]*：[\\s　]*([0-9]+)');
-      d.plan_name      = (ex(body, '\\[プラン名\\][\\s　]*：[\\s　]*([^\\n]+)')
-                       || ex(body, '\\[プラン\\][\\s　]*：[\\s　]*([^\\n]+)')).trim();
-      d.room_type      = (ex(body, '\\[部屋タイプ\\][\\s　]*：[\\s　]*([^\\n]+)')
-                       || ex(body, '\\[お部屋\\][\\s　]*：[\\s　]*([^\\n]+)')).trim();
-      var _4d = ex(body, '\\[宿泊日\\][\\s　]*：[\\s　]*(\\d{4}年\\d{2}月\\d{2}日)')
-             || ex(body, '\\[宿泊日\\][\\s　]*：[\\s　]*(\\d{4}\\/\\d{1,2}\\/\\d{1,2})');
+      d.reservation_no = ex(body, '\\[予約番号\\][\\s　]*[：:][\\s　]*([0-9]+)');
+      d.plan_name      = (ex(body, '\\[プラン名\\][\\s　]*[：:][\\s　]*([^\\n]+)')
+                       || ex(body, '\\[プラン\\][\\s　]*[：:][\\s　]*([^\\n]+)')).trim();
+      d.room_type      = (ex(body, '\\[部屋タイプ\\][\\s　]*[：:][\\s　]*([^\\n]+)')
+                       || ex(body, '\\[お部屋\\][\\s　]*[：:][\\s　]*([^\\n]+)')).trim();
+      var _4d = ex(body, '\\[宿泊日\\][\\s　]*[：:][\\s　]*(\\d{4}年\\d{2}月\\d{2}日)')
+             || ex(body, '\\[宿泊日\\][\\s　]*[：:][\\s　]*(\\d{4}\\/\\d{1,2}\\/\\d{1,2})');
       var _4n = parseInt(ex(body, 'から(\\d+)泊') || '1');
       if (_4d) { d.check_in = toYMD(_4d); d.check_out = calcCheckOut(d.check_in, _4n); }
-      d.check_in_time  = ex(body, '\\[チェックイン予定時間\\][\\s　]*：[\\s　]*(\\d{1,2}:\\d{2})')
-                      || ex(body, 'チェックイン予定時間[\\s　]*：[\\s　]*(\\d{1,2}:\\d{2})');
-      var _4name = ex(body, '\\[氏名\\][\\s　]*：[\\s　]*([^（(\\n]+)').replace(/様\s*$/, '').trim();
+      d.check_in_time  = ex(body, '\\[チェックイン予定時間\\][\\s　]*[：:][\\s　]*(\\d{1,2}:\\d{2})')
+                      || ex(body, 'チェックイン予定時間[\\s　]*[：:][\\s　]*(\\d{1,2}:\\d{2})');
+      var _4name = ex(body, '\\[氏名\\][\\s　]*[：:][\\s　]*([^（(\\n]+)').replace(/様\s*$/, '').trim();
       d.guest_name = _4name;
-      var _4kana = ex(body, '\\[氏名\\][\\s　]*：[^（(]+[（(]([^）)]+)[）)]');
+      var _4kana = ex(body, '\\[氏名\\][\\s　]*[：:][^（(]+[（(]([^）)]+)[）)]');
       if (_4kana) { var _4kp = _4kana.trim().split(/[\s　]+/); d.sei_kana = _4kp[0]||''; d.mei_kana = _4kp.slice(1).join('')||''; }
-      d.email   = ex(body, '\\[Ｅメール\\][\\s　]*：[\\s　]*([^\\s\\n]+@[^\\s\\n]+)')
-               || ex(body, '\\[メール\\][\\s　]*：[\\s　]*([^\\s\\n]+@[^\\s\\n]+)');
-      d.phone   = ex(body, '携帯電話[\\s　]*：[\\s　]*([0-9][0-9\\-]+)')
-               || ex(body, '自宅電話[\\s　]*：[\\s　]*([0-9][0-9\\-]+)')
+      d.email   = ex(body, '\\[Ｅメール\\][\\s　]*[：:][\\s　]*([^\\s\\n]+@[^\\s\\n]+)')
+               || ex(body, '\\[メール\\][\\s　]*[：:][\\s　]*([^\\s\\n]+@[^\\s\\n]+)');
+      d.phone   = ex(body, '携帯電話[\\s　]*[：:][\\s　]*([0-9][0-9\\-]+)')
+               || ex(body, '自宅電話[\\s　]*[：:][\\s　]*([0-9][0-9\\-]+)')
                || ex(body, '連絡先（主）[\\s　]+([0-9][0-9\\-]+)')
                || ex(body, '連絡先\\(主\\)[\\s　]+([0-9][0-9\\-]+)');
-      var _4zip  = ex(body, '\\[郵便番号\\][\\s　]*：[\\s　]*([0-9]+)');
-      var _4addr = ex(body, '\\[ご住所\\][\\s　]*：[\\s　]*([^\\n]+)');
+      var _4zip  = ex(body, '\\[郵便番号\\][\\s　]*[：:][\\s　]*([0-9]+)');
+      var _4addr = ex(body, '\\[ご住所\\][\\s　]*[：:][\\s　]*([^\\n]+)');
       d.zip = _4zip.replace(/-/,'');
       if (_4addr) { var _4pm = _4addr.match(/^([^\s　]*?[都道府県])/); d.pref = _4pm?_4pm[1]:''; var _4ar = _4pm?_4addr.slice(d.pref.length).trim():_4addr.trim(); var _4cm = _4ar.match(/^([^\s　]*?[市区町村郡])/); d.city = _4cm?_4cm[1]:''; d.address = _4cm?_4ar.slice(d.city.length).trim():_4ar; }
-      var _4fd = ex(body, '\\[お食事\\][\\s　]*：[\\s　]*([^\\n]+)');
+      var _4fd = ex(body, '\\[お食事\\][\\s　]*[：:][\\s　]*([^\\n]+)');
       if (/朝夕|朝・夕|両食|2食|二食/.test(_4fd)) d.meal = 'both';
       else if (/夕/.test(_4fd)) d.meal = 'din';
       else if (/朝/.test(_4fd)) d.meal = 'bf';
@@ -786,9 +894,9 @@ function parseEmail(src, body) {
       d.adults   = (_4ml+_4fl) || parseInt(ex(body,'大人[^0-9]*(\\d+)名?')||'0');
       d.children = parseInt(ex(body,'小学生[^0-9]*(\\d+)名')||'0');
       d.infants  = parseInt(ex(body,'子供\\(3才未満\\)[\\s\\S]{0,30}(\\d+)名')||'0');
-      d.total_amount = toInt(ex(body, '合計：([0-9,]+)円'));
+      d.total_amount = toInt(ex(body, '合計[：:]([0-9,]+)円'));
       d.payment      = '現地決済';
-      var _4note = ex(body, '(?:備考|要望)[^：:]*：([^\\n]+)');
+      var _4note = ex(body, '(?:備考|要望)[^：:]*[：:]([^\\n]+)');
       if (_4note && _4note.trim()) d.notes = _4note.trim();
       return d;
     }
@@ -1297,6 +1405,7 @@ function continueBulkReprocessBilling() {
         queries.push('subject:公式HP予約システム after:' + afterDate + ' before:' + beforeDate);
         queries.push('from:info@489ban.net after:' + afterDate + ' before:' + beforeDate);
         queries.push('subject:R-WITH after:' + afterDate + ' before:' + beforeDate);
+        queries.push('from:jalan-yoyakutsutsi@jalan.net after:' + afterDate + ' before:' + beforeDate);
       } else if (subjectMap[src]) {
         queries.push(subjectMap[src] + ' after:' + afterDate + ' before:' + beforeDate);
       }
@@ -1368,6 +1477,7 @@ function continueBulkReprocessBilling() {
           rQueries.push('from:sales@travel.rakuten.co.jp "' + rNo + '" after:' + afterDate + ' before:' + beforeDate);
         } else if (resv.source === '公式HP') {
           rQueries.push('subject:R-WITH "' + rNo + '" after:' + afterDate + ' before:' + beforeDate);
+          rQueries.push('subject:公式HP予約システム "' + rNo + '" after:' + afterDate + ' before:' + beforeDate);
           rQueries.push(subjectMap['公式HP'] + ' "' + rNo + '" after:' + afterDate + ' before:' + beforeDate);
         } else if (subjectMap[resv.source]) {
           rQueries.push(subjectMap[resv.source] + ' "' + rNo + '" after:' + afterDate + ' before:' + beforeDate);
@@ -1409,7 +1519,7 @@ function continueBulkReprocessBilling() {
         for (var k = 0; k < cache.length; k++) {
           var em = cache[k];
           // 予約番号が一致すれば確定
-          if (resvNo && em.reservation_no && em.reservation_no === resvNo) { matched = em; break; }
+          if (resvNo && em.reservation_no && em.reservation_no.toUpperCase() === resvNo.toUpperCase()) { matched = em; break; }
           // 日付+名前マッチング
           var dateMatch = em.check_in && em.check_in.slice(0, 10) === ciDate;
           var eName3    = em.guest_name.slice(0, 3);
