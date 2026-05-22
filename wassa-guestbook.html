@@ -4268,7 +4268,7 @@ async function applyFoodRule() {
       if (nightIdx < 0) nightIdx = 0;
       var rule = ruleArr[nightIdx] || {};
       var isBf = rec.category === '朝食';
-      var patch = {menu_name: isBf ? null : (rule.dinner || null), meal_detail: isBf ? (rule.breakfast || null) : null};
+      var patch = {menu_name: isBf ? (rule.breakfast || null) : (rule.dinner || null), meal_detail: null};
       var r = await fetch(SB_URL+'/rest/v1/food_records?id=eq.'+rec.id, {
         method:'PATCH', headers: Object.assign({}, SB_HEADERS, {'Prefer':'return=representation'}),
         body: JSON.stringify(patch)
@@ -4390,8 +4390,8 @@ async function autoSetupFoodRecords(resvId, checkIn, checkOut, overrideRuleArr){
       var m = meals[i];
       var rule = ruleArr[m.nightIdx] || {};
       var isBf = m.category === '朝食';
-      var menuName = isBf ? null : (rule.dinner || null);
-      var mealDetail = isBf ? (rule.breakfast || null) : null;
+      var menuName = isBf ? (rule.breakfast || null) : (rule.dinner || null);
+      var mealDetail = null;
       var res=await sbPost('food_records',{
         reservation_id:resvId,
         served_date:m.served_date,
@@ -4507,7 +4507,7 @@ function renderFoodRecords() {
         html += '<option value="'+c+'" '+(_dispCat===c?'selected':'')+'>'+c+'</option>';
       });
       html += '</select>';
-      html += '<input type="date" value="'+(r.served_date||'')+'" onchange="frUpdate('+idx+',\'served_date\',this.value)" style="font-size:11px;border:1px solid var(--border);border-radius:4px;padding:2px 6px">';
+      html += '<input type="date" value="'+(r.served_date||'')+'" onchange="frUpdate('+idx+',\'served_date\',this.value)" style="display:none">';
       html += '<span style="margin-left:auto;font-size:10px;color:var(--text3)" id="food-saved-'+idx+'"></span>';
       html += '<button onclick="deleteFoodRecord('+idx+')" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text3);font-size:11px;padding:2px 8px" title="削除">削除</button>';
       html += '</div>';
