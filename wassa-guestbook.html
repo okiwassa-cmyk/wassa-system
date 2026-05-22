@@ -4279,14 +4279,14 @@ async function autoSetupFoodRecords(resvId, checkIn, checkOut){
     if(ds===checkIn){
       meals.push({served_date:ds,category:'夕食',nightIdx:nightIdx});
     } else {
-      meals.push({served_date:ds,category:'朝食',nightIdx:nightIdx});
+      meals.push({served_date:ds,category:'朝食',nightIdx:nightIdx-1}); // 前泊のルールを使う
       meals.push({served_date:ds,category:'夕食',nightIdx:nightIdx});
     }
     nightIdx++;
     cur.setDate(cur.getDate()+1);
   }
-  // CO日の朝食
-  if(checkOut!==checkIn) meals.push({served_date:checkOut,category:'朝食',nightIdx:nightIdx});
+  // CO日の朝食（最終泊のルールを使う）
+  if(checkOut!==checkIn) meals.push({served_date:checkOut,category:'朝食',nightIdx:nightIdx-1});
 
   // 自動セットルール取得
   var resv = allReservations.find(function(r){return r.id===resvId;});
