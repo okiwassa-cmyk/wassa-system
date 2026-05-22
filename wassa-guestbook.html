@@ -4733,8 +4733,6 @@ function attachCustDirtyListeners(){
 function resetCustDirty(){ _custDirty=false; _setDirtyIndicator('cust-modal',false); }
 
 // ━━ 請求タブ補助関数 ━━
-function updateLocalChargeBanner(){} // 後方互換：呼び出し元が残っているため空関数として保持
-function syncPaymentSelect(){} // 後方互換：不要になったが呼び出し元があるため保持
 function syncPaymentEdit(){
   var v=(document.getElementById('bill-payment')||{}).value||'';
   var ep=document.getElementById('edit-payment'); if(ep) ep.value=v;
@@ -7403,55 +7401,6 @@ function calcEstimate(){
 // lastEstimatesは複数室の全データ
 var lastEstimates = [];
 
-function calcEstimate_old(){
-  const room=document.getElementById('e-room').value;
-  const cin=document.getElementById('e-cin').value;
-  const cout=document.getElementById('e-cout').value;
-  const adult=parseInt(document.getElementById('e-adult').value);
-  const child=parseInt(document.getElementById('e-child').value);
-  const infFuton=room==='sup'?parseInt(document.getElementById('e-inf-futon').value):0;
-  const infNoFuton=room==='sup'?parseInt(document.getElementById('e-inf-nofuton').value):0;
-  const infDlx=room==='dlx'?parseInt(document.getElementById('e-inf-dlx').value):0;
-  const meal='both'; // デフォルト朝夕食付き
-  const area=document.getElementById('result-area');
-  if(!cin||!cout){area.innerHTML='<div class="err">日付を入力してください</div>';return;}
-  const d1=new Date(cin),d2=new Date(cout);
-  if(d2<=d1){area.innerHTML='<div class="err">チェックアウトはチェックインより後の日付にしてください</div>';return;}
-  const nights=(d2-d1)/86400000;
-  const hasBf=meal==='bf'||meal==='both';
-  const hasDin=meal==='din'||meal==='both';
-  const roomName=room==='sup'?'スーペリアツイン':'デラックスツイン';
-  const dinChild=common.din_child_price||Math.round(common.din_adult*common.din_child_rate);
-  const totalInf=room==='sup'?infFuton+infNoFuton:infDlx;
-  let rows=[],totalRoom=0;
-  for(let i=0;i<nights;i++){
-    const dt=new Date(d1);dt.setDate(dt.getDate()+i);
-    const ds=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
-    const label=(dt.getMonth()+1)+'/'+dt.getDate();
-    const s=getSeasonForDate(ds)||'regular';
-    const p=prices[s]?.[room]||{};
-    const ak=Math.min(adult,4);
-    const baseUnit=p[ak]||0;
-    const base=baseUnit*ak;
-    const childUnit=p.child||0;const childRoom=childUnit*child;
-    const infFutonUnit=room==='sup'?(p.infant_futon||4400):0;const infNoFutonUnit=room==='sup'?(p.infant_no_futon||2200):0;
-    const infDlxUnit=room==='dlx'?(p.infant||0):0;
-    const infFutonRoom=infFutonUnit*infFuton;const infNoFutonRoom=infNoFutonUnit*infNoFuton;const infDlxRoom=infDlxUnit*infDlx;
-    const nightRoom=base+childRoom+infFutonRoom+infNoFutonRoom+infDlxRoom;
-    const bfAdultAmt=adult>0?common.bf_adult*adult:0;const bfChildAmt=child>0?common.bf_child*child:0;
-    const bfInfFutonAmt=room==='sup'?common.bf_infant*infFuton:0;const bfInfNoFutonAmt=room==='sup'?common.bf_infant*infNoFuton:0;const bfInfDlxAmt=room==='dlx'?common.bf_infant*infDlx:0;
-    const dinAdultAmt=adult>0?common.din_adult*adult:0;const dinChildAmt=child>0?dinChild*child:0;
-    const dinInfFutonAmt=room==='sup'?common.din_infant*infFuton:0;const dinInfNoFutonAmt=room==='sup'?common.din_infant*infNoFuton:0;const dinInfDlxAmt=room==='dlx'?common.din_infant*infDlx:0;
-    totalRoom+=nightRoom;
-    rows.push({label,date:ds,s,base,baseUnit,childRoom,childUnit,infFutonRoom,infFutonUnit,infNoFutonRoom,infNoFutonUnit,infDlxRoom,infDlxUnit,nightRoom,ak,bfAdultAmt,bfChildAmt,bfInfFutonAmt,bfInfNoFutonAmt,bfInfDlxAmt,dinAdultAmt,dinChildAmt,dinInfFutonAmt,dinInfNoFutonAmt,dinInfDlxAmt,bfAdultOn:hasBf&&adult>0,bfChildOn:hasBf&&child>0,bfInfFutonOn:hasBf&&room==='sup'&&infFuton>0,bfInfNoFutonOn:hasBf&&room==='sup'&&infNoFuton>0,bfInfDlxOn:hasBf&&room==='dlx'&&infDlx>0,dinAdultOn:hasDin&&adult>0,dinChildOn:hasDin&&child>0,dinInfFutonOn:hasDin&&room==='sup'&&infFuton>0,dinInfNoFutonOn:hasDin&&room==='sup'&&infNoFuton>0,dinInfDlxOn:hasDin&&room==='dlx'&&infDlx>0});
-  }
-  const mealLabel={none:'素泊まり',bf:'朝食付き',din:'夕食付き',both:'朝夕食付き'}[meal];
-  let paxDesc='大人'+adult+'名';if(child)paxDesc+='・小学生'+child+'名';
-  if(room==='sup'){if(infFuton)paxDesc+='・幼児(布団あり)'+infFuton+'名';if(infNoFuton)paxDesc+='・幼児(布団なし)'+infNoFuton+'名';}
-  else{if(infDlx)paxDesc+='・幼児'+infDlx+'名';}
-  lastEstimate={room,roomName,cin,cout,nights,adult,child,infFuton,infNoFuton,infDlx,totalInf,meal,mealLabel,paxDesc,rows,totalRoom,hasBf,hasDin,dinChild};
-  renderResult();
-} // end calcEstimate_old
 function getMealAmtForRow(r){let bf=0,din=0;if(r.bfAdultOn)bf+=r.bfAdultAmt;if(r.bfChildOn)bf+=r.bfChildAmt;if(r.bfInfFutonOn)bf+=r.bfInfFutonAmt;if(r.bfInfNoFutonOn)bf+=r.bfInfNoFutonAmt;if(r.bfInfDlxOn)bf+=r.bfInfDlxAmt;if(r.dinAdultOn)din+=r.dinAdultAmt;if(r.dinChildOn)din+=r.dinChildAmt;if(r.dinInfFutonOn)din+=r.dinInfFutonAmt;if(r.dinInfNoFutonOn)din+=r.dinInfNoFutonAmt;if(r.dinInfDlxOn)din+=r.dinInfDlxAmt;return{bf,din};}
 function onMealToggle(nightIdx,key,checked){if(!lastEstimate)return;lastEstimate.rows[nightIdx][key]=checked;renderResult();}
 function mealToggleRow(nightIdx,key,checked,label,price){const id='mtog-'+nightIdx+'-'+key;return'<div class="meal-toggle-row"><input type="checkbox" id="'+id+'"'+(checked?' checked':'')+' onchange="onMealToggle('+nightIdx+',\''+key+'\',this.checked)"><label for="'+id+'">'+label+'</label><span class="meal-price">'+(price>0?fmtPrice(price):'')+'</span></div>';}
@@ -9772,8 +9721,6 @@ function copyCleaningMonthText(){
     var ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('月コピーしました');
   });
 }
-// 旧関数の互換維持
-function copyCleaningText(){ copyCleaningMonthText(); }
 
 function updatePrice(s,room,key,val){if(!prices[s])prices[s]={sup:{},dlx:{}};if(!prices[s][room])prices[s][room]={};prices[s][room][key]=parseInt(val)||0;}
 function updateRange(s,i,field,val){if(!ranges[s])ranges[s]=[];ranges[s][i][field]=val;renderRateCal();}
