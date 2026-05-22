@@ -1268,6 +1268,14 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
       <!-- 顧客情報サマリー -->
       <div id="food-guest-info" style="background:var(--sand);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;display:none">
       </div>
+      <!-- ルール適用バー -->
+      <div id="food-rule-apply-bar" style="display:none;background:var(--sand);border-radius:8px;padding:8px 12px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-size:12px;color:var(--text2);white-space:nowrap">ルールを適用：</span>
+          <select id="food-rule-select" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:white;font-family:inherit;color:var(--text);flex:1;min-width:180px"></select>
+          <button class="btn btn-primary btn-sm owner-only" onclick="applyFoodRule()">セット</button>
+        </div>
+      </div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px">
         <div id="food-records-status" style="font-size:12px;color:var(--text3)"></div>
         <div style="display:flex;gap:6px">
@@ -1932,6 +1940,22 @@ var currentDinCourseName='おまかせコース';
 var dinCoursePresets=[{name:'おまかせコース',price:7700,is_default:true},{name:'アグーコース',price:6600},{name:'鮮魚コース',price:8800},{name:'BBQコース',price:8800}];
 // 食事自動セットルール: Supabase(price_common.meal_auto_rules)から読み込む
 var mealAutoRules = null;
+var _mealRuleCategories = [
+  {key:'new.single_sakana',    label:'新規・1泊・鮮魚プラン',          isSingle:true},
+  {key:'new.single_agoo',      label:'新規・1泊・アグープラン',         isSingle:true},
+  {key:'new.single_bbq',       label:'新規・1泊・BBQプラン',           isSingle:true},
+  {key:'new.multi_sakana',     label:'新規・連泊・鮮魚プラン',          isSingle:false},
+  {key:'new.multi_agoo',       label:'新規・連泊・アグープラン',         isSingle:false},
+  {key:'new.multi_bbq',        label:'新規・連泊・BBQプラン',           isSingle:false},
+  {key:'new.multi',            label:'新規・連泊プラン',               isSingle:false},
+  {key:'repeat.single_sakana', label:'リピーター・1泊・鮮魚プラン',     isSingle:true},
+  {key:'repeat.single_agoo',   label:'リピーター・1泊・アグープラン',    isSingle:true},
+  {key:'repeat.single_bbq',    label:'リピーター・1泊・BBQプラン',      isSingle:true},
+  {key:'repeat.multi_sakana',  label:'リピーター・連泊・鮮魚プラン',     isSingle:false},
+  {key:'repeat.multi_agoo',    label:'リピーター・連泊・アグープラン',    isSingle:false},
+  {key:'repeat.multi_bbq',     label:'リピーター・連泊・BBQプラン',      isSingle:false},
+  {key:'repeat.multi',         label:'リピーター・連泊プラン',          isSingle:false},
+];
 function saveDinCoursePresets(){/* Supabase保存に移行 - saveDinCourses()を使用 */}
 let currentEditId=null, editType=null;
 let common={bf_adult:2200,bf_child:2200,bf_infant:2200,din_adult:7700,din_child_rate:0.65,din_child_price:null,din_infant:3300};
@@ -4185,15 +4209,75 @@ async function loadFoodRecords(resvId) {
   }
   var rows = await sbGet('food_records', 'select=*&reservation_id=eq.'+resvId+'&order=served_date.asc,id.asc').catch(()=>[]);
   currentFoodRecords = rows || [];
+  var _resv2 = allReservations.find(function(x){return x.id===resvId;});
+  renderFoodRuleSelect(_resv2 || null);
   // 食事データゼロなら日程に合わせて自動セット
   if(currentFoodRecords.length===0){
-    var _resv=allReservations.find(function(x){return x.id===resvId;});
-    if(_resv&&_resv.check_in&&_resv.check_out){
-      await autoSetupFoodRecords(resvId,_resv.check_in,_resv.check_out);
+    if(_resv2&&_resv2.check_in&&_resv2.check_out){
+      await autoSetupFoodRecords(resvId,_resv2.check_in,_resv2.check_out);
       return; // autoSetupFoodRecords内でrenderFoodRecordsを呼ぶ
     }
   }
   renderFoodRecords();
+}
+
+function renderFoodRuleSelect(resv) {
+  var bar = document.getElementById('food-rule-apply-bar');
+  var sel = document.getElementById('food-rule-select');
+  if (!bar || !sel) return;
+  if (!mealAutoRules || !resv || !resv.check_in || !resv.check_out) { bar.style.display = 'none'; return; }
+  var nights = Math.round((new Date(resv.check_out+'T00:00:00') - new Date(resv.check_in+'T00:00:00')) / 86400000);
+  var isSingleTrip = nights <= 1;
+  var isRepeat = resv.customer_id ? allReservations.some(function(r){
+    return r.customer_id === resv.customer_id && r.status !== 'cancelled' && r.id !== resv.id && r.check_out && r.check_out < resv.check_in;
+  }) : false;
+  var defaultKey = (isRepeat ? 'repeat' : 'new') + '.' + (isSingleTrip ? 'single_agoo' : 'multi');
+  var options = '';
+  _mealRuleCategories.forEach(function(cat) {
+    if (cat.isSingle !== isSingleTrip) return;
+    var parts = cat.key.split('.');
+    var ruleArr = (mealAutoRules[parts[0]] && mealAutoRules[parts[0]][parts[1]]) || [];
+    var hasValue = ruleArr.some(function(r){ return (r.dinner||'').trim() || (r.breakfast||'').trim(); });
+    if (!hasValue) return;
+    var selected = cat.key === defaultKey ? ' selected' : '';
+    options += '<option value="'+cat.key+'"'+selected+'>'+cat.label+'</option>';
+  });
+  if (!options) { bar.style.display = 'none'; return; }
+  sel.innerHTML = options;
+  bar.style.display = 'block';
+}
+
+async function applyFoodRule() {
+  var sel = document.getElementById('food-rule-select');
+  if (!sel || !sel.value) return;
+  var parts = sel.value.split('.');
+  var ruleArr = (mealAutoRules && mealAutoRules[parts[0]] && mealAutoRules[parts[0]][parts[1]]) || [];
+  if (!ruleArr.length) { toast('ルールにデータがありません'); return; }
+  var resv = allReservations.find(function(r){ return r.id === currentEditId; });
+  if (!resv) return;
+  if (currentFoodRecords.length === 0) {
+    await autoSetupFoodRecords(currentEditId, resv.check_in, resv.check_out, ruleArr);
+    return;
+  }
+  var ciDate = new Date(resv.check_in + 'T00:00:00');
+  try {
+    for (var i = 0; i < currentFoodRecords.length; i++) {
+      var rec = currentFoodRecords[i];
+      var nightIdx = Math.round((new Date(rec.served_date+'T00:00:00') - ciDate) / 86400000);
+      if (rec.category === '朝食') nightIdx -= 1;
+      if (nightIdx < 0) nightIdx = 0;
+      var rule = ruleArr[nightIdx] || {};
+      var isBf = rec.category === '朝食';
+      var patch = {menu_name: isBf ? null : (rule.dinner || null), meal_detail: isBf ? (rule.breakfast || null) : null};
+      var r = await fetch(SB_URL+'/rest/v1/food_records?id=eq.'+rec.id, {
+        method:'PATCH', headers: Object.assign({}, SB_HEADERS, {'Prefer':'return=representation'}),
+        body: JSON.stringify(patch)
+      });
+      if (r.ok) { var upd = await r.json(); if (upd&&upd[0]) currentFoodRecords[i] = Object.assign({}, rec, upd[0]); }
+    }
+    toast('✅ ルールを適用しました');
+    renderFoodRecords();
+  } catch(e) { toast('エラー: ' + e.message); }
 }
 
 async function fixFoodMisalignment(){
@@ -4268,7 +4352,7 @@ function _detectPlanType(planName, nights) {
   return 'multi';
 }
 
-async function autoSetupFoodRecords(resvId, checkIn, checkOut){
+async function autoSetupFoodRecords(resvId, checkIn, checkOut, overrideRuleArr){
   // CI日: 夕食のみ / 中間日: 朝食+夕食 / CO日: 朝食のみ（素泊まり含む全プラン）
   var meals=[];
   var cur=new Date(checkIn+'T00:00:00');
@@ -4299,7 +4383,7 @@ async function autoSetupFoodRecords(resvId, checkIn, checkOut){
   }
   var custKey = isRepeat ? 'repeat' : 'new';
   var planKey = mealAutoRules ? _detectPlanType(resv ? resv.plan_name : '', nights) : null;
-  var ruleArr = (mealAutoRules && mealAutoRules[custKey] && mealAutoRules[custKey][planKey]) || [];
+  var ruleArr = overrideRuleArr || (mealAutoRules && mealAutoRules[custKey] && mealAutoRules[custKey][planKey]) || [];
 
   try{
     for(var i=0;i<meals.length;i++){
