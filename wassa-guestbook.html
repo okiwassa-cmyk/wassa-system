@@ -3144,7 +3144,7 @@ async function saveReservation(andClose){
     furusato_amount:parseInt((document.getElementById('bill-furusato')||{}).value||0)||0,
     total_amount:document.getElementById('edit-total-amt')?document.getElementById('edit-total-amt').value:'',
     payment:document.getElementById('edit-payment')?document.getElementById('edit-payment').value:(document.getElementById('bill-payment')?document.getElementById('bill-payment').value:''),
-    billing:collectBilling(),food_days:collectFood(),stay_record:collectRecord(),
+    billing:collectBilling(),stay_record:collectRecord(),
     is_full_buyout: _currentGroupId ? true : false,
     group_id:_currentGroupId||null};
   // サンキューメール不要チェックボックス
@@ -7009,9 +7009,9 @@ function addDinCourse(){
   var idx=dinCoursePresets.length-1;
   setTimeout(function(){var el=document.getElementById('dc-name-'+idx);if(el)el.focus();},50);
 }
-function deleteDinCourse(i){
+async function deleteDinCourse(i){
   dinCoursePresets.splice(i,1);
-  saveDinCoursePresets();
+  await supa('price_common?id=eq.1','PATCH',{din_courses:dinCoursePresets});
   renderMgr();
   populateDinCourseSelect();
 }
