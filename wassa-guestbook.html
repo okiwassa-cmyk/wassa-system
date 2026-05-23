@@ -5631,6 +5631,8 @@ function openNewReservationWithDate(ds){
 // ━━ CUSTOMERS ━━
 function renderCustomers(){filterCustomers();}
 var _pendingLinkResId = null; // 予約からの新規顧客登録時に紐づける予約ID
+var _pendingFamilyId = null;    // 家族マッチ時に新規顧客に設定するfamily_id
+var _pendingFamilyRepId = null; // 家族マッチ時の代表者ID（family_id未設定なら自分のIDでパッチ）
 
 function openNewCustomer(){if(document.body.classList.contains('staff-mode')){ toast('スタッフモードでは顧客情報を編集できません'); return; }currentEditId=null;_pendingLinkResId=null;document.getElementById('cust-modal-title').textContent='新規顧客登録';document.getElementById('del-cust-btn').style.display='none';['cust-sei','cust-mei','cust-sei-kana','cust-mei-kana','cust-mobile','cust-tel','cust-email','cust-email2','cust-zip','cust-pref','cust-city','cust-address','cust-ng-food','cust-memo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});document.getElementById('cust-gender').value='';document.getElementById('cust-birth').value='';var _bP=document.getElementById('birth-era-panel'),_bW=document.getElementById('cust-birth')&&document.getElementById('cust-birth').parentElement;if(_bP)_bP.style.display='none';if(_bW)_bW.style.display='flex';['birth-era-year','birth-era-month','birth-era-day'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});var _as2=document.getElementById('cust-allergy-select');if(_as2)_as2.value='なし';openModal('cust-modal');}
 
@@ -5676,6 +5678,32 @@ function openNewCustomerFromReservation(){
 
   document.getElementById('cust-mobile').value = phone;
   document.getElementById('cust-email').value  = email;
+
+  // ② 家族マッチチェック：family1~4スロットに名前一致 → 住所を自動転記
+  _pendingFamilyId = null; _pendingFamilyRepId = null;
+  var _rawNameNorm = rawName.replace(/[\s\u3000　]+/g,'');
+  if(_rawNameNorm){
+    var _fRep = null, _fRel = '';
+    allCustomers.forEach(function(c){
+      if(_fRep) return;
+      [1,2,3,4].forEach(function(n){
+        if(_fRep) return;
+        var fn = (c['family'+n]||'').replace(/[\s\u3000　]+/g,'');
+        if(fn && fn === _rawNameNorm){ _fRep = c; _fRel = c['family'+n+'_rel']||''; }
+      });
+    });
+    if(_fRep){
+      var _al1 = (_fRep.pref||'')+(_fRep.city||'');
+      var _al2 = _fRep.address||'';
+      document.getElementById('cust-zip').value = _fRep.zip||'';
+      document.getElementById('cust-city').value = _al1+(_al2?'\n'+_al2:'');
+      if(_fRep.pref) document.getElementById('cust-pref').value = _fRep.pref;
+      _pendingFamilyId = _fRep.family_id || _fRep.id;
+      _pendingFamilyRepId = _fRep.family_id ? null : _fRep.id;
+      var _fRepName = (_fRep.sei||'')+(_fRep.mei?'　'+_fRep.mei:'');
+      document.getElementById('cust-modal-title').textContent = '新規顧客登録（'+_fRepName+'様の'+(_fRel||'ご家族')+'）';
+    }
+  }
 
   openModal('cust-modal');
   setTimeout(attachCustDirtyListeners, 200);
@@ -5931,6 +5959,10 @@ async function saveCustomer(andClose){
   var extractedPref=prefMatch?prefMatch[1]:'';
   var extractedCity=extractedPref?addrLine1.slice(extractedPref.length):addrLine1;
   var payload={sei:sei,mei:document.getElementById('cust-mei').value,sei_kana:document.getElementById('cust-sei-kana').value,mei_kana:document.getElementById('cust-mei-kana').value,gender:document.getElementById('cust-gender').value,birth_date:document.getElementById('cust-birth').value||null,mobile:document.getElementById('cust-mobile').value,tel:document.getElementById('cust-tel').value,email:document.getElementById('cust-email').value,email2:document.getElementById('cust-email2').value,zip:document.getElementById('cust-zip').value,pref:extractedPref,city:extractedCity,address:addrLine2,allergy:(document.getElementById('cust-allergy-select')||{}).value||'なし',ng_food:document.getElementById('cust-ng-food').value,memo:document.getElementById('cust-memo').value};
+  // 家族マッチ時のfamily_idをpayloadに追加
+  var _pfId=_pendingFamilyId,_pfRepId=_pendingFamilyRepId;
+  if(_pfId){ payload.family_id=_pfId; }
+  _pendingFamilyId=null; _pendingFamilyRepId=null;
   try{
     if(currentEditId){
       await sbPatch('wassa_customers',currentEditId,payload);
@@ -5940,6 +5972,14 @@ async function saveCustomer(andClose){
       var res=await sbPost('wassa_customers',payload);
       if(res&&res[0]){
         allCustomers.unshift(res[0]);
+        // 家族マッチ時：代表者のfamily_idが未設定なら自分自身のIDで設定する
+        if(_pfRepId){
+          try{
+            await sbPatch('wassa_customers',_pfRepId,{family_id:_pfId});
+            var _rep2=allCustomers.find(function(x){return x.id===_pfRepId;});
+            if(_rep2) _rep2.family_id=_pfId;
+          }catch(e){}
+        }
         // 予約からの新規登録：customer_id を予約に紐づける
         if(_pendingLinkResId){
           var _plId=_pendingLinkResId; _pendingLinkResId=null;
