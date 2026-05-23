@@ -1278,7 +1278,8 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px">
         <div id="food-records-status" style="font-size:12px;color:var(--text3)"></div>
-        <div style="display:flex;gap:6px">
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button id="btn-copy-food-group" class="btn btn-ghost btn-sm owner-only" onclick="copyFoodToGroupRooms()" style="display:none">📋 他の部屋にコピー</button>
           <button class="btn btn-ghost btn-sm owner-only" onclick="showAddFoodDatePicker()">＋ 個別追加</button>
           <button class="btn btn-primary btn-sm owner-only" onclick="saveAllDirtyFood()">保存</button>
           <button class="btn btn-secondary btn-sm" onclick="printFoodSheet()">印刷</button>
@@ -4730,6 +4731,51 @@ function renderFoodRecords() {
   });
   listEl.innerHTML = html;
   setTimeout(autoResizeAll, 0);
+  // グループ予約なら「他の部屋にコピー」ボタンを表示
+  var _grpBtn = document.getElementById('btn-copy-food-group');
+  if (_grpBtn) {
+    var _grpResv = allReservations.find(function(x){ return x.id === currentEditId; });
+    var _hasSiblings = _grpResv && _grpResv.group_id &&
+      allReservations.some(function(x){ return x.group_id === _grpResv.group_id && x.id !== currentEditId && x.status !== 'cancelled'; });
+    _grpBtn.style.display = (_hasSiblings && currentFoodRecords.length > 0) ? '' : 'none';
+  }
+}
+
+async function copyFoodToGroupRooms() {
+  var resv = allReservations.find(function(x){ return x.id === currentEditId; });
+  if (!resv || !resv.group_id) { toast('グループ予約ではありません'); return; }
+  var siblings = allReservations.filter(function(x){
+    return x.group_id === resv.group_id && x.id !== currentEditId && x.status !== 'cancelled';
+  });
+  if (!siblings.length) { toast('他の部屋が見つかりません'); return; }
+  var sources = currentFoodRecords.filter(function(r){
+    return (r.menu_name||'').trim() || (r.meal_detail||'').trim() || (r.kids_meal_detail||'').trim();
+  });
+  if (!sources.length) { toast('コピーする内容がありません（内容を入力・保存してから実行してください）'); return; }
+  if (!confirm('他の部屋（' + siblings.length + '室）に食事内容をコピーします。\n既存の内容は上書きされます。続けますか？')) return;
+  var updated = 0;
+  for (var si = 0; si < siblings.length; si++) {
+    var sib = siblings[si];
+    var res = await fetch(SB_URL + '/rest/v1/food_records?reservation_id=eq.' + sib.id, {
+      headers: {'apikey': SB_KEY, 'Authorization': SB_HEADERS['Authorization']}
+    });
+    var sibFoods = await res.json();
+    if (!Array.isArray(sibFoods)) continue;
+    for (var ri = 0; ri < sources.length; ri++) {
+      var src = sources[ri];
+      var match = sibFoods.find(function(f){
+        return f.served_date === src.served_date && f.category === src.category;
+      });
+      if (!match) continue;
+      await fetch(SB_URL + '/rest/v1/food_records?id=eq.' + match.id, {
+        method: 'PATCH',
+        headers: {'Content-Type':'application/json','apikey':SB_KEY,'Authorization':SB_HEADERS['Authorization'],'Prefer':'return=minimal'},
+        body: JSON.stringify({menu_name: src.menu_name||null, meal_detail: src.meal_detail||null, kids_meal_detail: src.kids_meal_detail||null})
+      });
+      updated++;
+    }
+  }
+  toast('✅ ' + updated + '件コピーしました（' + siblings.length + '室）');
 }
 
 function frUpdate(idx, key, val) {
