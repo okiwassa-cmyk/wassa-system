@@ -4221,6 +4221,15 @@ async function loadFoodRecords(resvId) {
   renderFoodRecords();
 }
 
+// コース名からwassa_menusのdetailを取得するヘルパー
+function _menuDetailByName(name, category) {
+  if (!name || !allMenus || !allMenus.length) return null;
+  var menuCat = category === '朝食' ? '朝食' : 'ディナー';
+  var m = allMenus.find(function(x){ return x.name === name && x.category === menuCat; });
+  if (!m) m = allMenus.find(function(x){ return x.name === name; }); // カテゴリ不一致でも名前が一致すれば使う
+  return (m && m.detail) ? m.detail : null;
+}
+
 function renderFoodRuleSelect(resv) {
   var bar = document.getElementById('food-rule-apply-bar');
   var sel = document.getElementById('food-rule-select');
@@ -4268,7 +4277,8 @@ async function applyFoodRule() {
       if (nightIdx < 0) nightIdx = 0;
       var rule = ruleArr[nightIdx] || {};
       var isBf = rec.category === '朝食';
-      var patch = {menu_name: isBf ? (rule.breakfast || null) : (rule.dinner || null), meal_detail: null};
+      var _mn = isBf ? (rule.breakfast || null) : (rule.dinner || null);
+      var patch = {menu_name: _mn, meal_detail: _mn ? _menuDetailByName(_mn, rec.category) : null};
       var r = await fetch(SB_URL+'/rest/v1/food_records?id=eq.'+rec.id, {
         method:'PATCH', headers: Object.assign({}, SB_HEADERS, {'Prefer':'return=representation'}),
         body: JSON.stringify(patch)
@@ -4391,7 +4401,7 @@ async function autoSetupFoodRecords(resvId, checkIn, checkOut, overrideRuleArr){
       var rule = ruleArr[m.nightIdx] || {};
       var isBf = m.category === '朝食';
       var menuName = isBf ? (rule.breakfast || null) : (rule.dinner || null);
-      var mealDetail = null;
+      var mealDetail = menuName ? _menuDetailByName(menuName, m.category) : null;
       var res=await sbPost('food_records',{
         reservation_id:resvId,
         served_date:m.served_date,
