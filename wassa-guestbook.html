@@ -7595,7 +7595,7 @@ function calcEstimateOneRoom(room, cin, cout, adult, child, infFuton, infNoFuton
     // 幼児ディナー＝子供ディナーと同額（幼児・小学生共通）
     var dinInfFutonAmt=room==='sup'?rowDinChild*_dinInfFutonCt:0;var dinInfNoFutonAmt=room==='sup'?rowDinChild*_dinInfNoFutonCt:0;var dinInfDlxAmt=room==='dlx'?rowDinChild*_dinInfDlxCt:0;
     totalRoom+=nightRoom;
-    rows.push({label,date:ds,s,base,baseUnit,childRoom,childUnit,infFutonRoom,infFutonUnit,infNoFutonRoom,infNoFutonUnit,infDlxRoom,infDlxUnit,nightRoom,ak,bfAdultAmt,bfChildAmt,bfInfFutonAmt,bfInfNoFutonAmt,bfInfDlxAmt,dinAdultAmt,dinChildAmt,dinInfFutonAmt,dinInfNoFutonAmt,dinInfDlxAmt,dinCoursePrice:rowDinPrice,dinCourseName:rowDinCourseName,bfAdultOn:hasBf&&adult>0,bfChildOn:hasBf&&child>0,bfInfFutonOn:hasBf&&_bfInfFutonCt>0,bfInfNoFutonOn:hasBf&&_bfInfNoFutonCt>0,bfInfDlxOn:hasBf&&_bfInfDlxCt>0,dinAdultOn:hasDin&&adult>0,dinChildOn:hasDin&&child>0,dinInfFutonOn:hasDin&&_dinInfFutonCt>0,dinInfNoFutonOn:hasDin&&_dinInfNoFutonCt>0,dinInfDlxOn:hasDin&&_dinInfDlxCt>0});
+    rows.push({label,date:ds,s,base,baseUnit,childRoom,childUnit,infFutonRoom,infFutonUnit,infNoFutonRoom,infNoFutonUnit,infDlxRoom,infDlxUnit,nightRoom,ak,bfAdultAmt,bfChildAmt,bfInfFutonAmt,bfInfNoFutonAmt,bfInfNoFutonCt:_bfInfNoFutonCt,bfInfDlxAmt,dinAdultAmt,dinChildAmt,dinInfFutonAmt,dinInfNoFutonAmt,dinInfDlxAmt,dinCoursePrice:rowDinPrice,dinCourseName:rowDinCourseName,bfAdultOn:hasBf&&adult>0,bfChildOn:hasBf&&child>0,bfInfFutonOn:hasBf&&_bfInfFutonCt>0,bfInfNoFutonOn:hasBf&&_bfInfNoFutonCt>0,bfInfDlxOn:hasBf&&_bfInfDlxCt>0,dinAdultOn:hasDin&&adult>0,dinChildOn:hasDin&&child>0,dinInfFutonOn:hasDin&&_dinInfFutonCt>0,dinInfNoFutonOn:hasDin&&_dinInfNoFutonCt>0,dinInfDlxOn:hasDin&&_dinInfDlxCt>0});
   }
   var mealLabel={none:'素泊まり',bf:'朝食付き',din:'夕食付き',both:'朝夕食付き'}[meal];
   var paxDesc='大人'+adult+'名';if(child)paxDesc+='・小学生'+child+'名';
@@ -7725,13 +7725,13 @@ function onUnitChange(rowIdx, field, val){
   if(field==='bfAdultUnit'){ r.bfAdultAmt=v*(e.adult||0); }
   if(field==='bfChildUnit'){ r.bfChildAmt=v*(e.child||0); }
   if(field==='bfInfFutonUnit'){ r.bfInfFutonAmt=v*(e.infFuton||0); }
-  if(field==='bfInfNoFutonUnit'){ r.bfInfNoFutonAmt=v*(e.infNoFuton||0); }
+  if(field==='bfInfNoFutonUnit'){ r.bfInfNoFutonAmt=v*(r.bfInfNoFutonCt||e.infNoFuton||0); }
   if(field==='bfInfDlxUnit'){ r.bfInfDlxAmt=v*(e.infDlx||0); }
   // バンドル（室料＋朝食）フィールド：差分を朝食に反映
   if(field==='bfBundledAdultUnit'){ r.bfAdultAmt=Math.max(0,v-r.baseUnit)*(e.adult||0); }
   if(field==='bfBundledChildUnit'){ r.bfChildAmt=Math.max(0,v-r.childUnit)*(e.child||0); }
   if(field==='bfBundledInfFutonUnit'){ r.bfInfFutonAmt=Math.max(0,v-r.infFutonUnit)*(e.infFuton||0); }
-  if(field==='bfBundledInfNoFutonUnit'){ r.bfInfNoFutonAmt=Math.max(0,v-r.infNoFutonUnit)*(e.infNoFuton||0); }
+  if(field==='bfBundledInfNoFutonUnit'){ r.bfInfNoFutonAmt=Math.max(0,v-r.infNoFutonUnit)*(r.bfInfNoFutonCt||e.infNoFuton||0); }
   if(field==='bfBundledInfDlxUnit'){ r.bfInfDlxAmt=Math.max(0,v-r.infDlxUnit)*(e.infDlx||0); }
   if(field==='dinAdultUnit'){ r.dinAdultAmt=v*(e.adult||0); }
   if(field==='dinChildUnit'){ r.dinChildAmt=v*(e.child||0); }
@@ -7846,7 +7846,7 @@ function renderResult(){
           if(e.child&&(rr.childRoom||rr.bfChildAmt)){var _bfCU=Math.round((rr.bfChildAmt||0)/(e.child||1));html+=unitInput(ri,'bfBundledChildUnit',rr.childUnit+_bfCU,'小学生（朝食付き）',e.child);}
           if(e.room==='sup'){
             if(e.infFuton){var _bfIF=Math.round((rr.bfInfFutonAmt||0)/(e.infFuton||1));html+=unitInput(ri,'bfBundledInfFutonUnit',rr.infFutonUnit+_bfIF,'幼児（布団あり・朝食付き）',e.infFuton);}
-            if(e.infNoFuton){var _bfIN=Math.round((rr.bfInfNoFutonAmt||0)/(e.infNoFuton||1));html+=unitInput(ri,'bfBundledInfNoFutonUnit',rr.infNoFutonUnit+_bfIN,'幼児（布団なし・朝食付き）',e.infNoFuton);}
+            if(e.infNoFuton){var _bfIC=rr.bfInfNoFutonCt||0;var _bfIN=_bfIC>0?Math.round((rr.bfInfNoFutonAmt||0)/_bfIC):0;if(_bfIC>0)html+=unitInput(ri,'bfBundledInfNoFutonUnit',rr.infNoFutonUnit+_bfIN,'幼児（布団なし・朝食付き）',_bfIC);var _nIC=e.infNoFuton-_bfIC;if(_nIC>0)html+='<div class="detail-row"><span>幼児（布団なし）</span><span style="font-size:12px;color:var(--text2)">¥'+rr.infNoFutonUnit.toLocaleString()+' × '+_nIC+'名</span></div>';}
           } else {
             if(e.infDlx){var _bfID=Math.round((rr.bfInfDlxAmt||0)/(e.infDlx||1));html+=unitInput(ri,'bfBundledInfDlxUnit',rr.infDlxUnit+_bfID,'幼児（朝食付き）',e.infDlx);}
           }
@@ -7882,7 +7882,8 @@ function renderResult(){
       } else if(it.type==='bf_inf_futon'){
         html+=unitInput(ri,'bfInfFutonUnit',Math.round(rr.bfInfFutonAmt/(e.infFuton||1)),'朝食（幼児）',e.infFuton);
       } else if(it.type==='bf_inf_nofuton'){
-        html+=unitInput(ri,'bfInfNoFutonUnit',Math.round(rr.bfInfNoFutonAmt/(e.infNoFuton||1)),'朝食（幼児）',e.infNoFuton);
+        var _bfIC3=rr.bfInfNoFutonCt||e.infNoFuton||0;
+        html+=unitInput(ri,'bfInfNoFutonUnit',Math.round(rr.bfInfNoFutonAmt/(_bfIC3||1)),'朝食（幼児・布団なし）',_bfIC3);
       } else if(it.type==='bf_inf_dlx'){
         html+=unitInput(ri,'bfInfDlxUnit',Math.round(rr.bfInfDlxAmt/(e.infDlx||1)),'朝食（幼児）',e.infDlx);
       }
