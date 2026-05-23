@@ -8406,7 +8406,12 @@ function buildQuoteMulti(estimates){
       if(e.child&&r.childRoom){var _cb=r.bfChildOn?Math.round(r.bfChildAmt/(e.child||1)):0,_cd=r.dinChildOn?Math.round(r.dinChildAmt/(e.child||1)):0;db.subs.push({label:'小学生'+_qms,unit:r.childUnit+_cb+_cd,qty:e.child,amt:r.childRoom+(r.bfChildOn?r.bfChildAmt:0)+(r.dinChildOn?r.dinChildAmt:0)});}
       if(e.room==='sup'){
         if(e.infFuton&&r.infFutonRoom){var _ifb=r.bfInfFutonOn?Math.round(r.bfInfFutonAmt/(e.infFuton||1)):0,_ifd=r.dinInfFutonOn?Math.round(r.dinInfFutonAmt/(e.infFuton||1)):0;db.subs.push({label:_qhm?'幼児（食事有・布団有）':'幼児（食事無・布団有）',unit:r.infFutonUnit+_ifb+_ifd,qty:e.infFuton,amt:r.infFutonRoom+(r.bfInfFutonOn?r.bfInfFutonAmt:0)+(r.dinInfFutonOn?r.dinInfFutonAmt:0)});}
-        if(e.infNoFuton&&r.infNoFutonRoom){var _inb=r.bfInfNoFutonOn?Math.round(r.bfInfNoFutonAmt/(e.infNoFuton||1)):0,_ind=r.dinInfNoFutonOn?Math.round(r.dinInfNoFutonAmt/(e.infNoFuton||1)):0;db.subs.push({label:_qhm?'幼児（食事有・布団無）':'幼児（食事無・布団無）',unit:r.infNoFutonUnit+_inb+_ind,qty:e.infNoFuton,amt:r.infNoFutonRoom+(r.bfInfNoFutonOn?r.bfInfNoFutonAmt:0)+(r.dinInfNoFutonOn?r.dinInfNoFutonAmt:0)});}
+        if(e.infNoFuton&&r.infNoFutonRoom){
+          var _mbfCt=r.bfInfNoFutonCt||0,_mnoBfCt=e.infNoFuton-_mbfCt;
+          var _mdp=r.dinInfNoFutonOn?Math.round(r.dinInfNoFutonAmt/(e.infNoFuton||1)):0;
+          if(_mbfCt>0){var _mbp=Math.round(r.bfInfNoFutonAmt/(_mbfCt||1));var _mdbp=r.dinInfNoFutonOn?Math.round(r.dinInfNoFutonAmt*_mbfCt/(e.infNoFuton||1)):0;db.subs.push({label:'幼児（布団なし・朝食付き）',unit:r.infNoFutonUnit+_mbp+_mdp,qty:_mbfCt,amt:r.infNoFutonUnit*_mbfCt+r.bfInfNoFutonAmt+_mdbp});}
+          if(_mnoBfCt>0){var _mdn=r.dinInfNoFutonOn?Math.round(r.dinInfNoFutonAmt*_mnoBfCt/(e.infNoFuton||1)):0;db.subs.push({label:'幼児（布団なし）',unit:r.infNoFutonUnit+_mdp,qty:_mnoBfCt,amt:r.infNoFutonUnit*_mnoBfCt+_mdn});}
+        }
       } else {
         if(e.infDlx&&r.infDlxRoom){var _idb=r.bfInfDlxOn?Math.round(r.bfInfDlxAmt/(e.infDlx||1)):0,_idd=r.dinInfDlxOn?Math.round(r.dinInfDlxAmt/(e.infDlx||1)):0;db.subs.push({label:_qhm?'幼児（食事有）':'幼児（食事無）',unit:r.infDlxUnit+_idb+_idd,qty:e.infDlx,amt:r.infDlxRoom+(r.bfInfDlxOn?r.bfInfDlxAmt:0)+(r.dinInfDlxOn?r.dinInfDlxAmt:0)});}
       }
@@ -8593,13 +8598,17 @@ async function saveQuoteToDb(){
         var _chBfUnit=hasBf&&r.bfChildOn?Math.round((r.bfChildAmt||0)/(e.child||1)):0;
         // 幼児朝食も室料に合算（朝食付き/2食付きの場合）
         var _bfInfFutonUnit=hasBf&&r.bfInfFutonOn?Math.round((r.bfInfFutonAmt||0)/(e.infFuton||1)):0;
-        var _bfInfNoFutonUnit=hasBf&&r.bfInfNoFutonOn?Math.round((r.bfInfNoFutonAmt||0)/(e.infNoFuton||1)):0;
         var _bfInfDlxUnit=hasBf&&r.bfInfDlxOn?Math.round((r.bfInfDlxAmt||0)/(e.infDlx||1)):0;
         brows.push({cat:'宿泊料金',date:_ds,item:'大人宿泊料金'+_msfxBf,qty:r.ak,price:r.baseUnit+_adBfUnit,discount:0});
         if(e.child&&r.childRoom) brows.push({cat:'宿泊料金',date:_ds,item:'小学生宿泊料金'+_msfxBf,qty:e.child,price:r.childUnit+_chBfUnit,discount:0});
         if(e.room==='sup'){
           if(e.infFuton&&r.infFutonRoom) brows.push({cat:'宿泊料金',date:_ds,item:'幼児（布団あり）'+_msfxBf,qty:e.infFuton,price:r.infFutonUnit+_bfInfFutonUnit,discount:0});
-          if(e.infNoFuton&&r.infNoFutonRoom) brows.push({cat:'宿泊料金',date:_ds,item:'幼児（布団なし）'+_msfxBf,qty:e.infNoFuton,price:r.infNoFutonUnit+_bfInfNoFutonUnit,discount:0});
+          if(e.infNoFuton&&r.infNoFutonRoom){
+            // 朝食あり/なしで行を分割
+            var _sbfCt=r.bfInfNoFutonCt||0,_snoBfCt=e.infNoFuton-_sbfCt;
+            if(_sbfCt>0){var _sbfUnit=hasBf&&r.bfInfNoFutonOn?Math.round((r.bfInfNoFutonAmt||0)/(_sbfCt||1)):0;brows.push({cat:'宿泊料金',date:_ds,item:'幼児（布団なし・朝食付き）',qty:_sbfCt,price:r.infNoFutonUnit+_sbfUnit,discount:0});}
+            if(_snoBfCt>0){brows.push({cat:'宿泊料金',date:_ds,item:'幼児（布団なし）',qty:_snoBfCt,price:r.infNoFutonUnit,discount:0});}
+          }
         } else {
           if(e.infDlx&&r.infDlxRoom) brows.push({cat:'宿泊料金',date:_ds,item:'幼児宿泊料金'+_msfxBf,qty:e.infDlx,price:r.infDlxUnit+_bfInfDlxUnit,discount:0});
         }
