@@ -5639,7 +5639,12 @@ function openCustomer(id, defaultTab){
   var _bWrap=document.getElementById('cust-birth')&&document.getElementById('cust-birth').parentElement;
   if(_bPanel)_bPanel.style.display='none';
   if(_bWrap)_bWrap.style.display='flex';
-  set('cust-birth',c.birth_date);set('cust-mobile',c.mobile);set('cust-tel',c.tel);
+  set('cust-birth',c.birth_date);
+  // 家族追加フォームに代表者の姓を自動入力
+  var _fnSei=document.getElementById('fam-new-sei'); if(_fnSei)_fnSei.value=c.sei||'';
+  var _fnSeiK=document.getElementById('fam-new-sei-kana'); if(_fnSeiK)_fnSeiK.value=c.sei_kana||'';
+  var _fnMei=document.getElementById('fam-new-mei'); if(_fnMei)_fnMei.value='';
+  var _fnMeiK=document.getElementById('fam-new-mei-kana'); if(_fnMeiK)_fnMeiK.value='';set('cust-mobile',c.mobile);set('cust-tel',c.tel);
   set('cust-email',c.email);set('cust-email2',c.email2);
   set('cust-zip',c.zip);
   // 都道府県・住所1・住所2を1欄に結合表示

@@ -869,7 +869,12 @@ function renderCompanions(){
   }).join('');
   document.getElementById('companion-list').innerHTML = html;
 }
-function addComp(){ companions.push({name:'',kana:'',isFamily:false,rel:''}); renderCompanions(); }
+function addComp(){
+  var sei = (document.getElementById('sei')||{value:''}).value.trim();
+  var seiKana = (document.getElementById('sei-kana')||{value:''}).value.trim();
+  companions.push({name: sei ? sei+'\u3000' : '', kana: seiKana ? seiKana+' ' : '', isFamily:false, rel:''});
+  renderCompanions();
+}
 function removeComp(i){ companions.splice(i,1); renderCompanions(); }
 function toggleCompFamily(i, checked){
   companions[i].isFamily = !!checked;
