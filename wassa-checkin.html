@@ -935,7 +935,7 @@ function renderFamilyCandidatesArea(){
 function addFamilyCandidate(idx, resId){
   var c = familyCandidates[idx];
   if(!c) return;
-  var CHILD_RELS_C = ['子','息子','娘','長男','長女','次男','次女','三男','三女'];
+  var CHILD_RELS_C = ['子','息子','娘','長男','長女','次男','次女','三男','三女','配偶者','親','兄弟・姉妹','祖父','祖母','その他'];
   var newComp = {name:c.name,kana:c.kana||'',isFamily:true,rel:c.rel||''};
   if(resId!=null){
     if(!groupCompanions[resId]) groupCompanions[resId]=[];
@@ -1391,7 +1391,7 @@ async function submit(){
       // グループモード：家族同室者をwassa_customersにリンク（全室分まとめて処理）
       if(custId){
         try{
-          var CHILD_RELS_G = ['子','息子','娘','長男','長女','次男','次女','三男','三女'];
+          var CHILD_RELS_G = ['子','息子','娘','長男','長女','次男','次女','三男','三女','配偶者','親','兄弟・姉妹','祖父','祖母','その他'];
           // 代表者のfamily_idを取得（なければcustId自身をfamily_idに設定）
           var gRepRow = await (await fetch(SB_URL+'/rest/v1/wassa_customers?id=eq.'+custId+'&select=family_id,family1,family1_kana,family1_rel,family2,family2_kana,family2_rel,family3,family3_kana,family3_rel,family4,family4_kana,family4_rel',{headers:HDR})).json();
           var gRepData = (gRepRow&&gRepRow[0]) ? gRepRow[0] : {};

@@ -1081,7 +1081,7 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
         </div>
       </div>
       <div class="fgrid" style="margin-top:12px">
-        <div class="fg"><label style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">代表者名 <span class="req">*</span><button type="button" class="owner-only" onclick="var _r=allReservations.find(function(x){return x.id===currentEditId;});if(_r&&_r.customer_id)openCustomer(_r.customer_id);else toast('顧客情報がありません');" style="font-size:11px;padding:1px 8px;border:1px solid var(--ocean3);border-radius:12px;background:none;color:var(--ocean3);cursor:pointer;font-family:inherit;line-height:1.6">顧客情報 →</button><button type="button" class="owner-only" onclick="openNewCustomerFromReservation()" style="font-size:11px;padding:1px 8px;border:1px solid var(--coral);border-radius:12px;background:none;color:var(--coral);cursor:pointer;font-family:inherit;line-height:1.6">＋ 新規顧客登録</button></label><input type="text" id="edit-guestname" placeholder="山田 太郎"></div>
+        <div class="fg"><label style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">代表者名 <span class="req">*</span><button type="button" class="owner-only" onclick="var _r=allReservations.find(function(x){return x.id===currentEditId;});if(_r&&_r.customer_id)openCustomer(_r.customer_id);else toast('顧客情報がありません');" style="font-size:11px;padding:1px 8px;border:1px solid var(--ocean3);border-radius:12px;background:none;color:var(--ocean3);cursor:pointer;font-family:inherit;line-height:1.6">顧客情報 →</button><button type="button" class="owner-only" onclick="openNewCustomerFromReservation()" style="font-size:11px;padding:1px 8px;border:1px solid var(--coral);border-radius:12px;background:none;color:var(--coral);cursor:pointer;font-family:inherit;line-height:1.6">＋ 新規顧客登録</button></label><div style="position:relative"><input type="text" id="edit-guestname" placeholder="山田 太郎" oninput="updateGuestSuggest()" autocomplete="off" style="width:100%"><div id="guest-name-suggest" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:200;background:#fff;border:1px solid var(--border);border-radius:0 0 8px 8px;box-shadow:0 4px 16px rgba(0,0,0,.1);max-height:280px;overflow-y:auto"></div></div></div>
         <div class="fg"><label>プラン名</label><input type="text" id="edit-planname"></div>
       </div>
       <div class="fgrid" style="margin-top:8px">
@@ -1398,7 +1398,19 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
     </div>
     <div class="fgrid" style="margin-top:8px">
       <div class="fg"><label>性別</label><select id="cust-gender"><option value="">—</option><option value="男性">男性</option><option value="女性">女性</option></select></div>
-      <div class="fg"><label>生年月日</label><input type="date" id="cust-birth"></div>
+      <div class="fg"><label>生年月日</label>
+        <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+          <input type="date" id="cust-birth" style="flex:1;min-width:0">
+          <button type="button" onclick="toggleBirthEra()" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:6px;background:none;color:var(--text3);cursor:pointer;white-space:nowrap">元号</button>
+        </div>
+        <div id="birth-era-panel" style="display:none;gap:4px;align-items:center;flex-wrap:wrap;margin-top:4px">
+          <select id="birth-era-sel" onchange="updateBirthFromEra()" style="padding:4px;border:1px solid var(--border);border-radius:6px;font-size:12px"><option>令和</option><option>平成</option><option>昭和</option><option>大正</option><option>明治</option></select>
+          <input type="number" id="birth-era-year" min="1" max="99" placeholder="年" oninput="updateBirthFromEra()" style="width:46px;padding:4px;border:1px solid var(--border);border-radius:6px;font-size:12px">年
+          <input type="number" id="birth-era-month" min="1" max="12" placeholder="月" oninput="updateBirthFromEra()" style="width:42px;padding:4px;border:1px solid var(--border);border-radius:6px;font-size:12px">月
+          <input type="number" id="birth-era-day" min="1" max="31" placeholder="日" oninput="updateBirthFromEra()" style="width:42px;padding:4px;border:1px solid var(--border);border-radius:6px;font-size:12px">日
+          <button type="button" onclick="toggleBirthEra()" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:6px;background:none;color:var(--text3);cursor:pointer">西暦</button>
+        </div>
+      </div>
     </div>
     <!-- 連絡先 -->
     <div style="font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.05em;margin:14px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--sand2)">📞 連絡先</div>
@@ -2665,6 +2677,166 @@ async function loadCompanionsFromDB(reservationId){
   }
 }
 
+// ── 代表者名サジェスト ──
+var _modalCustomerId = null;
+
+function updateGuestSuggest(){
+  var q = (document.getElementById('edit-guestname').value||'').trim();
+  var sug = document.getElementById('guest-name-suggest');
+  if(!sug) return;
+  if(q.length < 1){ sug.style.display='none'; sug.innerHTML=''; return; }
+  var qNorm = q.replace(/[\s\u3000]/g,'');
+  var html = '';
+
+  // ① 既存顧客マッチ
+  var custHits = allCustomers.filter(function(c){
+    var full = ((c.sei||'')+(c.mei||'')).replace(/[\s\u3000]/g,'');
+    var kana = ((c.sei_kana||'')+(c.mei_kana||'')).toLowerCase();
+    return full.includes(qNorm) || kana.includes(q.toLowerCase()) || (c.sei||'').startsWith(q);
+  }).slice(0,6);
+  custHits.forEach(function(c){
+    var name = (c.sei||'')+(c.mei?'\u3000'+c.mei:'');
+    var kana = (c.sei_kana||'')+(c.mei_kana?' '+c.mei_kana:'');
+    var cnt = allReservations.filter(function(r){ return r.customer_id===c.id&&r.status!=='cancelled'; }).length;
+    html += '<div onclick="selectGuestCust('+c.id+')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px;background:#fff" onmouseover="this.style.background=\'var(--sand1)\'" onmouseout="this.style.background=\'#fff\'">';
+    html += '<div style="font-weight:500;color:var(--text)">'+name+(cnt>0?'<span style="font-size:11px;color:var(--ocean2);margin-left:6px">'+cnt+'回宿泊</span>':'')+'</div>';
+    if(kana) html += '<div style="font-size:11px;color:var(--text3)">'+kana+'</div>';
+    html += '</div>';
+  });
+
+  // ② family1~4 マッチ
+  allCustomers.forEach(function(c){
+    [1,2,3,4].forEach(function(n){
+      var fname = (c['family'+n]||'').replace(/[\s\u3000]/g,'');
+      if(!fname || !fname.includes(qNorm)) return;
+      var repName = (c.sei||'')+(c.mei?'\u3000'+c.mei:'');
+      var rel = c['family'+n+'_rel']||'ご家族';
+      var famDisplayName = c['family'+n];
+      var relEsc = rel.replace(/'/g,'&#39;');
+      var fnEsc = famDisplayName.replace(/'/g,'&#39;');
+      html += '<div onclick="selectGuestFamily('+c.id+',\''+fnEsc+'\',\''+relEsc+'\')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px;background:#fff" onmouseover="this.style.background=\'var(--sand1)\'" onmouseout="this.style.background=\'#fff\'">';
+      html += '<div style="font-weight:500;color:var(--text)">'+famDisplayName+'</div>';
+      html += '<div style="font-size:11px;color:var(--ocean2)">'+repName+'様の'+rel+'</div>';
+      html += '</div>';
+    });
+  });
+
+  if(!html){ sug.style.display='none'; sug.innerHTML=''; return; }
+
+  // ③ 新規顧客として登録
+  html += '<div onclick="selectGuestNew()" style="padding:8px 12px;border-top:1px solid var(--border);font-size:12px;color:var(--ocean2);cursor:pointer;display:flex;align-items:center;gap:6px;background:#fff" onmouseover="this.style.background=\'var(--sand1)\'" onmouseout="this.style.background=\'#fff\'"><span>+</span><span>新規顧客として登録</span></div>';
+  sug.innerHTML = html;
+  sug.style.display = 'block';
+}
+
+function selectGuestCust(id){
+  _modalCustomerId = id;
+  var c = allCustomers.find(function(x){ return x.id===id; });
+  if(c){
+    var nameEl = document.getElementById('edit-guestname');
+    if(nameEl) nameEl.value = (c.sei||'')+(c.mei?'\u3000'+c.mei:'');
+  }
+  var sug = document.getElementById('guest-name-suggest');
+  if(sug){ sug.style.display='none'; sug.innerHTML=''; }
+}
+
+async function selectGuestFamily(repCustId, familyName, rel){
+  var sug = document.getElementById('guest-name-suggest');
+  if(sug){ sug.style.display='none'; sug.innerHTML=''; }
+  var rep = allCustomers.find(function(x){ return x.id===repCustId; });
+  if(!rep) return;
+  var famId = rep.family_id || repCustId;
+  if(!rep.family_id){
+    try{ await sbPatch('wassa_customers', repCustId, {family_id:famId}); rep.family_id = famId; }catch(e){}
+  }
+  var parts = familyName.trim().split(/[\s\u3000]+/);
+  var fSei = parts[0]||''; var fMei = parts.slice(1).join(' ')||'';
+  var existing = allCustomers.find(function(c){
+    var cn = ((c.sei||'')+(c.mei||'')).replace(/[\s\u3000]/g,'');
+    return cn === (fSei+fMei).replace(/[\s\u3000]/g,'') && cn !== '';
+  });
+  var custId;
+  if(existing){
+    if(!existing.family_id) await sbPatch('wassa_customers', existing.id, {family_id:famId});
+    custId = existing.id;
+  } else {
+    var newData = {sei:fSei, mei:fMei||null, family_id:famId, rel:rel||''};
+    if(rep.address) newData.address = rep.address;
+    if(rep.zip) newData.zip = rep.zip;
+    if(rep.pref) newData.pref = rep.pref;
+    if(rep.city) newData.city = rep.city;
+    var res = await sbPost('wassa_customers', newData);
+    if(res&&res[0]){ allCustomers.unshift(res[0]); custId = res[0].id; }
+  }
+  _modalCustomerId = custId;
+  var nameEl = document.getElementById('edit-guestname');
+  if(nameEl) nameEl.value = familyName;
+  var repName = (rep.sei||'')+(rep.mei?'\u3000'+rep.mei:'');
+  toast(repName+'様のご家族として登録します');
+}
+
+function selectGuestNew(){
+  var sug = document.getElementById('guest-name-suggest');
+  if(sug){ sug.style.display='none'; sug.innerHTML=''; }
+  _modalCustomerId = null;
+  openNewCustomerFromReservation();
+}
+
+document.addEventListener('click', function(e){
+  var sug = document.getElementById('guest-name-suggest');
+  var inp = document.getElementById('edit-guestname');
+  if(sug && inp && !inp.contains(e.target) && !sug.contains(e.target)) sug.style.display='none';
+});
+
+// ── 元号変換 ──
+var _ERAS = [
+  {name:'令和', start:'2019-05-01', base:2018},
+  {name:'平成', start:'1989-01-08', base:1988},
+  {name:'昭和', start:'1926-12-25', base:1925},
+  {name:'大正', start:'1912-07-30', base:1911},
+  {name:'明治', start:'1868-01-25', base:1867}
+];
+function _gregorianToEra(dateStr){
+  if(!dateStr) return null;
+  var d = new Date(dateStr+'T00:00:00');
+  var era = _ERAS.find(function(e){ return d >= new Date(e.start+'T00:00:00'); });
+  if(!era) return null;
+  return {era:era.name, year:d.getFullYear()-era.base, month:d.getMonth()+1, day:d.getDate()};
+}
+function _eraToGregorian(eraName, eraYear, month, day){
+  var era = _ERAS.find(function(e){ return e.name===eraName; });
+  if(!era || !eraYear) return '';
+  var year = parseInt(eraYear)+era.base;
+  return year+'-'+String(month||1).padStart(2,'0')+'-'+String(day||1).padStart(2,'0');
+}
+function toggleBirthEra(){
+  var panel = document.getElementById('birth-era-panel');
+  var dateIn = document.getElementById('cust-birth');
+  if(!panel||!dateIn) return;
+  if(panel.style.display==='none'||panel.style.display===''){
+    var e = _gregorianToEra(dateIn.value);
+    if(e){
+      document.getElementById('birth-era-sel').value = e.era;
+      document.getElementById('birth-era-year').value = e.year;
+      document.getElementById('birth-era-month').value = e.month;
+      document.getElementById('birth-era-day').value = e.day;
+    }
+    panel.style.display='flex';
+    dateIn.parentElement.style.display='none';
+  } else {
+    panel.style.display='none';
+    dateIn.parentElement.style.display='flex';
+  }
+}
+function updateBirthFromEra(){
+  var era = (document.getElementById('birth-era-sel')||{}).value;
+  var year = (document.getElementById('birth-era-year')||{}).value;
+  var month = (document.getElementById('birth-era-month')||{}).value;
+  var day = (document.getElementById('birth-era-day')||{}).value;
+  var g = _eraToGregorian(era, year, month, day);
+  if(g) document.getElementById('cust-birth').value = g;
+}
+
 function checkFamilyAndAddress(r){
   var banner = document.getElementById('same-address-banner');
   banner.style.display = 'none';
@@ -2912,6 +3084,7 @@ function openGroupCheckinSheets(lang){
 }
 
 function clearResForm(){
+  _modalCustomerId = null;
   ['edit-id','edit-resno1','edit-resno2','edit-planname','edit-guestname','edit-phone','edit-email','edit-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});loadCompanions('');
   var _sty=document.getElementById('edit-skip-thankyou');if(_sty){_sty.checked=false;_sty.disabled=false;}
   var _stb=document.getElementById('edit-thankyou-sent-badge');if(_stb)_stb.style.display='none';
@@ -2923,6 +3096,7 @@ function clearResForm(){
   billingRows=[];billingMeta={plan_name:'',coupon:0,points:0,furusato:0};foodDays=[];renderBillingRows();renderFoodDays();resetRecordForm();
 }
 function fillResForm(r){
+  _modalCustomerId = null;
   const set=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val||'';};
   set('edit-id',r.id);set('edit-resno1',r.reservation_no);set('edit-resno2',r.reservation_no2||'');
   set('edit-source',r.source||'公式HP');set('edit-guestname',r.guest_name);set('edit-planname',r.plan_name);
@@ -3179,9 +3353,11 @@ async function saveReservation(andClose){
   try{
     var savedResId = currentEditId;
     if(currentEditId){
-      // 編集時：customer_id が未設定なら顧客検索・作成してリンク
+      // 編集時：サジェストで選択済みなら優先、未設定なら自動検索
       var _existing = allReservations.find(function(r){return r.id===currentEditId;});
-      if(!_existing||!_existing.customer_id){
+      if(_modalCustomerId){
+        payload.customer_id = _modalCustomerId;
+      } else if(!_existing||!_existing.customer_id){
         var custLink = await findOrCreateCustomer(payload.guest_name, payload.phone, payload.email);
         if(custLink) payload.customer_id = custLink.id;
       }
@@ -3189,9 +3365,13 @@ async function saveReservation(andClose){
       var idx=allReservations.findIndex(function(r){return r.id===currentEditId;});
       if(idx>-1)allReservations[idx]=Object.assign({},allReservations[idx],payload,{id:currentEditId});
     }else{
-      // 新規登録時：顧客自動検索・作成
-      var cust = await findOrCreateCustomer(payload.guest_name, payload.phone, payload.email);
-      if(cust) payload.customer_id = cust.id;
+      // 新規登録時：サジェストで選択済みなら優先、なければ自動検索
+      if(_modalCustomerId){
+        payload.customer_id = _modalCustomerId;
+      } else {
+        var cust = await findOrCreateCustomer(payload.guest_name, payload.phone, payload.email);
+        if(cust) payload.customer_id = cust.id;
+      }
       var res=await sbPost('reservations',payload);
       if(res&&res[0]){ allReservations.unshift(res[0]); savedResId=res[0].id; }
     }
@@ -3216,7 +3396,7 @@ async function saveReservation(andClose){
       }catch(e){ console.warn('同室者保存エラー:',e); }
       // 家族同室者をwassa_customersにリンク（子ども続柄は除く）
       try{
-        var CHILD_RELS=['子','息子','娘','長男','長女','次男','次女','三男','三女'];
+        var CHILD_RELS=['子','息子','娘','長男','長女','次男','次女','三男','三女','配偶者','親','兄弟・姉妹','祖父','祖母','その他'];
         var famComps=editCompanions.filter(function(c){return c.name&&c.isFamily;});
         if(famComps.length>0){
           var repCust=allCustomers.find(function(c){return c.id===(_existing&&_existing.customer_id);});
@@ -4278,7 +4458,9 @@ async function applyFoodRule() {
       var rule = ruleArr[nightIdx] || {};
       var isBf = rec.category === '朝食';
       var _mn = isBf ? (rule.breakfast || null) : (rule.dinner || null);
-      var patch = {menu_name: _mn, meal_detail: _mn ? _menuDetailByName(_mn, rec.category) : null};
+      // 既存のmeal_detailに内容がある場合は上書きしない
+      var _existDetail = (rec.meal_detail || '').trim();
+      var patch = {menu_name: _mn, meal_detail: _existDetail ? rec.meal_detail : (_mn ? _menuDetailByName(_mn, rec.category) : null)};
       var r = await fetch(SB_URL+'/rest/v1/food_records?id=eq.'+rec.id, {
         method:'PATCH', headers: Object.assign({}, SB_HEADERS, {'Prefer':'return=representation'}),
         body: JSON.stringify(patch)
