@@ -1059,8 +1059,8 @@ function parseEmail(src, body) {
 function normalizePayment(raw) {
   if (!raw) return '';
   var s = String(raw).replace(/[\s　]/g, '');
-  if (/現地|現金払い/.test(s)) return '現地精算';
-  if (/事前払い|事前決済|クレジット決済|カード決済|OTA/.test(s)) return '事前決済';
+  if (/現地|現金払い|現金/.test(s)) return '現地精算';
+  if (/事前払い|事前決済|クレジット|カード|OTA/.test(s)) return '事前決済';
   if (/振込/.test(s)) return '振込済み';
   return '';
 }

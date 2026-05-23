@@ -10796,6 +10796,10 @@ function switchModalTab(btn,paneId){
   modal.querySelectorAll('.modal-pane').forEach(p=>p.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById(paneId).classList.add('active');
+  // 請求タブを開いたとき、明細がなければ自動生成
+  if(paneId==='pane-billing' && currentEditId && (!billingRows||billingRows.length===0)){
+    autoGenBillingRows();
+  }
 }
 
 // ━━ UTILS ━━
