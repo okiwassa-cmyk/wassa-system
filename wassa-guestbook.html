@@ -5568,7 +5568,7 @@ function openNewReservationWithDate(ds){
 function renderCustomers(){filterCustomers();}
 var _pendingLinkResId = null; // 予約からの新規顧客登録時に紐づける予約ID
 
-function openNewCustomer(){if(document.body.classList.contains('staff-mode')){ toast('スタッフモードでは顧客情報を編集できません'); return; }currentEditId=null;_pendingLinkResId=null;document.getElementById('cust-modal-title').textContent='新規顧客登録';document.getElementById('del-cust-btn').style.display='none';['cust-sei','cust-mei','cust-sei-kana','cust-mei-kana','cust-mobile','cust-tel','cust-email','cust-email2','cust-zip','cust-pref','cust-city','cust-address','cust-ng-food','cust-memo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});document.getElementById('cust-gender').value='';document.getElementById('cust-birth').value='';var _bP=document.getElementById('birth-era-panel'),_bW=document.getElementById('cust-birth')&&document.getElementById('cust-birth').parentElement;if(_bP)_bP.style.display='none';if(_bW)_bW.style.display='flex';var _as2=document.getElementById('cust-allergy-select');if(_as2)_as2.value='なし';openModal('cust-modal');}
+function openNewCustomer(){if(document.body.classList.contains('staff-mode')){ toast('スタッフモードでは顧客情報を編集できません'); return; }currentEditId=null;_pendingLinkResId=null;document.getElementById('cust-modal-title').textContent='新規顧客登録';document.getElementById('del-cust-btn').style.display='none';['cust-sei','cust-mei','cust-sei-kana','cust-mei-kana','cust-mobile','cust-tel','cust-email','cust-email2','cust-zip','cust-pref','cust-city','cust-address','cust-ng-food','cust-memo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});document.getElementById('cust-gender').value='';document.getElementById('cust-birth').value='';var _bP=document.getElementById('birth-era-panel'),_bW=document.getElementById('cust-birth')&&document.getElementById('cust-birth').parentElement;if(_bP)_bP.style.display='none';if(_bW)_bW.style.display='flex';['birth-era-year','birth-era-month','birth-era-day'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});var _as2=document.getElementById('cust-allergy-select');if(_as2)_as2.value='なし';openModal('cust-modal');}
 
 // 予約詳細から新規顧客登録（予約情報を引き継ぎ、保存後に自動リンク）
 function openNewCustomerFromReservation(){
@@ -5634,11 +5634,12 @@ function openCustomer(id, defaultTab){
   set('cust-edit-id',c.id);set('cust-sei',c.sei);set('cust-mei',c.mei);
   set('cust-sei-kana',c.sei_kana);set('cust-mei-kana',c.mei_kana);
   document.getElementById('cust-gender').value=c.gender||'';
-  // 元号パネルをリセットして西暦モードに戻す
+  // 元号パネルをリセットして西暦モードに戻す（入力値もクリア）
   var _bPanel=document.getElementById('birth-era-panel');
   var _bWrap=document.getElementById('cust-birth')&&document.getElementById('cust-birth').parentElement;
   if(_bPanel)_bPanel.style.display='none';
   if(_bWrap)_bWrap.style.display='flex';
+  ['birth-era-year','birth-era-month','birth-era-day'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
   set('cust-birth',c.birth_date);
   // 家族追加フォームに代表者の姓を自動入力
   var _fnSei=document.getElementById('fam-new-sei'); if(_fnSei)_fnSei.value=c.sei||'';
