@@ -928,19 +928,20 @@ function updateEstimate() {
   const titleHtml = `<div class="est-title">${roomLabel}　${nights.length}泊　${MEAL_LABEL[meal]||''}<br><span style="font-size:12px;font-weight:400;color:var(--text2)">${paxDesc}</span></div>`;
 
   const _closedNight = _closedNightInStay(cin, cout);
-  const closedWarn = _closedNight ? `<div style="color:var(--rose);font-size:12px;margin-bottom:8px">⚠️ ${_closedNight.slice(5).replace('-','/')} はメンテナンス日のためご利用いただけません</div>` : '';
-  document.getElementById('estimate-rows').innerHTML = closedWarn + titleHtml + nightHtml;
-  document.getElementById('estimate-total').textContent = total > 0 ? `¥${fmt(total)}` : '—';
-  document.getElementById('estimate-wrap').style.display = total > 0 ? 'block' : 'none';
-
-  // リアルタイム空室・メンテナンス日チェック
   const _errEl = document.getElementById('form-error');
   const _btn   = document.getElementById('submit-btn');
+
   if (_closedNight) {
+    // メンテナンス日が含まれる場合：見積もりを非表示にしてエラー表示
+    document.getElementById('estimate-wrap').style.display = 'none';
     _errEl.textContent = `${_closedNight.slice(5).replace('-','/')} はメンテナンス日のためご利用いただけません。別の日程をお選びください。`;
     _errEl.dataset.source = 'avail';
     _btn.disabled = true;
   } else {
+    // 正常：見積もりを表示して空室チェックを非同期で実行
+    document.getElementById('estimate-rows').innerHTML = titleHtml + nightHtml;
+    document.getElementById('estimate-total').textContent = total > 0 ? `¥${fmt(total)}` : '—';
+    document.getElementById('estimate-wrap').style.display = total > 0 ? 'block' : 'none';
     if (_errEl.dataset.source === 'avail') { _errEl.textContent = ''; delete _errEl.dataset.source; }
     clearTimeout(_availTimer);
     _availTimer = setTimeout(_checkAvail, 500);
@@ -976,6 +977,7 @@ async function _checkAvail() {
       errEl.textContent = `${roomLabel}はこの日程で満室です。日程またはお部屋をご変更ください。`;
       errEl.dataset.source = 'avail';
       btn.disabled = true;
+      document.getElementById('estimate-wrap').style.display = 'none'; // 満室時は見積もり非表示
     } else {
       if (errEl.dataset.source === 'avail') { errEl.textContent = ''; delete errEl.dataset.source; }
       const capOver = document.getElementById('cap-warn') && document.getElementById('cap-warn').style.display !== 'none';
