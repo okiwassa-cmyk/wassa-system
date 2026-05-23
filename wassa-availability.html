@@ -255,11 +255,19 @@ const SB_H  = { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY };
 const ROOM_DEFS = [
   {
     key: 'stp', icon: '<img src="イラスト/icon_stp.png" alt="" style="width:38px;height:38px;object-fit:contain">', name: 'スーペリアツイン', total: 2,
-    match: rt => rt && (rt.indexOf('01') !== -1 || rt.indexOf('02') !== -1) && rt.indexOf('デラックス') === -1 && rt !== 'DX'
+    match: rt => rt && (rt.indexOf('01') !== -1 || rt.indexOf('02') !== -1) && rt.indexOf('デラックス') === -1 && rt !== 'DX',
+    // 連泊判定用：S01・S02を個別にチェックする（minAvailの合計では同一室連泊を保証できないため）
+    rooms: [
+      rt => rt && rt.indexOf('01') !== -1 && rt.indexOf('デラックス') === -1 && rt !== 'DX',
+      rt => rt && rt.indexOf('02') !== -1 && rt.indexOf('デラックス') === -1 && rt !== 'DX'
+    ]
   },
   {
     key: 'dx', icon: '<img src="イラスト/icon_dlx.png" alt="" style="width:38px;height:38px;object-fit:contain">', name: 'デラックス', total: 1,
-    match: rt => rt && (rt.indexOf('デラックス') !== -1 || rt === 'DX')
+    match: rt => rt && (rt.indexOf('デラックス') !== -1 || rt === 'DX'),
+    rooms: [
+      rt => rt && (rt.indexOf('デラックス') !== -1 || rt === 'DX')
+    ]
   }
 ];
 
@@ -339,10 +347,10 @@ async function checkAvailability() {
     }
     let roomsHtml = '';
     for (const def of ROOM_DEFS) {
-      const minAvail = Math.min(...nights.map(ds => {
-        const booked = rsvs.filter(rv => def.match(rv.room_type) && rv.check_in <= ds && rv.check_out > ds).length;
-        return def.total - booked;
-      }));
+      // 各個室が全泊空いているか個別判定（連泊でS01→S02のように部屋が変わらないようにするため）
+      const minAvail = def.rooms.filter(rm =>
+        !nights.some(ds => rsvs.some(rv => rm(rv.room_type) && rv.check_in <= ds && rv.check_out > ds))
+      ).length;
 
       let cls, mark, text;
       if (minAvail <= 0) {
