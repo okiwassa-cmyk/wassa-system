@@ -330,8 +330,9 @@ async function checkAvailability() {
     const end = new Date(cout + 'T00:00:00');
     while (d < end) { nights.push(fmtD(d)); d.setDate(d.getDate()+1); }
 
-    if (isClosedDay(cin)) {
-      errEl.textContent = 'チェックイン日はメンテナンス日のためご利用いただけません。';
+    const closedNight = nights.find(ds => isClosedDay(ds));
+    if (closedNight) {
+      errEl.textContent = `${dispDate(closedNight)}はメンテナンス日のため、この期間はご利用いただけません。`;
       btn.disabled = false; btn.innerHTML = '空室を確認する';
       document.getElementById('result').style.display = 'none';
       return;
