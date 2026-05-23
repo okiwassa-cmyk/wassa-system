@@ -1751,6 +1751,7 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
       <button class="btn btn-secondary" id="qd-edit-btn" onclick="openQdBillingEdit()">✏️ 明細編集</button>
       <button class="btn btn-secondary" id="qd-preview-btn">🔍 見積もり書表示</button>
       <button class="btn btn-secondary" id="qd-print-btn">印刷</button>
+      <button class="btn btn-sm" id="qd-copy-url-btn" style="background:var(--green,#2a9d5c);color:#fff;border:none" onclick="copyQuoteUrlFromDetail()">🔗 URLをコピー</button>
       <button class="btn btn-sm" id="qd-email-btn" style="background:var(--ocean2);color:#fff;border:none">📧 メール送付</button>
       <button class="btn btn-sm" id="qd-tentative-btn" style="background:#e65100;color:#fff;border:none">🔖 仮予約</button>
       <button class="btn btn-sm" id="qd-confirm-btn" style="background:var(--green,#2a9d5c);color:#fff;border:none">✅ 予約確定</button>
@@ -9391,6 +9392,25 @@ async function saveQdBilling(){
     renderQuotesList();
     toast('✅ 明細を保存しました');
   }catch(e){toast('エラー: '+e.message);}
+}
+async function copyQuoteUrlFromDetail(){
+  var q=allQuotes.find(function(x){return x.id===currentEditId;});
+  if(!q){toast('見積もりが見つかりません');return;}
+  var token=q.token;
+  if(!token){
+    // tokenがない場合はDBから取得
+    var tRes=await fetch(SB_URL+'/rest/v1/quotes?id=eq.'+q.id+'&select=token',{headers:{'apikey':SB_KEY,'Authorization':SB_HEADERS['Authorization']}});
+    var tData=await tRes.json();
+    token=tData&&tData[0]&&tData[0].token;
+  }
+  if(!token){toast('URLを取得できませんでした');return;}
+  var url='https://okiwassa-cmyk.github.io/wassa-system/wassa-quote-view.html?token='+token;
+  if(navigator.clipboard){
+    await navigator.clipboard.writeText(url);
+    toast('✅ URLをコピーしました。LINEに貼り付けてください。');
+  } else {
+    prompt('以下のURLをコピーしてLINEに貼り付けてください：',url);
+  }
 }
 async function deleteQuoteRecord(){
   if(!confirm('この見積もりを削除しますか？'))return;
