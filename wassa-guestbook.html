@@ -4655,12 +4655,12 @@ function renderFoodRecords() {
   if(_curRes&&_curRes.check_in){
     deduped=deduped.filter(function(r){
       if(r.served_date===_curRes.check_in&&(r.category==='朝食')) return false;
-      if(r.served_date===_curRes.check_out&&(r.category==='夕食'||r.category==='ディナー')) return false;
+      if(r.served_date===_curRes.check_out&&(r.category==='夕食'||r.category==='ディナー'||!r.category)) return false;
       return true;
     });
   }
   // 日付でグループ化・日付昇順→同日内：朝食→夕食
-  var catPri = function(c) { var _p={'朝食':1,'昼食':2,'夕食':3,'ディナー':3}[c]; return _p!==undefined?_p:9; };
+  var catPri = function(c) { var _p={'朝食':1,'昼食':2,'夕食':3,'ディナー':3}[c||'夕食']; return _p!==undefined?_p:3; };
   var byDate = {};
   var dateOrder = [];
   deduped.sort(function(a,b){
@@ -4684,8 +4684,9 @@ function renderFoodRecords() {
     html += '</div>';
     items.forEach(function(r) {
       var idx = currentFoodRecords.findIndex(function(x){ return x.id === r.id; });
-      var catBg = r.category==='朝食'?'var(--amber-lt)':'var(--ocean-light)';
-      var catFg = r.category==='朝食'?'var(--amber)':'var(--ocean2)';
+      var _effCat = r.category==='ディナー'?'夕食':(r.category||'夕食');
+      var catBg = _effCat==='朝食'?'var(--amber-lt)':'var(--ocean-light)';
+      var catFg = _effCat==='朝食'?'var(--amber)':'var(--ocean2)';
       var hasKids = !!(r.kids_meal_detail && r.kids_meal_detail.trim());
       // 大人テキストの行数を計算（最低4行）
       var mealLines = Math.max(4, (r.meal_detail||'').split('\n').length + 1);
@@ -4694,10 +4695,9 @@ function renderFoodRecords() {
       // カテゴリ選択 + 削除・保存ボタン
       html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
       html += '<select onchange="frUpdate('+idx+',\'category\',this.value)" style="font-size:12px;font-weight:600;background:'+catBg+';color:'+catFg+';border:none;padding:2px 8px;border-radius:10px;font-family:inherit">';
-      // ディナー→夕食に統一（既存レコードの表示互換）
-      var _dispCat = r.category==='ディナー' ? '夕食' : r.category;
+      // ディナー→夕食に統一、null→夕食にデフォルト（FileMaker移行データ対応）
       ['朝食','夕食','昼食'].forEach(function(c) {
-        html += '<option value="'+c+'" '+(_dispCat===c?'selected':'')+'>'+c+'</option>';
+        html += '<option value="'+c+'" '+(_effCat===c?'selected':'')+'>'+c+'</option>';
       });
       html += '</select>';
       html += '<input type="date" value="'+(r.served_date||'')+'" onchange="frUpdate('+idx+',\'served_date\',this.value)" style="display:none">';
