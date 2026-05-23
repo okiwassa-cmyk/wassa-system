@@ -9455,21 +9455,38 @@ async function saveQdBilling(){
 async function copyQuoteUrlFromDetail(){
   var q=allQuotes.find(function(x){return x.id===currentEditId;});
   if(!q){toast('見積もりが見つかりません');return;}
-  var token=q.token;
-  if(!token){
-    // tokenがない場合はDBから取得
-    var tRes=await fetch(SB_URL+'/rest/v1/quotes?id=eq.'+q.id+'&select=token',{headers:{'apikey':SB_KEY,'Authorization':SB_HEADERS['Authorization']}});
-    var tData=await tRes.json();
-    token=tData&&tData[0]&&tData[0].token;
-  }
-  if(!token){toast('URLを取得できませんでした');return;}
-  var url='https://okiwassa-cmyk.github.io/wassa-system/wassa-quote-view.html?token='+token;
-  if(navigator.clipboard){
-    await navigator.clipboard.writeText(url);
-    toast('✅ URLをコピーしました。LINEに貼り付けてください。');
-  } else {
-    prompt('以下のURLをコピーしてLINEに貼り付けてください：',url);
-  }
+  // 貸切グループの全IDを取得（1室の場合も配列で処理）
+  var allIds=_quoteGroupMap[currentEditId]||[currentEditId];
+  var isBuyout=allIds.length>1;
+  try{
+    var urls=[];
+    for(var i=0;i<allIds.length;i++){
+      var qid=allIds[i];
+      var sq=allQuotes.find(function(x){return x.id===qid;});
+      var token=sq&&sq.token;
+      if(!token){
+        var tRes=await fetch(SB_URL+'/rest/v1/quotes?id=eq.'+qid+'&select=token,room_type',{headers:{'apikey':SB_KEY,'Authorization':SB_HEADERS['Authorization']}});
+        var tData=await tRes.json();
+        if(tData&&tData[0]){
+          token=tData[0].token;
+          if(sq&&!sq.token&&token) sq.token=token;
+        }
+      }
+      if(token){
+        var url='https://okiwassa-cmyk.github.io/wassa-system/wassa-quote-view.html?token='+token;
+        var roomLabel=sq?(shortRoom(sq.room_type||sq.room||'')):('室'+(i+1));
+        urls.push(isBuyout?(roomLabel+': '+url):url);
+      }
+    }
+    if(!urls.length){toast('URLを取得できませんでした');return;}
+    var text=urls.join('\n');
+    if(navigator.clipboard){
+      await navigator.clipboard.writeText(text);
+      toast(isBuyout?('✅ 貸切'+allIds.length+'室のURLをコピーしました。LINEに貼り付けてください。'):'✅ URLをコピーしました。LINEに貼り付けてください。');
+    } else {
+      prompt('以下のURLをコピーしてLINEに貼り付けてください：',text);
+    }
+  }catch(e){toast('エラー: '+e.message);}
 }
 async function deleteQuoteRecord(){
   if(!confirm('この見積もりを削除しますか？'))return;
