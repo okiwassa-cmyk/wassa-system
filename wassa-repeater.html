@@ -6,6 +6,9 @@
   <title>リピーター様専用 | WASSA WASSA</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ja.js"></script>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     :root{
@@ -364,6 +367,23 @@
     .spin{display:inline-block;width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--ocean);border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-bottom:8px}
     @keyframes spin{to{transform:rotate(360deg)}}
 
+    /* Flatpickr WASSA theme */
+    .flatpickr-wrapper{width:100%}
+    .flatpickr-calendar{font-family:'Noto Sans JP',sans-serif!important;border:1px solid var(--border);border-radius:16px;box-shadow:0 4px 20px rgba(26,107,122,0.12)}
+    .flatpickr-months{background:var(--ocean);border-radius:14px 14px 0 0}
+    .flatpickr-month{background:transparent!important}
+    .flatpickr-prev-month,.flatpickr-next-month{fill:#fff!important;color:#fff!important;padding:10px 14px!important}
+    .flatpickr-prev-month svg,.flatpickr-next-month svg{fill:#fff!important}
+    .flatpickr-current-month,.flatpickr-current-month .flatpickr-monthDropdown-months,.flatpickr-current-month input.numInput{color:#fff!important;font-weight:500}
+    .flatpickr-weekday{color:var(--text2);font-size:11px;font-weight:500}
+    .flatpickr-day{border-radius:8px;font-size:14px;color:var(--text)}
+    .flatpickr-day.today{border-color:var(--ocean);color:var(--ocean);font-weight:600}
+    .flatpickr-day.today:hover{background:var(--ocean-lt)}
+    .flatpickr-day.selected,.flatpickr-day.selected:hover{background:var(--ocean);border-color:var(--ocean);color:#fff}
+    .flatpickr-day:hover{background:var(--ocean-lt);border-color:transparent}
+    .flatpickr-day.disabled,.flatpickr-day.disabled:hover{color:#ccc;text-decoration:line-through;background:transparent}
+    input.form-input.flatpickr-input{cursor:pointer}
+
   </style>
 </head>
 <body>
@@ -429,11 +449,11 @@
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">チェックイン<span class="req">*</span></label>
-          <input class="form-input" id="f-cin" type="date" style="-webkit-appearance:none;appearance:none">
+          <input class="form-input" id="f-cin" type="text" readonly placeholder="日付を選択">
         </div>
         <div class="form-group">
           <label class="form-label">チェックアウト<span class="req">*</span></label>
-          <input class="form-input" id="f-cout" type="date" style="-webkit-appearance:none;appearance:none">
+          <input class="form-input" id="f-cout" type="text" readonly placeholder="日付を選択">
         </div>
       </div>
       <div class="form-row">
@@ -717,6 +737,17 @@ function isClosedDay(ds) {
   if (ce.includes(ds)) return true;
   return wd.includes(new Date(ds+'T00:00:00').getDay());
 }
+// 滞在期間中にメンテナンス日が含まれるか確認し、最初の該当日を返す
+function _closedNightInStay(cin, cout) {
+  let d = new Date(cin + 'T00:00:00');
+  const end = new Date(cout + 'T00:00:00');
+  while (d < end) {
+    const ds = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    if (isClosedDay(ds)) return ds;
+    d.setDate(d.getDate() + 1);
+  }
+  return null;
+}
 
 function checkCapacity() {
   const adults   = parseInt(document.getElementById('f-adults').value)||0;
@@ -764,6 +795,8 @@ function updateEstimate() {
 
   if (!cin || !cout || cin >= cout) {
     document.getElementById('estimate-wrap').style.display = 'none';
+    const _e = document.getElementById('form-error');
+    if (_e && _e.dataset.source === 'avail') { _e.textContent = ''; delete _e.dataset.source; }
     return;
   }
 
@@ -778,7 +811,7 @@ function updateEstimate() {
   let d = new Date(cin + 'T00:00:00');
   const end = new Date(cout + 'T00:00:00');
   while (d < end) {
-    const ds        = d.toISOString().slice(0, 10);
+    const ds        = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
     const season    = getSeasonForDate(ds);
     const rate          = getRoomRate(season, room, adults);
     const childRate     = getChildRoomRate(season, room);
@@ -894,10 +927,61 @@ function updateEstimate() {
   const roomLabel = ROOM_LABEL[room] || room;
   const titleHtml = `<div class="est-title">${roomLabel}　${nights.length}泊　${MEAL_LABEL[meal]||''}<br><span style="font-size:12px;font-weight:400;color:var(--text2)">${paxDesc}</span></div>`;
 
-  const closedWarn = isClosedDay(cin) ? '<div style="color:var(--rose);font-size:12px;margin-bottom:8px">⚠️ チェックイン日はメンテナンス日です</div>' : '';
+  const _closedNight = _closedNightInStay(cin, cout);
+  const closedWarn = _closedNight ? `<div style="color:var(--rose);font-size:12px;margin-bottom:8px">⚠️ ${_closedNight.slice(5).replace('-','/')} はメンテナンス日のためご利用いただけません</div>` : '';
   document.getElementById('estimate-rows').innerHTML = closedWarn + titleHtml + nightHtml;
   document.getElementById('estimate-total').textContent = total > 0 ? `¥${fmt(total)}` : '—';
   document.getElementById('estimate-wrap').style.display = total > 0 ? 'block' : 'none';
+
+  // リアルタイム空室・メンテナンス日チェック
+  const _errEl = document.getElementById('form-error');
+  const _btn   = document.getElementById('submit-btn');
+  if (_closedNight) {
+    _errEl.textContent = `${_closedNight.slice(5).replace('-','/')} はメンテナンス日のためご利用いただけません。別の日程をお選びください。`;
+    _errEl.dataset.source = 'avail';
+    _btn.disabled = true;
+  } else {
+    if (_errEl.dataset.source === 'avail') { _errEl.textContent = ''; delete _errEl.dataset.source; }
+    clearTimeout(_availTimer);
+    _availTimer = setTimeout(_checkAvail, 500);
+  }
+}
+
+let _availTimer = null;
+async function _checkAvail() {
+  const cin     = document.getElementById('f-cin').value;
+  const cout    = document.getElementById('f-cout').value;
+  const roomKey = document.getElementById('f-room').value;
+  const errEl   = document.getElementById('form-error');
+  const btn     = document.getElementById('submit-btn');
+  if (!cin || !cout || cin >= cout) return;
+  try {
+    const r = await fetch(
+      `${SB_URL}/rest/v1/reservations?status=neq.cancelled&check_in=lt.${cout}&check_out=gt.${cin}&select=room_type,check_in,check_out`,
+      { headers: SB_H }
+    );
+    const rsvs = await r.json();
+    const isS01 = rt => rt && rt.indexOf('01')!==-1 && rt.indexOf('デラックス')===-1 && rt!=='DX';
+    const isS02 = rt => rt && rt.indexOf('02')!==-1 && rt.indexOf('デラックス')===-1 && rt!=='DX';
+    const isDlx = rt => rt && (rt.indexOf('デラックス')!==-1||rt==='DX');
+    // 部屋ごとに「滞在期間に重複する予約があるか」で判定（泊ごとカウントより正確）
+    let isFull = false;
+    if (roomKey === 'dlx') {
+      isFull = rsvs.some(rv => isDlx(rv.room_type));
+    } else {
+      isFull = rsvs.some(rv => isS01(rv.room_type)) && rsvs.some(rv => isS02(rv.room_type));
+    }
+    if (isFull) {
+      const roomLabel = roomKey === 'dlx' ? 'デラックス' : 'スーペリアツイン';
+      errEl.textContent = `${roomLabel}はこの日程で満室です。日程またはお部屋をご変更ください。`;
+      errEl.dataset.source = 'avail';
+      btn.disabled = true;
+    } else {
+      if (errEl.dataset.source === 'avail') { errEl.textContent = ''; delete errEl.dataset.source; }
+      const capOver = document.getElementById('cap-warn') && document.getElementById('cap-warn').style.display !== 'none';
+      if (!capOver) btn.disabled = false;
+    }
+  } catch(e) { /* 確認失敗時はそのまま */ }
 }
 
 // ── メイン初期化 ──
@@ -905,26 +989,42 @@ async function initMain() {
   await loadPriceData();
   // 日付デフォルト（空室確認ページからのパラメータを優先）
   const today = new Date();
-  const fmtD  = d => d.toISOString().slice(0,10);
+  const fmtD  = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   const params = new URLSearchParams(location.search);
   const paramCin  = params.get('cin');
   const paramCout = params.get('cout');
   const cinDef  = new Date(today); cinDef.setDate(cinDef.getDate() + 7);
   const coutDef = new Date(cinDef); coutDef.setDate(coutDef.getDate() + 1);
-  document.getElementById('f-cin').value  = paramCin  || fmtD(cinDef);
-  document.getElementById('f-cout').value = paramCout || fmtD(coutDef);
-  document.getElementById('f-cin').min    = fmtD(today);
-  document.getElementById('f-cout').min   = document.getElementById('f-cin').value;
-  document.getElementById('f-cin').addEventListener('change', function() {
-    refreshClosedDays();
-    const newCin  = new Date(this.value + 'T00:00:00');
-    const newCout = new Date(newCin); newCout.setDate(newCout.getDate() + 1);
-    document.getElementById('f-cout').min = this.value;
-    if (document.getElementById('f-cout').value <= this.value)
-      document.getElementById('f-cout').value = fmtD(newCout);
-    updateEstimate();
+  const minBook = new Date(today); minBook.setDate(minBook.getDate() + 2);
+  const maxBook = new Date(today); maxBook.setMonth(maxBook.getMonth() + 13);
+  const cinInit  = paramCin  || fmtD(cinDef);
+  const coutInit = paramCout || fmtD(coutDef);
+  const _fpDisable = [date => {
+    const ds = date.getFullYear()+'-'+String(date.getMonth()+1).padStart(2,'0')+'-'+String(date.getDate()).padStart(2,'0');
+    return isClosedDay(ds);
+  }];
+  let fpCout;
+  const fpCin = flatpickr('#f-cin', {
+    dateFormat: 'Y-m-d', locale: 'ja', disableMobile: true,
+    defaultDate: cinInit, minDate: fmtD(minBook), maxDate: fmtD(maxBook),
+    disable: _fpDisable,
+    onChange: function(sel, dateStr) {
+      refreshClosedDays();
+      if (sel[0]) {
+        const newCout = new Date(sel[0]); newCout.setDate(newCout.getDate() + 1);
+        fpCout.set('minDate', dateStr);
+        if (!fpCout.selectedDates[0] || fpCout.selectedDates[0] <= sel[0])
+          fpCout.setDate(fmtD(newCout), false);
+      }
+      updateEstimate();
+    }
   });
-  document.getElementById('f-cout').addEventListener('change', updateEstimate);
+  fpCout = flatpickr('#f-cout', {
+    dateFormat: 'Y-m-d', locale: 'ja', disableMobile: true,
+    defaultDate: coutInit, minDate: cinInit, maxDate: fmtD(maxBook),
+    disable: _fpDisable,
+    onChange: function() { updateEstimate(); }
+  });
   ['f-adults','f-children','f-meal','f-room'].forEach(id => {
     document.getElementById(id).addEventListener('change', () => { checkCapacity(); updateEstimate(); });
   });
@@ -1000,17 +1100,8 @@ async function submitBooking() {
   if (!phone)             { errEl.textContent = '電話番号を入力してください。'; return; }
   if (!cin || !cout)      { errEl.textContent = 'チェックイン・チェックアウト日を選択してください。'; return; }
   if (cin >= cout)        { errEl.textContent = 'チェックアウトはチェックインより後の日付を選択してください。'; return; }
-  // 滞在全日程の定休日チェック
-  const _nights = [];
-  let _nd = new Date(cin + 'T00:00:00');
-  const _ne = new Date(cout + 'T00:00:00');
-  while (_nd < _ne) { _nights.push(_nd.toISOString().slice(0,10)); _nd.setDate(_nd.getDate()+1); }
-  const _closedNight = _nights.find(ds => isClosedDay(ds));
-  if (_closedNight) {
-    const _d = new Date(_closedNight + 'T00:00:00');
-    errEl.textContent = `${_d.getMonth()+1}月${_d.getDate()}日はメンテナンス日のため、この期間はご利用いただけません。別の日程をお選びください。`;
-    return;
-  }
+  const _cn = _closedNightInStay(cin, cout);
+  if (_cn) { errEl.textContent = `${_cn.slice(5).replace('-','/')} はメンテナンス日のためご利用いただけません。別の日程をお選びください。`; return; }
 
   const btn = document.getElementById('submit-btn');
   btn.disabled = true;
@@ -1024,12 +1115,13 @@ async function submitBooking() {
     );
     const booked = await chkRes.json();
     const roomKey = document.getElementById('f-room').value;
-    const isSupMatch = rt => rt && (rt.indexOf('01')!==-1||rt.indexOf('02')!==-1) && rt.indexOf('デラックス')===-1 && rt!=='DX';
-    const isDlxMatch = rt => rt && (rt.indexOf('デラックス')!==-1||rt==='DX');
-    const matchFn = roomKey === 'dlx' ? isDlxMatch : isSupMatch;
-    const total   = roomKey === 'dlx' ? 1 : 2;
-    const bookedCount = booked.filter(r => matchFn(r.room_type)).length;
-    if (bookedCount >= total) {
+    const _isS01 = rt => rt && rt.indexOf('01')!==-1 && rt.indexOf('デラックス')===-1 && rt!=='DX';
+    const _isS02 = rt => rt && rt.indexOf('02')!==-1 && rt.indexOf('デラックス')===-1 && rt!=='DX';
+    const _isDlx = rt => rt && (rt.indexOf('デラックス')!==-1||rt==='DX');
+    const isFull2 = roomKey === 'dlx'
+      ? booked.some(r => _isDlx(r.room_type))
+      : booked.some(r => _isS01(r.room_type)) && booked.some(r => _isS02(r.room_type));
+    if (isFull2) {
       errEl.textContent = '申し訳ありません。送信中にご希望のお部屋が埋まってしまいました。日程・お部屋をご確認ください。';
       btn.disabled = false;
       btn.textContent = '予約リクエストを送る';
