@@ -2043,8 +2043,8 @@ async function startApp(){
   // flatpickr 初期化（iPad対応）
   if(window.flatpickr){
     flatpickr.localize(flatpickr.l10ns.ja);
-    window._fpCI = flatpickr('#edit-checkin', {dateFormat:'Y-m-d', allowInput:true, disableMobile:true});
-    window._fpCO = flatpickr('#edit-checkout', {dateFormat:'Y-m-d', allowInput:true, disableMobile:true});
+    window._fpCI = flatpickr('#edit-checkin', {dateFormat:'Y-m-d', allowInput:true, disableMobile:true, appendTo:document.body});
+    window._fpCO = flatpickr('#edit-checkout', {dateFormat:'Y-m-d', allowInput:true, disableMobile:true, appendTo:document.body});
   }
   // 未保存の下書きがあれば復元を促す
   setTimeout(checkResDraft, 800);
