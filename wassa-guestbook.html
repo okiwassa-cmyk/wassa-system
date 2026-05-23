@@ -4810,7 +4810,8 @@ function openMenuPicker(idx, field) {
     catEl.value = '子供';
   } else {
     var cat = (currentFoodRecords[idx] || {}).category || 'ディナー';
-    catEl.value = cat;
+    // food_recordsは'夕食'、メニューマスタは'ディナー' で名称が異なるため変換
+    catEl.value = (cat === '夕食' || cat === 'ディナー') ? 'ディナー' : cat;
   }
   renderMenuPicker();
   openModal('menu-picker-modal');
