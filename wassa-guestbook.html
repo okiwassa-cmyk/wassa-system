@@ -3693,10 +3693,13 @@ function billUpdate(i,key,val){
       var _mealTot=billingRows.reduce(function(s,r){return _matchMeal(r)?s+(parseFloat(r.price)||0)*(parseFloat(r.qty)||1):s;},0);
       var _refTot=(parseFloat(_ref.price)||0)*(parseFloat(_ref.qty)||1);
       var _rq=parseFloat(billingRows[_ri].qty)||1;
-      var _np=Math.max(0,Math.round((_refTot-_mealTot)/_rq));
-      billingRows[_ri].price=_np;
-      var _rae=document.getElementById('bill-row-amt-'+_ri);if(_rae)_rae.textContent='=¥'+fmt(_np*_rq);
-      var _rpe=document.getElementById('bill-price-'+_ri);if(_rpe)_rpe.value=_np;
+      var _np=Math.round((_refTot-_mealTot)/_rq);
+      // 計算結果がゼロ以下の場合は上書きしない（食事合計が参考行を超える場合など）
+      if(_np>0){
+        billingRows[_ri].price=_np;
+        var _rae=document.getElementById('bill-row-amt-'+_ri);if(_rae)_rae.textContent='=¥'+fmt(_np*_rq);
+        var _rpe=document.getElementById('bill-price-'+_ri);if(_rpe)_rpe.value=_np;
+      }
     }
   }
   recalcBilling();
@@ -4048,6 +4051,7 @@ function openBillingPicker(idx){
     deductCheck.checked=(normCat==='朝食'&&hasBf)||(normCat==='夕食'&&hasDin);
   } else {
     deductWrap.style.display='none';
+    if(deductCheck) deductCheck.checked=false;
   }
   renderBillingPicker();
   openModal('billing-picker-modal');
@@ -9570,10 +9574,9 @@ async function saveRatePaint(){
         if(cur&&cur.season===s){cur.to=ds3;}
         else{cur={season:s,from:ds3,to:ds3};newRanges.push(cur);}
       });
-      // 対象年の既存rangesを削除
+      // 対象年の既存rangesをDB上から年単位で一括削除（重複も含めて全消し）
+      await supa('season_ranges?from_date=gte.'+y+'-01-01&from_date=lte.'+y+'-12-31','DELETE');
       for(var si=0;si<SEASONS.length;si++){var s2=SEASONS[si];
-        var toDelete=(ranges[s2]||[]).filter(function(r){return r.from&&r.from.startsWith(y)&&r.id;});
-        for(var ti=0;ti<toDelete.length;ti++)await supa('season_ranges?id=eq.'+toDelete[ti].id,'DELETE');
         ranges[s2]=(ranges[s2]||[]).filter(function(r){return !(r.from&&r.from.startsWith(y));});
       }
       // 新しいrangesをINSERT
