@@ -4657,10 +4657,12 @@ function renderFoodRecords() {
     }
   }
   // 重複除去: 同じreservation_id+served_date+category は IDが大きい（最新）もので上書き
+  // ディナー→夕食に正規化してキーを作る（旧FileMakerデータとの重複防止）
   var seen = {};
   var deduped = [];
   currentFoodRecords.forEach(function(r) {
-    var key = (r.reservation_id||'') + '|' + (r.served_date||'不明') + '|' + (r.category||'');
+    var _nc = r.category==='ディナー'?'夕食':(r.category||'夕食');
+    var key = (r.reservation_id||'') + '|' + (r.served_date||'不明') + '|' + _nc;
     if (!seen[key]) {
       seen[key] = deduped.length;
       deduped.push(r);
@@ -4734,15 +4736,15 @@ function renderFoodRecords() {
         html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
         html += '<div><div style="font-size:10px;font-weight:600;color:var(--text3);margin-bottom:3px">大人食事内容</div>';
         html += '<button onclick="openMenuPicker('+idx+',\'meal_detail\')" style="margin-bottom:4px;background:none;border:1px solid var(--ocean2);border-radius:4px;padding:2px 8px;font-size:11px;color:var(--ocean2);cursor:pointer">メニューから選択</button>';
-        html += '<textarea class="fr-ta" style="font-size:12px;width:100%;box-sizing:border-box;resize:vertical;min-height:80px" oninput="frUpdate('+idx+',\'meal_detail\',this.value);autoResize(this)">'+(r.meal_detail||'')+'</textarea></div>';
+        html += '<textarea class="fr-ta" style="font-size:12px;width:100%;box-sizing:border-box;resize:vertical;min-height:80px" oninput="frUpdate('+idx+',\'meal_detail\',this.value);autoResize(this)">'+escHtml(r.meal_detail||'')+'</textarea></div>';
         html += '<div><div style="display:flex;align-items:center;gap:8px;margin-bottom:3px"><span style="font-size:10px;font-weight:600;color:var(--green)">子供食事内容</span><button onclick="frUpdate('+idx+',\'kids_meal_detail\',\'\');renderFoodRecords()" style="background:none;border:1px solid var(--coral);border-radius:4px;cursor:pointer;color:var(--coral);font-size:11px;padding:1px 8px;line-height:1.4" title="子供食事を削除">削除</button></div>';
         html += '<button onclick="openMenuPicker('+idx+',\'kids_meal_detail\')" style="margin-bottom:4px;background:none;border:1px solid var(--green);border-radius:4px;padding:2px 8px;font-size:11px;color:var(--green);cursor:pointer">メニューから選択</button>';
-        html += '<textarea class="fr-ta" style="font-size:12px;width:100%;box-sizing:border-box;resize:vertical;min-height:60px" oninput="frUpdate('+idx+',\'kids_meal_detail\',this.value);autoResize(this)">'+(r.kids_meal_detail||'')+'</textarea></div>';
+        html += '<textarea class="fr-ta" style="font-size:12px;width:100%;box-sizing:border-box;resize:vertical;min-height:60px" oninput="frUpdate('+idx+',\'kids_meal_detail\',this.value);autoResize(this)">'+escHtml(r.kids_meal_detail||'')+'</textarea></div>';
         html += '</div>';
       } else {
         html += '<div>';
         html += '<button onclick="openMenuPicker('+idx+',\'meal_detail\')" style="margin-bottom:4px;background:none;border:1px solid var(--ocean2);border-radius:4px;padding:2px 8px;font-size:11px;color:var(--ocean2);cursor:pointer">メニューから選択</button>';
-        html += '<textarea class="fr-ta" style="font-size:12px;width:100%;box-sizing:border-box;resize:vertical;min-height:80px" oninput="frUpdate('+idx+',\'meal_detail\',this.value);autoResize(this)">'+(r.meal_detail||'')+'</textarea>';
+        html += '<textarea class="fr-ta" style="font-size:12px;width:100%;box-sizing:border-box;resize:vertical;min-height:80px" oninput="frUpdate('+idx+',\'meal_detail\',this.value);autoResize(this)">'+escHtml(r.meal_detail||'')+'</textarea>';
         html += '<button onclick="openMenuPicker('+idx+', \'kids_meal_detail\')" style="margin-top:4px;background:none;border:1px solid var(--ocean);border-radius:4px;padding:4px 10px;font-size:11px;color:var(--ocean);cursor:pointer">＋ 子供食事を追加</button>';
         html += '</div>';
       }
