@@ -4634,7 +4634,7 @@ function renderFoodRecords() {
   var _resForCheck=allReservations.find(function(x){return x.id===currentEditId;});
   if(_resForCheck&&_resForCheck.check_in&&_resForCheck.check_out){
     var _badRecs=currentFoodRecords.filter(function(r){
-      if(r.meal_detail&&r.meal_detail.trim()) return false; // 内容あり→触れない
+      if((r.meal_detail&&r.meal_detail.trim())||(r.menu_name&&r.menu_name.trim())||(r.kids_meal_detail&&r.kids_meal_detail.trim())) return false; // 内容あり→触れない
       var d=r.served_date||'';
       if(d<_resForCheck.check_in||d>_resForCheck.check_out) return true;
       if(d===_resForCheck.check_in&&r.category==='朝食') return true;
@@ -4935,30 +4935,51 @@ async function addNewFamilyMember(){
   var meiK = (document.getElementById('fam-new-mei-kana')||{}).value.trim()||'';
   var rel = (document.getElementById('fam-new-rel')||{}).value.trim()||'';
   if(!sei){ toast('姓を入力してください'); return; }
+  // 子供続柄はfamily1〜4スロット（顧客レコードなし）、それ以外は顧客レコードを作成してfamily_idでリンク
+  var childRels = ['子','息子','娘','長男','長女','次男','次女','三男','三女'];
+  var isChild = childRels.indexOf(rel) > -1;
   var name = sei + (mei ? '　'+mei : '');
   var kana = seiK + (meiK ? ' '+meiK : '');
-  // 空きスロットを探す
-  var slots = ['family1','family2','family3','family4'];
-  var emptySlot = null;
-  for(var i=0;i<slots.length;i++){
-    if(!c[slots[i]]){ emptySlot = slots[i]; break; }
-  }
-  if(!emptySlot){ toast('家族スロットが満杯です（最大4名）'); return; }
   try{
-    var patch = {};
-    patch[emptySlot] = name;
-    patch[emptySlot+'_kana'] = kana;
-    patch[emptySlot+'_rel'] = rel;
-    await sbPatch('wassa_customers', c.id, patch);
-    var ci = allCustomers.findIndex(function(x){return x.id===c.id;});
-    if(ci>-1){
-      allCustomers[ci][emptySlot] = name;
-      allCustomers[ci][emptySlot+'_kana'] = kana;
-      allCustomers[ci][emptySlot+'_rel'] = rel;
+    if(isChild){
+      // 旧スロット方式
+      var slots = ['family1','family2','family3','family4'];
+      var emptySlot = null;
+      for(var i=0;i<slots.length;i++){
+        if(!c[slots[i]]){ emptySlot = slots[i]; break; }
+      }
+      if(!emptySlot){ toast('子供スロットが満杯です（最大4名）'); return; }
+      var patch = {};
+      patch[emptySlot] = name;
+      patch[emptySlot+'_kana'] = kana;
+      patch[emptySlot+'_rel'] = rel;
+      await sbPatch('wassa_customers', c.id, patch);
+      var ci = allCustomers.findIndex(function(x){return x.id===c.id;});
+      if(ci>-1){
+        allCustomers[ci][emptySlot] = name;
+        allCustomers[ci][emptySlot+'_kana'] = kana;
+        allCustomers[ci][emptySlot+'_rel'] = rel;
+      }
+    } else {
+      // 新規顧客レコードを作成してfamily_idでリンク
+      var newCustData = {sei:sei, mei:mei, sei_kana:seiK, mei_kana:meiK, rel:rel};
+      var created = await sbPost('wassa_customers', newCustData);
+      if(!created||!created[0]) throw new Error('顧客レコード作成失敗');
+      var newId = created[0].id;
+      var famId = c.family_id || c.id;
+      var patchMe = {};
+      if(!c.family_id){ patchMe.family_id = famId; await sbPatch('wassa_customers', c.id, patchMe); }
+      await sbPatch('wassa_customers', newId, {family_id: famId, rel: rel});
+      created[0].family_id = famId;
+      created[0].rel = rel;
+      allCustomers.push(created[0]);
+      var ci = allCustomers.findIndex(function(x){return x.id===c.id;});
+      if(ci>-1 && !allCustomers[ci].family_id) allCustomers[ci].family_id = famId;
     }
-    ['fam-new-sei','fam-new-mei','fam-new-sei-kana','fam-new-mei-kana','fam-new-rel'].forEach(function(id){
+    ['fam-new-sei','fam-new-mei','fam-new-sei-kana','fam-new-mei-kana'].forEach(function(id){
       var el=document.getElementById(id); if(el) el.value='';
     });
+    var relEl=document.getElementById('fam-new-rel'); if(relEl) relEl.value='';
     renderCustFamily();
     toast('✅ 家族メンバーを追加しました');
   }catch(e){ toast('エラー: '+e.message); }
@@ -5253,15 +5274,30 @@ function showAddFoodDatePicker(){
   var dayNames=['日','月','火','水','木','金','土'];
   var coDs = resv.check_out;
   var ciDs = resv.check_in;
-  var opts = dates.map(function(ds){
+  // 既存レコードの(日付,カテゴリ)セットを作成
+  var existingSet = {};
+  (currentFoodRecords||[]).forEach(function(f){
+    var cat = f.category==='ディナー'?'夕食':(f.category||'夕食');
+    existingSet[(f.served_date||'')+'|'+cat] = true;
+  });
+  var opts = [];
+  dates.forEach(function(ds){
     var dt = new Date(ds+'T00:00:00');
     var dateLabel = (dt.getMonth()+1)+'/'+dt.getDate()+'('+dayNames[dt.getDay()]+')';
-    var mealLabel = ds===coDs ? '朝食' : ds===ciDs ? '夕食' : '夕食';
-    var mealColor = ds===coDs ? 'var(--amber)' : 'var(--ocean2)';
-    var hint = ds===coDs ? '（チェックアウト朝）' : '';
-    var label = dateLabel+' <span style="font-size:11px;color:'+mealColor+';margin-left:4px">'+mealLabel+'</span><span style="font-size:10px;color:var(--text3)">'+hint+'</span>';
-    return '<button onclick="hideFoodDateModal();addFoodRecord(\''+ds+'\')" style="display:block;width:100%;text-align:left;padding:10px 14px;border:none;border-bottom:1px solid var(--sand2);background:none;cursor:pointer;font-size:13px;color:var(--text)" onmouseover="this.style.background=\'var(--sand)\'" onmouseout="this.style.background=\'none\'">'+label+'</button>';
-  }).join('');
+    var isCO = ds===coDs, isCI = ds===ciDs;
+    // 夕食オプション：CO日以外、かつ既存夕食がない場合
+    if(!isCO && !existingSet[ds+'|夕食']){
+      var lbl = dateLabel+' <span style="font-size:11px;color:var(--ocean2);margin-left:4px">夕食</span>';
+      opts.push('<button onclick="hideFoodDateModal();addFoodRecord(\''+ds+'\',\'夕食\')" style="display:block;width:100%;text-align:left;padding:10px 14px;border:none;border-bottom:1px solid var(--sand2);background:none;cursor:pointer;font-size:13px;color:var(--text)" onmouseover="this.style.background=\'var(--sand)\'" onmouseout="this.style.background=\'none\'">'+lbl+'</button>');
+    }
+    // 朝食オプション：CI日以外、かつ既存朝食がない場合
+    if(!isCI && !existingSet[ds+'|朝食']){
+      var hint = isCO ? '<span style="font-size:10px;color:var(--text3)">（チェックアウト朝）</span>' : '';
+      var lbl2 = dateLabel+' <span style="font-size:11px;color:var(--amber);margin-left:4px">朝食</span>'+hint;
+      opts.push('<button onclick="hideFoodDateModal();addFoodRecord(\''+ds+'\',\'朝食\')" style="display:block;width:100%;text-align:left;padding:10px 14px;border:none;border-bottom:1px solid var(--sand2);background:none;cursor:pointer;font-size:13px;color:var(--text)" onmouseover="this.style.background=\'var(--sand)\'" onmouseout="this.style.background=\'none\'">'+lbl2+'</button>');
+    }
+  });
+  var opts = opts.join('');
 
   var modal = document.getElementById('food-date-modal');
   if(!modal){
@@ -5277,12 +5313,12 @@ function showAddFoodDatePicker(){
   modal.onclick = function(e){ if(e.target===modal) modal.style.display='none'; };
 }
 
-async function addFoodRecord(date) {
+async function addFoodRecord(date, category) {
   var resvId = currentEditId;
   var resv = allReservations.find(function(r){ return r.id === resvId; });
   var newDate = date || (resv ? resv.check_in : dateStr(new Date()));
-  // チェックアウト日は朝食、それ以外（チェックイン日・中間夜）は夕食
-  var defCat = (resv && resv.check_out && newDate === resv.check_out) ? '朝食' : '夕食';
+  // category引数があればそれを使う。なければ従来ロジック
+  var defCat = category || ((resv && resv.check_out && newDate === resv.check_out) ? '朝食' : '夕食');
   var payload = {
     reservation_id: resvId,
     served_date:    newDate,
