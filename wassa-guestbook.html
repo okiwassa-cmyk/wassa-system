@@ -4745,7 +4745,7 @@ function renderFoodRecords() {
         html += '<div>';
         html += '<button onclick="openMenuPicker('+idx+',\'meal_detail\')" style="margin-bottom:4px;background:none;border:1px solid var(--ocean2);border-radius:4px;padding:2px 8px;font-size:11px;color:var(--ocean2);cursor:pointer">メニューから選択</button>';
         html += '<textarea class="fr-ta" style="font-size:12px;width:100%;box-sizing:border-box;resize:vertical;min-height:80px" oninput="frUpdate('+idx+',\'meal_detail\',this.value);autoResize(this)">'+escHtml(r.meal_detail||'')+'</textarea>';
-        html += '<button onclick="openMenuPicker('+idx+', \'kids_meal_detail\')" style="margin-top:4px;background:none;border:1px solid var(--ocean);border-radius:4px;padding:4px 10px;font-size:11px;color:var(--ocean);cursor:pointer">＋ 子供食事を追加</button>';
+        html += '<button onclick="openKidsField('+idx+')" style="margin-top:4px;background:none;border:1px solid var(--green);border-radius:4px;padding:4px 10px;font-size:11px;color:var(--green);cursor:pointer">＋ 子供食事を追加</button>';
         html += '</div>';
       }
       html += '</div>';
@@ -4819,6 +4819,27 @@ function toggleKidsField(idx) {
   if (currentFoodRecords[idx]) {
     currentFoodRecords[idx].kids_meal_detail = '';
     renderFoodRecords();
+  }
+}
+function openKidsField(idx) {
+  if (currentFoodRecords[idx]) {
+    // スペースを入れてhasKids=trueにして子供欄を表示
+    currentFoodRecords[idx].kids_meal_detail = ' ';
+    currentFoodRecords[idx]._dirty = true;
+    renderFoodRecords();
+    // テキストエリアにフォーカス
+    setTimeout(function(){
+      var tas = document.querySelectorAll('.fr-ta');
+      // kids_meal_detail のtextareaを探してフォーカス
+      for(var i=0;i<tas.length;i++){
+        var oninput = tas[i].getAttribute('oninput')||'';
+        if(oninput.indexOf('kids_meal_detail')>-1 && oninput.indexOf('('+idx+',')>-1){
+          tas[i].value = '';
+          tas[i].focus();
+          break;
+        }
+      }
+    }, 50);
   }
 }
 
