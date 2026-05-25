@@ -10610,7 +10610,7 @@ function renderCustFamily(){
           +'<div class="avatar" style="width:32px;height:32px;font-size:13px;background:var(--sand2);color:var(--text2)">'+(nm[0]||'?')+'</div>'
           +'<div style="flex:1"><div style="font-size:13px;font-weight:500;color:var(--text)">'+nm+(rl?'<span style="font-size:11px;color:var(--ocean2);margin-left:6px">'+rl+'</span>':'')+'</div>'
           +(kn?'<div style="font-size:11px;color:var(--text3)">'+kn+'</div>':'')+'</div>'
-          +'<input type="text" placeholder="続柄" value="'+rl+'" onchange="updateFamilySlotRel(\''+s+'\'',this.value)" onclick="event.stopPropagation()" style="width:90px;padding:3px 8px;border:1px solid var(--sand2);border-radius:4px;font-size:11px;color:var(--text2);flex-shrink:0">'
+          +'<input type="text" placeholder="続柄" value="'+rl+'" onchange="updateFamilySlotRel(\''+s+'\',this.value)" onclick="event.stopPropagation()" style="width:90px;padding:3px 8px;border:1px solid var(--sand2);border-radius:4px;font-size:11px;color:var(--text2);flex-shrink:0">'
           +'<button onclick="removeFamilySlot(\''+s+'\')" style="background:none;border:1px solid var(--coral);border-radius:4px;color:var(--coral);font-size:11px;padding:2px 8px;cursor:pointer;white-space:nowrap">削除</button>'
           +'</div>';
       }).join('');
