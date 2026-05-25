@@ -10625,9 +10625,13 @@ function renderCustFamily(){
     }
   }
   // 同住所の顧客
-  var addr=(c.pref||'')+(c.city||'');
-  if(addr.length>3){
-    var sameAddr=allCustomers.filter(function(x){return x.id!==c.id&&((x.pref||'')+(x.city||'')).indexOf(addr)>-1;});
+  var addr=((c.pref||'')+(c.city||'')+(c.address||'')).replace(/[\s\u3000]/g,'').trim();
+  if(addr.length>=10){
+    var sameAddr=allCustomers.filter(function(x){
+      if(x.id===c.id)return false;
+      var xAddr=((x.pref||'')+(x.city||'')+(x.address||'')).replace(/[\s\u3000]/g,'').trim();
+      return xAddr.length>=10&&xAddr===addr;
+    });
     if(sameAddr.length>0){
       html+='<div style="font-size:11px;font-weight:600;color:var(--text3);margin:18px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--sand2)">📍 同住所の顧客（家族候補）</div>';
       html+=sameAddr.slice(0,5).map(function(m){
