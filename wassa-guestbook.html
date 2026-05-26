@@ -7800,15 +7800,13 @@ function applyMealRestrictions(cin, cout){
     var ds = d.toISOString().split('T')[0];
     var sp = getSpecialPeriodForDate(ds);
     if(sp && sp.meal_required){
-      if(!required || sp.meal_required === 'both'){
-        required = sp.meal_required;
-        periodLabel = sp.label || '';
-      }
+      required = sp.meal_required;
+      periodLabel = sp.label || '';
     }
     d.setDate(d.getDate()+1);
   }
   if(required){
-    var labelTxt = required==='both' ? '朝夕食付きのみ' : '夕食付き以上';
+    var labelTxt = required==='both'?'朝食・夕食付きのみ':required==='bf'?'朝食のみ':required==='din'?'夕食のみ':'素泊まりのみ';
     var msg = (periodLabel ? '【'+periodLabel+'】' : '') + 'この期間は' + labelTxt + 'でのご提供となります';
     banner.textContent = '⭐ ' + msg;
     banner.style.display = 'block';
@@ -7822,17 +7820,9 @@ function _lockMealSel(r, required){
   var sel = document.getElementById('ri-'+r+'-meal');
   if(!sel) return;
   for(var i=0; i<sel.options.length; i++){
-    var v = sel.options[i].value;
-    if(required==='both'){
-      sel.options[i].disabled = (v !== 'both');
-    } else if(required==='din_or_both'){
-      sel.options[i].disabled = (v !== 'both' && v !== 'din');
-    }
+    sel.options[i].disabled = (sel.options[i].value !== required);
   }
-  // 現在値が禁止されていれば強制セット
-  var cur = sel.value;
-  if(required==='both' && cur!=='both'){ sel.value='both'; saveRoomInputState(r); updateInfMealOpts(r); }
-  else if(required==='din_or_both' && cur!=='both' && cur!=='din'){ sel.value='din'; saveRoomInputState(r); updateInfMealOpts(r); }
+  if(sel.value !== required){ sel.value=required; saveRoomInputState(r); updateInfMealOpts(r); }
 }
 function _unlockMealSel(r){
   var sel = document.getElementById('ri-'+r+'-meal');
@@ -9721,7 +9711,7 @@ function renderSpecialPeriods(){
       +(p.bf_adult?'<span style="font-size:11px;background:#e8f5e9;color:#2e7d32;padding:1px 7px;border-radius:10px">朝食 ¥'+Number(p.bf_adult).toLocaleString()+'</span>':'')
       +((p.sup&&p.sup[2])?'<span style="font-size:11px;background:#e3f2fd;color:#1565c0;padding:1px 7px;border-radius:10px">SUP2名 ¥'+Number(p.sup[2]).toLocaleString()+'</span>':'')
       +((p.dlx&&p.dlx[2])?'<span style="font-size:11px;background:#f3e5f5;color:#6a1b9a;padding:1px 7px;border-radius:10px">DLX2名 ¥'+Number(p.dlx[2]).toLocaleString()+'</span>':'')
-      +(p.meal_required==='both'?'<span style="font-size:11px;background:#fce4ec;color:#c62828;padding:1px 7px;border-radius:10px">朝夕食付きのみ</span>':p.meal_required==='din_or_both'?'<span style="font-size:11px;background:#fce4ec;color:#c62828;padding:1px 7px;border-radius:10px">夕食付き以上</span>':'')
+      +(p.meal_required?'<span style="font-size:11px;background:#fce4ec;color:#c62828;padding:1px 7px;border-radius:10px">'+(p.meal_required==='both'?'朝食・夕食付きのみ':p.meal_required==='bf'?'朝食のみ':p.meal_required==='din'?'夕食のみ':'素泊まりのみ')+'</span>':'')
       +'<button onclick="editSpecialPeriod('+i+')" style="margin-left:auto;background:none;border:1px solid var(--ocean);border-radius:4px;color:var(--ocean);font-size:11px;padding:2px 10px;cursor:pointer">編集</button>'
       +'<button onclick="deleteSpecialPeriod('+i+')" style="background:none;border:1px solid var(--coral);border-radius:4px;color:var(--coral);font-size:11px;padding:2px 10px;cursor:pointer">削除</button>'
       +'</div>';
@@ -10048,7 +10038,7 @@ function renderMgr(){
   html+='<div class="fg"><label style="font-size:12px">夕食（大人）<span style="font-size:11px;color:var(--text3)"> 未入力=通常料金</span></label><input type="number" id="sp-din" placeholder="例: 12000" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box"></div>';
   html+='<div class="fg"><label style="font-size:12px">朝食（大人）<span style="font-size:11px;color:var(--text3)"> 未入力=通常料金</span></label><input type="number" id="sp-bf" placeholder="例: 3000" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box"></div>';
   html+='<div class="fg full"><label style="font-size:12px">食事プラン制限<span style="font-size:11px;color:var(--text3)"> この期間に提供するプランを制限</span></label>';
-  html+='<select id="sp-meal-req" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px"><option value="">制限なし</option><option value="both">朝夕食付きのみ</option><option value="din_or_both">夕食付き以上（素泊まり・朝食のみ不可）</option></select></div>';
+  html+='<select id="sp-meal-req" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px"><option value="">制限なし</option><option value="both">朝食・夕食付きのみ</option><option value="bf">朝食のみ</option><option value="din">夕食のみ</option><option value="none">素泊まりのみ</option></select></div>';
   html+='<div class="fg full"><div style="font-size:12px;font-weight:600;color:var(--text2);margin:4px 0 6px">宿泊料金（1名あたり）<span style="font-size:11px;font-weight:400;color:var(--text3)"> 未入力=シーズン料金を使用</span></div>';
   html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
   html+='<div><div style="font-size:11px;color:var(--text3);margin-bottom:4px">スーペリア</div>';
