@@ -8805,12 +8805,13 @@ async function saveQuoteToDb(){
           }
         }
         // 夕食：大人・小学生・幼児
-        if(r.dinAdultOn&&r.dinAdultAmt) brows.push({cat:'ディナー',date:_ds,item:'ディナー（大人）',qty:e.adult,price:Math.round(r.dinAdultAmt/(e.adult||1)),discount:0});
-        if(r.dinChildOn&&r.dinChildAmt) brows.push({cat:'ディナー',date:_ds,item:'ディナー（小学生）',qty:e.child,price:Math.round(r.dinChildAmt/(e.child||1)),discount:0});
+        var _cn2=r.dinCourseName||currentDinCourseName||'ディナー';
+        if(r.dinAdultOn&&r.dinAdultAmt) brows.push({cat:'ディナー',date:_ds,item:_cn2+'（大人）',qty:e.adult,price:Math.round(r.dinAdultAmt/(e.adult||1)),discount:0});
+        if(r.dinChildOn&&r.dinChildAmt) brows.push({cat:'ディナー',date:_ds,item:_cn2+'（小学生）',qty:e.child,price:Math.round(r.dinChildAmt/(e.child||1)),discount:0});
         // 幼児夕食（これまで抜けていた）
-        if(r.dinInfFutonOn&&r.dinInfFutonAmt) brows.push({cat:'ディナー',date:_ds,item:'ディナー（幼児）',qty:e.infFuton,price:Math.round(r.dinInfFutonAmt/(e.infFuton||1)),discount:0});
-        if(r.dinInfNoFutonOn&&r.dinInfNoFutonAmt) brows.push({cat:'ディナー',date:_ds,item:'ディナー（幼児）',qty:e.infNoFuton,price:Math.round(r.dinInfNoFutonAmt/(e.infNoFuton||1)),discount:0});
-        if(r.dinInfDlxOn&&r.dinInfDlxAmt) brows.push({cat:'ディナー',date:_ds,item:'ディナー（幼児）',qty:e.infDlx,price:Math.round(r.dinInfDlxAmt/(e.infDlx||1)),discount:0});
+        if(r.dinInfFutonOn&&r.dinInfFutonAmt) brows.push({cat:'ディナー',date:_ds,item:_cn2+'（幼児）',qty:e.infFuton,price:Math.round(r.dinInfFutonAmt/(e.infFuton||1)),discount:0});
+        if(r.dinInfNoFutonOn&&r.dinInfNoFutonAmt) brows.push({cat:'ディナー',date:_ds,item:_cn2+'（幼児）',qty:e.infNoFuton,price:Math.round(r.dinInfNoFutonAmt/(e.infNoFuton||1)),discount:0});
+        if(r.dinInfDlxOn&&r.dinInfDlxAmt) brows.push({cat:'ディナー',date:_ds,item:_cn2+'（幼児）',qty:e.infDlx,price:Math.round(r.dinInfDlxAmt/(e.infDlx||1)),discount:0});
         // 素泊まり・夕食付きの場合のみ朝食を別行で残す
         if(!hasBf){
           if(r.bfAdultOn&&r.bfAdultAmt) brows.push({cat:'朝食',date:_ds,item:'大人宿泊（朝食付き）',qty:e.adult,price:Math.round(r.bfAdultAmt/(e.adult||1)),discount:0});
