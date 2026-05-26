@@ -7705,6 +7705,7 @@ function calcEstimateOneRoom(room, cin, cout, adult, child, infFuton, infNoFuton
     var dt=new Date(d1);dt.setDate(dt.getDate()+i);
     var ds=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
     var label=(dt.getMonth()+1)+'/'+dt.getDate();
+    var s=getSeasonForDate(ds)||'regular';
     var p=getRoomPrices(ds,room);
     var ak=Math.min(adult,4);
     var baseUnit=p[ak]||0;
