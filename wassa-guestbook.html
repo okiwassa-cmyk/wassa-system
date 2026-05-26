@@ -7274,6 +7274,7 @@ function getSeasonForDate_base(ds){for(const s of SEASONS)for(const r of(ranges[
 function getSpecialPeriodForDate(ds){if(!ds)return null;for(var _i=0;_i<specialPeriods.length;_i++){var _p=specialPeriods[_i];if(_p.from&&_p.to&&ds>=_p.from&&ds<=_p.to)return _p;}return null;}
 function getDinnerPrice(ds){var sp=getSpecialPeriodForDate(ds);if(sp&&sp.din_adult)return sp.din_adult;return common.din_adult||7700;}
 function getBreakfastPrice(ds){var sp=getSpecialPeriodForDate(ds);if(sp&&sp.bf_adult)return sp.bf_adult;return common.bf_adult||2200;}
+function getRoomPrices(ds,room){var sp=getSpecialPeriodForDate(ds);if(sp&&sp[room]&&Object.keys(sp[room]).some(function(k){return sp[room][k];}))return Object.assign({},prices[getSeasonForDate(ds)||'regular']?.[room]||{},sp[room]);var s=getSeasonForDate(ds)||'regular';return prices[s]?.[room]||{};}
 function fmtPrice(n){return'¥'+Math.round(n).toLocaleString();}
 function setDinCourse(val){
   var parts=val.split(':');
@@ -7703,8 +7704,7 @@ function calcEstimateOneRoom(room, cin, cout, adult, child, infFuton, infNoFuton
     var dt=new Date(d1);dt.setDate(dt.getDate()+i);
     var ds=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
     var label=(dt.getMonth()+1)+'/'+dt.getDate();
-    var s=getSeasonForDate(ds)||'regular';
-    var p=prices[s]?.[room]||{};
+    var p=getRoomPrices(ds,room);
     var ak=Math.min(adult,4);
     var baseUnit=p[ak]||0;
     var base=baseUnit*ak;
@@ -9612,8 +9612,7 @@ function showRatePopup(ds,e){
   var sp=getSpecialPeriodForDate(ds);
   var sLabel=s?{'super_high':'Super High','high':'High','regular':'Regular','low':'Low'}[s]:'設定なし';
   var sColor=s?{'super_high':'var(--sh)','high':'var(--hi)','regular':'var(--re)','low':'var(--lo)'}[s]:'var(--text3)';
-  var p=s?prices[s]:{};
-  var sup=p.sup||{},dlx=p.dlx||{};
+  var sup=getRoomPrices(ds,'sup'),dlx=getRoomPrices(ds,'dlx');
   var dinP=getDinnerPrice(ds),bfP=getBreakfastPrice(ds);
   var dinChild=Math.round(dinP*(common.din_child_rate||0.65));
   var dow=['日','月','火','水','木','金','土'][new Date(ds).getDay()];
@@ -9659,6 +9658,8 @@ function renderSpecialPeriods(){
       +'<span style="font-size:12px;color:var(--text3)">'+p.from+' 〜 '+p.to+'</span>'
       +(p.din_adult?'<span style="font-size:11px;background:#fff3cd;color:#856404;padding:1px 7px;border-radius:10px">夕食 ¥'+Number(p.din_adult).toLocaleString()+'</span>':'')
       +(p.bf_adult?'<span style="font-size:11px;background:#e8f5e9;color:#2e7d32;padding:1px 7px;border-radius:10px">朝食 ¥'+Number(p.bf_adult).toLocaleString()+'</span>':'')
+      +((p.sup&&p.sup[2])?'<span style="font-size:11px;background:#e3f2fd;color:#1565c0;padding:1px 7px;border-radius:10px">SUP2名 ¥'+Number(p.sup[2]).toLocaleString()+'</span>':'')
+      +((p.dlx&&p.dlx[2])?'<span style="font-size:11px;background:#f3e5f5;color:#6a1b9a;padding:1px 7px;border-radius:10px">DLX2名 ¥'+Number(p.dlx[2]).toLocaleString()+'</span>':'')
       +'<button onclick="editSpecialPeriod('+i+')" style="margin-left:auto;background:none;border:1px solid var(--ocean);border-radius:4px;color:var(--ocean);font-size:11px;padding:2px 10px;cursor:pointer">編集</button>'
       +'<button onclick="deleteSpecialPeriod('+i+')" style="background:none;border:1px solid var(--coral);border-radius:4px;color:var(--coral);font-size:11px;padding:2px 10px;cursor:pointer">削除</button>'
       +'</div>';
@@ -9672,6 +9673,7 @@ function editSpecialPeriod(i){
   document.getElementById('sp-to').value=p.to||'';
   document.getElementById('sp-din').value=p.din_adult||'';
   document.getElementById('sp-bf').value=p.bf_adult||'';
+  [1,2,3,4].forEach(function(k){var sv=document.getElementById('sp-sup-'+k);if(sv)sv.value=(p.sup&&p.sup[k])||'';var dv=document.getElementById('sp-dlx-'+k);if(dv)dv.value=(p.dlx&&p.dlx[k])||'';});
   document.getElementById('sp-form').style.display='block';
 }
 function newSpecialPeriod(){
@@ -9682,6 +9684,7 @@ function newSpecialPeriod(){
   document.getElementById('sp-to').value=(y+1)+'-01-05';
   document.getElementById('sp-din').value='';
   document.getElementById('sp-bf').value='';
+  [1,2,3,4].forEach(function(k){var sv=document.getElementById('sp-sup-'+k);if(sv)sv.value='';var dv=document.getElementById('sp-dlx-'+k);if(dv)dv.value='';});
   document.getElementById('sp-form').style.display='block';
 }
 function cancelSpecialPeriod(){document.getElementById('sp-form').style.display='none';}
@@ -9695,6 +9698,10 @@ async function saveSpecialPeriod(){
   var bf=parseInt(document.getElementById('sp-bf').value)||null;
   if(din)obj.din_adult=din;
   if(bf)obj.bf_adult=bf;
+  var supRates={},dlxRates={};
+  [1,2,3,4].forEach(function(k){var sv=parseInt((document.getElementById('sp-sup-'+k)||{}).value)||null;var dv=parseInt((document.getElementById('sp-dlx-'+k)||{}).value)||null;if(sv)supRates[k]=sv;if(dv)dlxRates[k]=dv;});
+  if(Object.keys(supRates).length)obj.sup=supRates;
+  if(Object.keys(dlxRates).length)obj.dlx=dlxRates;
   if(_editingSpecialIdx!==null)specialPeriods[_editingSpecialIdx]=obj;
   else specialPeriods.push(obj);
   try{
@@ -9974,6 +9981,17 @@ function renderMgr(){
   html+='<div class="fg"><label style="font-size:12px">終了日</label><input type="date" id="sp-to" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box"></div>';
   html+='<div class="fg"><label style="font-size:12px">夕食（大人）<span style="font-size:11px;color:var(--text3)"> 未入力=通常料金</span></label><input type="number" id="sp-din" placeholder="例: 12000" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box"></div>';
   html+='<div class="fg"><label style="font-size:12px">朝食（大人）<span style="font-size:11px;color:var(--text3)"> 未入力=通常料金</span></label><input type="number" id="sp-bf" placeholder="例: 3000" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box"></div>';
+  html+='<div class="fg full"><div style="font-size:12px;font-weight:600;color:var(--text2);margin:4px 0 6px">宿泊料金（1名あたり）<span style="font-size:11px;font-weight:400;color:var(--text3)"> 未入力=シーズン料金を使用</span></div>';
+  html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+  html+='<div><div style="font-size:11px;color:var(--text3);margin-bottom:4px">スーペリア</div>';
+  html+='<div style="display:grid;grid-template-columns:auto 1fr;gap:3px 6px;align-items:center;font-size:12px">';
+  ['1名','2名','3名','4名'].forEach(function(l,i){html+='<span style="color:var(--text2)">'+l+'</span><input type="number" id="sp-sup-'+(i+1)+'" placeholder="未入力=既存" style="padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:12px;width:100%;box-sizing:border-box">';});
+  html+='</div></div>';
+  html+='<div><div style="font-size:11px;color:var(--text3);margin-bottom:4px">デラックス</div>';
+  html+='<div style="display:grid;grid-template-columns:auto 1fr;gap:3px 6px;align-items:center;font-size:12px">';
+  ['1名','2名','3名','4名'].forEach(function(l,i){html+='<span style="color:var(--text2)">'+l+'</span><input type="number" id="sp-dlx-'+(i+1)+'" placeholder="未入力=既存" style="padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:12px;width:100%;box-sizing:border-box">';});
+  html+='</div></div>';
+  html+='</div></div>';
   html+='</div>';
   html+='<div style="margin-top:12px;display:flex;gap:8px">';
   html+='<button onclick="saveSpecialPeriod()" style="background:var(--ocean);color:#fff;border:none;border-radius:6px;padding:6px 20px;font-size:13px;cursor:pointer;font-weight:600">保存</button>';
