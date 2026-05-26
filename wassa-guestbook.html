@@ -1986,6 +1986,7 @@ let prices={}, ranges={super_high:[],high:[],regular:[],low:[]};
 let rateCalYear=new Date().getFullYear(), rateCalMonth=new Date().getMonth();
 let rateRangeYear=new Date().getFullYear(); // シーズン設定対象年
 var _rateEditMode=false, _selectedSeason='super_high', _ratePaintMap={}; // カレンダー塗り絵
+var specialPeriods=[]; // 特別料金期間
 let lastEstimate=null;
 let currentSavedQuoteId=null;
 let currentSavedQuoteIds=[];
@@ -2188,6 +2189,8 @@ async function loadRateData(){
       }
       // 食事自動セットルール
       if(c.meal_auto_rules && typeof c.meal_auto_rules==='object') mealAutoRules=c.meal_auto_rules;
+      // 特別料金期間
+      if(Array.isArray(c.special_periods)) specialPeriods=c.special_periods; else specialPeriods=[];
       // キャンセルポリシー
       if(c.cancel_policy) _cancelPolicy=c.cancel_policy;
       if(c.repeater_pass) _repeaterPass=c.repeater_pass;
@@ -4002,13 +4005,13 @@ function autoGenBillingRows(){
     if(children>0) rows.push({cat:'宿泊料金',date:ds,item:'小学生宿泊料金',qty:children,discount:0,price:0,payment:pay});
     if(infants>0) rows.push({cat:'宿泊料金',date:ds,item:'幼児',qty:infants,discount:0,price:0,payment:pay});
     if(_hasDin){
-      if(adults>0) rows.push({cat:'夕食',date:ds,item:'夕食（大人）',qty:adults,discount:0,price:common.din_adult||0,payment:pay});
-      if(children>0) rows.push({cat:'夕食',date:ds,item:'夕食（お子様）',qty:children,discount:0,price:Math.round((common.din_adult||0)*((common.din_child_rate)||0.65)),payment:pay});
+      if(adults>0) rows.push({cat:'夕食',date:ds,item:'夕食（大人）',qty:adults,discount:0,price:getDinnerPrice(ds),payment:pay});
+      if(children>0) rows.push({cat:'夕食',date:ds,item:'夕食（お子様）',qty:children,discount:0,price:Math.round(getDinnerPrice(ds)*(common.din_child_rate||0.65)),payment:pay});
       if(infants>0) rows.push({cat:'夕食',date:ds,item:'夕食（幼児）',qty:infants,discount:0,price:common.din_infant||0,payment:pay});
     }
     if(_hasBf){
-      if(adults>0) rows.push({cat:'朝食',date:ds,item:'朝食（大人）',qty:adults,discount:0,price:common.bf_adult||0,payment:pay});
-      if(children>0) rows.push({cat:'朝食',date:ds,item:'朝食（お子様）',qty:children,discount:0,price:common.bf_child||0,payment:pay});
+      if(adults>0) rows.push({cat:'朝食',date:ds,item:'朝食（大人）',qty:adults,discount:0,price:getBreakfastPrice(ds),payment:pay});
+      if(children>0) rows.push({cat:'朝食',date:ds,item:'朝食（お子様）',qty:children,discount:0,price:common.bf_child||getBreakfastPrice(ds),payment:pay});
       if(infants>0) rows.push({cat:'朝食',date:ds,item:'朝食（幼児）',qty:infants,discount:0,price:common.bf_infant||0,payment:pay});
     }
   }
@@ -4221,8 +4224,9 @@ function applyMealPlanToBilling(planName){
       processed[refDate+'|'+tier]=true;
       var qty=parseFloat(ref.qty)||1, pay=ref.payment||'';
       var isChild=tier==='小学生', isInfant=tier==='幼児';
-      var dinP=isChild?Math.round((common.din_adult||7700)*(common.din_child_rate||0.65)):isInfant?(common.din_infant||3300):(common.din_adult||7700);
-      var bfP =isChild?(common.bf_child||2200):isInfant?(common.bf_infant||2200):(common.bf_adult||2200);
+      var _dinBase=getDinnerPrice(refDate),_bfBase=getBreakfastPrice(refDate);
+      var dinP=isChild?Math.round(_dinBase*(common.din_child_rate||0.65)):isInfant?(common.din_infant||3300):_dinBase;
+      var bfP =isChild?(common.bf_child||_bfBase):isInfant?(common.bf_infant||_bfBase):_bfBase;
       var newSono=Math.max(0,(parseFloat(ref.price)||0)-(hasBf?bfP:0)-(hasDin?dinP:0));
       var sono=newRows.find(function(r){return !r.is_ref&&r.cat==='宿泊料金'&&(r.date||'')===refDate&&(r.item||'').indexOf(tier)!==-1;});
       if(sono) sono.price=newSono;
@@ -4247,8 +4251,9 @@ function applyMealPlanToBilling(planName){
     if(r.cat==='宿泊料金'&&!r.is_ref&&!/素泊まり/.test(r.item||'')){
       var qty=parseFloat(r.qty)||1, price=parseFloat(r.price)||0, pay=r.payment||'';
       var isAdult=/大人/.test(r.item||''), isChild=/小学生/.test(r.item||''), isInfant=/幼児/.test(r.item||'');
-      var dinP=isChild?Math.round((common.din_adult||7700)*(common.din_child_rate||0.65)):isInfant?(common.din_infant||3300):(common.din_adult||7700);
-      var bfP =isChild?(common.bf_child||2200):isInfant?(common.bf_infant||2200):(common.bf_adult||2200);
+      var _dinBase2=getDinnerPrice(r.date||''),_bfBase2=getBreakfastPrice(r.date||'');
+      var dinP=isChild?Math.round(_dinBase2*(common.din_child_rate||0.65)):isInfant?(common.din_infant||3300):_dinBase2;
+      var bfP =isChild?(common.bf_child||_bfBase2):isInfant?(common.bf_infant||_bfBase2):_bfBase2;
       var deduct=(hasDin?dinP:0)+(hasBf?bfP:0);
       var sonoLabel=(r.item||'宿泊料金').replace('宿泊料金','素泊まり料金');
       var personLabel=isChild?'小学生':isAdult?'大人':isInfant?'幼児':'';
@@ -7266,6 +7271,9 @@ async function deleteMenu(){if(!confirm('このメニューを削除しますか
 // ━━ ESTIMATE (見積もり計算) ━━
 function getSeasonForDate(ds){if(_ratePaintMap.hasOwnProperty(ds))return _ratePaintMap[ds];for(const s of SEASONS)for(const r of(ranges[s]||[]))if(r.from&&r.to&&ds>=r.from&&ds<=r.to)return s;return null;}
 function getSeasonForDate_base(ds){for(const s of SEASONS)for(const r of(ranges[s]||[]))if(r.from&&r.to&&ds>=r.from&&ds<=r.to)return s;return null;}
+function getSpecialPeriodForDate(ds){if(!ds)return null;for(var _i=0;_i<specialPeriods.length;_i++){var _p=specialPeriods[_i];if(_p.from&&_p.to&&ds>=_p.from&&ds<=_p.to)return _p;}return null;}
+function getDinnerPrice(ds){var sp=getSpecialPeriodForDate(ds);if(sp&&sp.din_adult)return sp.din_adult;return common.din_adult||7700;}
+function getBreakfastPrice(ds){var sp=getSpecialPeriodForDate(ds);if(sp&&sp.bf_adult)return sp.bf_adult;return common.bf_adult||2200;}
 function fmtPrice(n){return'¥'+Math.round(n).toLocaleString();}
 function setDinCourse(val){
   var parts=val.split(':');
@@ -9573,9 +9581,11 @@ function renderRateCal(){
     const d=document.createElement('div');
     d.className='cal-day'+(s?' '+SDC[s]:'');
     if(_rateEditMode){d.style.cursor='pointer';d.addEventListener('click',function(){paintDate(ds);});}
+    else{d.style.cursor='pointer';(function(_ds){d.addEventListener('click',function(e){showRatePopup(_ds,e);});})(ds);}
     if(_rateEditMode&&_ratePaintMap.hasOwnProperty(ds))d.style.outline='2px solid var(--ocean)';
     const dn=document.createElement('div');dn.className='dn';dn.textContent=day;d.appendChild(dn);
     if(s){const sl=document.createElement('div');sl.className='ds';sl.textContent=SL[s].replace(' ','').slice(0,4);d.appendChild(sl);}
+    var _sp=getSpecialPeriodForDate(ds);if(_sp){const spl=document.createElement('div');spl.style.cssText='font-size:8px;color:var(--coral);font-weight:700;margin-top:1px';spl.textContent='特';d.appendChild(spl);}
     if(isClosed){const cl=document.createElement('div');cl.style.cssText='font-size:9px;color:var(--coral);font-weight:600;margin-top:2px';cl.textContent='定休';d.appendChild(cl);}
     grid.appendChild(d);
   }
@@ -9594,6 +9604,114 @@ function toggleRateEdit(){
   selectRateSeason('super_high');
   renderRateCal();
 }
+// ── 料金ポップアップ ──
+var _ratePopupTimeout=null;
+function showRatePopup(ds,e){
+  var existing=document.getElementById('rate-popup');if(existing)existing.remove();
+  var s=getSeasonForDate(ds);
+  var sp=getSpecialPeriodForDate(ds);
+  var sLabel=s?{'super_high':'Super High','high':'High','regular':'Regular','low':'Low'}[s]:'設定なし';
+  var sColor=s?{'super_high':'var(--sh)','high':'var(--hi)','regular':'var(--re)','low':'var(--lo)'}[s]:'var(--text3)';
+  var p=s?prices[s]:{};
+  var sup=p.sup||{},dlx=p.dlx||{};
+  var dinP=getDinnerPrice(ds),bfP=getBreakfastPrice(ds);
+  var dinChild=Math.round(dinP*(common.din_child_rate||0.65));
+  var dow=['日','月','火','水','木','金','土'][new Date(ds).getDay()];
+  var html='<div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px">'+ds.slice(5).replace('-','/')+'（'+dow+'）</div>';
+  html+='<div style="font-size:11px;font-weight:700;color:'+sColor+';margin-bottom:6px">'+sLabel+'</div>';
+  if(sp) html+='<div style="font-size:10px;background:#fff3cd;color:#856404;padding:2px 6px;border-radius:4px;margin-bottom:6px">⭐ '+escHtml(sp.label||'特別料金')+'</div>';
+  if(s){
+    html+='<table style="font-size:11px;border-collapse:collapse;width:100%">';
+    html+='<tr><td colspan="2" style="font-size:10px;font-weight:600;color:var(--text3);padding:2px 0 3px">スーペリア</td></tr>';
+    [[1,'1名'],[2,'2名'],[3,'3名'],[4,'4名']].forEach(function(kv){if(sup[kv[0]])html+='<tr><td style="color:var(--text2);padding:1px 4px 1px 0">'+kv[1]+'</td><td style="text-align:right">¥'+Number(sup[kv[0]]).toLocaleString()+'</td></tr>';});
+    html+='<tr><td colspan="2" style="font-size:10px;font-weight:600;color:var(--text3);padding:4px 0 3px">デラックス</td></tr>';
+    [[1,'1名'],[2,'2名'],[3,'3名'],[4,'4名']].forEach(function(kv){if(dlx[kv[0]])html+='<tr><td style="color:var(--text2);padding:1px 4px 1px 0">'+kv[1]+'</td><td style="text-align:right">¥'+Number(dlx[kv[0]]).toLocaleString()+'</td></tr>';});
+    html+='</table>';
+  }
+  html+='<div style="border-top:1px solid var(--sand2);margin-top:6px;padding-top:6px;font-size:11px">';
+  html+='<div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">夕食（大人）</span><span>¥'+Number(dinP).toLocaleString()+'</span></div>';
+  html+='<div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">夕食（子供）</span><span>¥'+Number(dinChild).toLocaleString()+'</span></div>';
+  html+='<div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">朝食（大人）</span><span>¥'+Number(bfP).toLocaleString()+'</span></div>';
+  html+='</div>';
+  var pop=document.createElement('div');
+  pop.id='rate-popup';
+  pop.style.cssText='position:fixed;z-index:9999;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15);padding:12px 14px;min-width:180px;max-width:230px';
+  pop.innerHTML=html;
+  document.body.appendChild(pop);
+  var rect=e.currentTarget.getBoundingClientRect();
+  var left=rect.right+6,top=rect.top;
+  if(left+240>window.innerWidth)left=rect.left-240;
+  if(top+220>window.innerHeight)top=window.innerHeight-220;
+  pop.style.left=Math.max(8,left)+'px';pop.style.top=Math.max(8,top)+'px';
+  if(_ratePopupTimeout)clearTimeout(_ratePopupTimeout);
+  var closeF=function(){var p=document.getElementById('rate-popup');if(p)p.remove();document.removeEventListener('click',closeF);};
+  _ratePopupTimeout=setTimeout(function(){document.addEventListener('click',closeF);},100);
+}
+
+// ── 特別料金期間 ──
+var _editingSpecialIdx=null;
+function renderSpecialPeriods(){
+  var el=document.getElementById('special-periods-list');if(!el)return;
+  if(!specialPeriods.length){el.innerHTML='<div style="color:var(--text3);font-size:12px;padding:8px 0">設定なし</div>';return;}
+  el.innerHTML=specialPeriods.map(function(p,i){
+    return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--sand2);flex-wrap:wrap">'
+      +'<span style="font-size:13px;font-weight:500;min-width:80px">'+escHtml(p.label||'')+'</span>'
+      +'<span style="font-size:12px;color:var(--text3)">'+p.from+' 〜 '+p.to+'</span>'
+      +(p.din_adult?'<span style="font-size:11px;background:#fff3cd;color:#856404;padding:1px 7px;border-radius:10px">夕食 ¥'+Number(p.din_adult).toLocaleString()+'</span>':'')
+      +(p.bf_adult?'<span style="font-size:11px;background:#e8f5e9;color:#2e7d32;padding:1px 7px;border-radius:10px">朝食 ¥'+Number(p.bf_adult).toLocaleString()+'</span>':'')
+      +'<button onclick="editSpecialPeriod('+i+')" style="margin-left:auto;background:none;border:1px solid var(--ocean);border-radius:4px;color:var(--ocean);font-size:11px;padding:2px 10px;cursor:pointer">編集</button>'
+      +'<button onclick="deleteSpecialPeriod('+i+')" style="background:none;border:1px solid var(--coral);border-radius:4px;color:var(--coral);font-size:11px;padding:2px 10px;cursor:pointer">削除</button>'
+      +'</div>';
+  }).join('');
+}
+function editSpecialPeriod(i){
+  _editingSpecialIdx=i;
+  var p=specialPeriods[i];
+  document.getElementById('sp-label').value=p.label||'';
+  document.getElementById('sp-from').value=p.from||'';
+  document.getElementById('sp-to').value=p.to||'';
+  document.getElementById('sp-din').value=p.din_adult||'';
+  document.getElementById('sp-bf').value=p.bf_adult||'';
+  document.getElementById('sp-form').style.display='block';
+}
+function newSpecialPeriod(){
+  _editingSpecialIdx=null;
+  var y=new Date().getFullYear();
+  document.getElementById('sp-label').value='';
+  document.getElementById('sp-from').value=y+'-12-28';
+  document.getElementById('sp-to').value=(y+1)+'-01-05';
+  document.getElementById('sp-din').value='';
+  document.getElementById('sp-bf').value='';
+  document.getElementById('sp-form').style.display='block';
+}
+function cancelSpecialPeriod(){document.getElementById('sp-form').style.display='none';}
+async function saveSpecialPeriod(){
+  var label=document.getElementById('sp-label').value.trim();
+  var from=document.getElementById('sp-from').value;
+  var to=document.getElementById('sp-to').value;
+  if(!label||!from||!to){toast('名前・期間を入力してください');return;}
+  var obj={label:label,from:from,to:to};
+  var din=parseInt(document.getElementById('sp-din').value)||null;
+  var bf=parseInt(document.getElementById('sp-bf').value)||null;
+  if(din)obj.din_adult=din;
+  if(bf)obj.bf_adult=bf;
+  if(_editingSpecialIdx!==null)specialPeriods[_editingSpecialIdx]=obj;
+  else specialPeriods.push(obj);
+  try{
+    await supa('price_common?id=eq.1','PATCH',{special_periods:specialPeriods});
+    document.getElementById('sp-form').style.display='none';
+    renderSpecialPeriods();renderRateCal();toast('保存しました');
+  }catch(e){toast('エラー: '+e.message);}
+}
+async function deleteSpecialPeriod(i){
+  if(!confirm('"'+specialPeriods[i].label+'" を削除しますか？'))return;
+  specialPeriods.splice(i,1);
+  try{
+    await supa('price_common?id=eq.1','PATCH',{special_periods:specialPeriods});
+    renderSpecialPeriods();renderRateCal();toast('削除しました');
+  }catch(e){toast('エラー: '+e.message);}
+}
+
 function discardRatePaint(){_rateEditMode=false;_ratePaintMap={};var tb=document.getElementById('rate-edit-toolbar');if(tb)tb.style.display='none';var btn=document.getElementById('rate-edit-btn');if(btn){btn.textContent='シーズンを編集';btn.style.background='transparent';btn.style.color='var(--ocean)';}renderRateCal();}
 function selectRateSeason(s){
   _selectedSeason=s;
@@ -9844,6 +9962,26 @@ function renderMgr(){
     html+='</div></div>'; // season-body + season-block
   }
   html+='</div>';
+  // ━━ 特別料金期間 ━━
+  html+='<div class="section-card"><div class="section-title">⭐ 特別料金期間</div>';
+  html+='<p style="font-size:12px;color:var(--text3);margin-bottom:12px">年末年始・お盆など、夕食・朝食を通常と異なる単価にする期間を設定します。<br>設定した期間はシーズンカレンダーに「特」マークが表示されます。</p>';
+  html+='<div id="special-periods-list"></div>';
+  html+='<button onclick="newSpecialPeriod()" style="margin-top:10px;background:var(--ocean);color:#fff;border:none;border-radius:6px;padding:6px 16px;font-size:13px;cursor:pointer">＋ 期間を追加</button>';
+  html+='<div id="sp-form" style="display:none;margin-top:14px;padding:14px;background:var(--sand);border-radius:8px;border:1px solid var(--border)">';
+  html+='<div class="fgrid" style="gap:10px">';
+  html+='<div class="fg full"><label style="font-size:12px">名前（例：年末年始）</label><input type="text" id="sp-label" placeholder="年末年始" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box"></div>';
+  html+='<div class="fg"><label style="font-size:12px">開始日</label><input type="date" id="sp-from" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box"></div>';
+  html+='<div class="fg"><label style="font-size:12px">終了日</label><input type="date" id="sp-to" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box"></div>';
+  html+='<div class="fg"><label style="font-size:12px">夕食（大人）<span style="font-size:11px;color:var(--text3)"> 未入力=通常料金</span></label><input type="number" id="sp-din" placeholder="例: 12000" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box"></div>';
+  html+='<div class="fg"><label style="font-size:12px">朝食（大人）<span style="font-size:11px;color:var(--text3)"> 未入力=通常料金</span></label><input type="number" id="sp-bf" placeholder="例: 3000" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box"></div>';
+  html+='</div>';
+  html+='<div style="margin-top:12px;display:flex;gap:8px">';
+  html+='<button onclick="saveSpecialPeriod()" style="background:var(--ocean);color:#fff;border:none;border-radius:6px;padding:6px 20px;font-size:13px;cursor:pointer;font-weight:600">保存</button>';
+  html+='<button onclick="cancelSpecialPeriod()" style="background:none;border:1px solid var(--border);border-radius:6px;padding:6px 16px;font-size:13px;cursor:pointer;color:var(--text2)">キャンセル</button>';
+  html+='</div>';
+  html+='</div>';
+  html+='</div>';
+
   // ━━ PINコード設定 ━━
   html+='<div class="section-card"><div class="section-title">🔐 PINコード設定</div>';
   html+='<div style="font-size:12px;color:var(--text3);margin-bottom:14px">オーナーとスタッフで異なる4桁のPINを設定してください</div>';
@@ -9910,6 +10048,7 @@ function renderMgr(){
   html+='<span class="saved-msg" id="msg-reply-tpl">保存しました ✓</span></div>';
 
   el.innerHTML=html;
+  renderSpecialPeriods();
 }
 async function saveCommon(){
   const cpVal=document.getElementById('c-din-child-price').value;
