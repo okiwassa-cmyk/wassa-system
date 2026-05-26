@@ -4710,7 +4710,7 @@ function renderFoodRecords() {
       var _effCat = r.category==='ディナー'?'夕食':(r.category||'夕食');
       var catBg = _effCat==='朝食'?'var(--amber-lt)':'var(--ocean-light)';
       var catFg = _effCat==='朝食'?'var(--amber)':'var(--ocean2)';
-      var hasKids = !!(r.kids_meal_detail && r.kids_meal_detail.trim());
+      var hasKids = !!(r.kids_meal_detail && r.kids_meal_detail.trim()) || !!r._showKids;
       // 大人テキストの行数を計算（最低4行）
       var mealLines = Math.max(4, (r.meal_detail||'').split('\n').length + 1);
       var kidsLines = Math.max(3, (r.kids_meal_detail||'').split('\n').length + 1);
@@ -4824,7 +4824,7 @@ function toggleKidsField(idx) {
 function openKidsField(idx) {
   if (currentFoodRecords[idx]) {
     // スペースを入れてhasKids=trueにして子供欄を表示
-    currentFoodRecords[idx].kids_meal_detail = ' ';
+    currentFoodRecords[idx]._showKids = true;
     currentFoodRecords[idx]._dirty = true;
     renderFoodRecords();
     // テキストエリアにフォーカス
