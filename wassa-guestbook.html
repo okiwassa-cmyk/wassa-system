@@ -11472,6 +11472,15 @@ function printDailySlips(){
     if(_sum(aBf)>0) _byPrice(aBf,'朝食料金');
     var aDn=activeRows.filter(function(row){return !_isChild(row)&&_isDin(row);});
     if(_sum(aDn)>0) _byPrice(aDn,'夕食料金');
+    // 子供行（DXと同様に別行表示）
+    if(childCnt>0){
+      var cRm2=activeRows.filter(function(row){return _isChild(row)&&_isRoom(row);});
+      if(_sum(cRm2)>0) _byPrice(cRm2,'子供宿泊料金');
+      var cBf2=activeRows.filter(function(row){return _isChild(row)&&_isBf(row);});
+      if(_sum(cBf2)>0) _byPrice(cBf2,'子供朝食料金');
+      var cDn2=activeRows.filter(function(row){return _isChild(row)&&_isDin(row);});
+      if(_sum(cDn2)>0) _byPrice(cDn2,'子供夕食料金');
+    }
   }
 
   // 1枚目用：請求明細HTML
