@@ -11435,7 +11435,7 @@ function printDailySlips(){
     var dxAdultTotal=_sum(dxAdultRows);
     if(dxAdultTotal>0)
       summaryRows.push({item:nights.length+'泊'+(nights.length+1)+'日プログラム',qty:'× '+adultCnt+'名',amt:dxAdultTotal,
-        unit:dxAdultRows.length>0?parseFloat(dxAdultRows[0].price)||0:0});
+        unit:adultCnt>0?Math.round(dxAdultTotal/adultCnt):0});
     // 子供宿泊料金
     if(childCnt>0){
       var cRm=activeRows.filter(function(row){return _isChild(row)&&_isRoom(row);});
