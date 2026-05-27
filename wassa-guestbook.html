@@ -11407,60 +11407,83 @@ function printDailySlips(){
 
   var roomName=r.room_name||r.room||'';
   var guestName=r.guest_name||'—';
+  var adultCnt=parseInt(r.adults)||0;
+  var childCnt=parseInt(r.children)||0;
   var cust=allCustomers?allCustomers.find(function(c){return c.id===r.customer_id;}):null;
   var ngFood=cust?(cust.ng_food||''):'';
 
-  // 非参考行を日付別にグループ化
   var activeRows=billingRows.filter(function(row){return !row.is_ref;});
-  var rowsByDate={};
-  activeRows.forEach(function(row){
-    var dt=row.date||nights[0];
-    if(!rowsByDate[dt])rowsByDate[dt]=[];
-    rowsByDate[dt].push(row);
-  });
+  var isDX=/DX|デラックス/i.test(roomName);
 
-  // airレジ（大人1名あたり）計算 — 1枚目に表示（全部屋共通）
-  // DX: パッケージ料金 = 全行合計 ÷ 大人数　／　スーペリア: 大人行合計 ÷ 大人数
+  // ヘルパー関数
+  var _isChild=function(row){return /子供|小学生|幼児|こども/i.test(row.item||'');};
+  var _isRoom=function(row){return /宿泊|室料/i.test(row.cat||'')||/宿泊|室料/i.test(row.item||'');};
+  var _isBf=function(row){return /朝食/i.test(row.cat||'')||/朝食/i.test(row.item||'');};
+  var _isDin=function(row){return /夕食|ディナー/i.test(row.cat||'')||/夕食|ディナー/i.test(row.item||'');};
+  var _dates=function(rows){var s={};rows.forEach(function(row){if(row.date)s[row.date]=1;});return Object.keys(s).length;};
+  var _sum=function(rows){return rows.reduce(function(s,row){return s+_billingRowAmt(row);},0);};
+
+  // ── 集計テンプレート行を生成（全スリップ共通） ──
+  var summaryRows=[];
+
+  if(isDX){
+    // 大人パッケージ（子供行を除いた全合計 ÷ 大人数でairレジ計算にも使用）
+    var dxAdultRows=activeRows.filter(function(row){return !_isChild(row);});
+    var dxAdultTotal=_sum(dxAdultRows);
+    if(dxAdultTotal>0)
+      summaryRows.push({item:'2泊3日プログラム',qty:'× '+adultCnt+'名',amt:dxAdultTotal});
+    // 子供宿泊料金
+    if(childCnt>0){
+      var cRm=activeRows.filter(function(row){return _isChild(row)&&_isRoom(row);});
+      var cRmT=_sum(cRm);var cRmN=_dates(cRm)||nights.length;
+      if(cRmT>0) summaryRows.push({item:'子供宿泊料金',qty:'× '+childCnt+'名 × '+cRmN+'日',amt:cRmT});
+      var cBf=activeRows.filter(function(row){return _isChild(row)&&_isBf(row);});
+      var cBfT=_sum(cBf);var cBfN=_dates(cBf);
+      if(cBfT>0) summaryRows.push({item:'子供朝食料金',qty:'× '+childCnt+'名 × '+cBfN+'日',amt:cBfT});
+      var cDn=activeRows.filter(function(row){return _isChild(row)&&_isDin(row);});
+      var cDnT=_sum(cDn);var cDnN=_dates(cDn);
+      if(cDnT>0) summaryRows.push({item:'子供夕食料金',qty:'× '+childCnt+'名 × '+cDnN+'日',amt:cDnT});
+    }
+  } else {
+    // スーペリアツイン
+    var aRm=activeRows.filter(function(row){return !_isChild(row)&&_isRoom(row);});
+    var aRmT=_sum(aRm);var aRmN=_dates(aRm)||nights.length;
+    if(aRmT>0) summaryRows.push({item:'宿泊料金',qty:'× '+adultCnt+'名 × '+aRmN+'日',amt:aRmT});
+    var aBf=activeRows.filter(function(row){return !_isChild(row)&&_isBf(row);});
+    var aBfT=_sum(aBf);var aBfN=_dates(aBf);
+    if(aBfT>0) summaryRows.push({item:'朝食料金',qty:'× '+adultCnt+'名 × '+aBfN+'日',amt:aBfT});
+    var aDn=activeRows.filter(function(row){return !_isChild(row)&&_isDin(row);});
+    var aDnT=_sum(aDn);var aDnN=_dates(aDn);
+    if(aDnT>0) summaryRows.push({item:'夕食料金',qty:'× '+adultCnt+'名 × '+aDnN+'日',amt:aDnT});
+  }
+
+  // テンプレートHTML（全スリップ共通）
+  var summaryHtml='';
+  summaryRows.forEach(function(sr){
+    summaryHtml+='<tr><td class="td-item">'+sr.item+'<span class="td-qty"> '+sr.qty+'</span></td>'
+      +'<td class="td-sub">¥'+fmt(sr.amt)+'</td></tr>';
+  });
+  // 手書き用空行（合計14行、最低10行確保）
+  var blankCount=Math.max(14-summaryRows.length,10);
+  for(var i=0;i<blankCount;i++){
+    summaryHtml+='<tr class="blank-row"><td></td><td></td></tr>';
+  }
+  var summaryTotal=summaryRows.reduce(function(s,sr){return s+sr.amt;},0);
+
+  // airレジ（大人1名あたり）— 1枚目のみ
   var airegiPerPerson=0;
-  var adultCount2=parseInt(r.adults)||1;
-  var isDX2=/DX|デラックス/i.test(roomName);
-  var _isChildRow=function(row){var it=row.item||'';return /子供|小学生|幼児|こども/i.test(it);};
-  var airegiBase=isDX2
-    ? activeRows.filter(function(row){return !_isChildRow(row);}).reduce(function(s,row){return s+_billingRowAmt(row);},0)
-    : activeRows.filter(function(row){return (row.item||'').indexOf('大人')!==-1;}).reduce(function(s,row){return s+_billingRowAmt(row);},0);
-  if(airegiBase>0&&adultCount2>0) airegiPerPerson=Math.round(airegiBase/adultCount2);
+  var airegiBase=isDX
+    ? _sum(activeRows.filter(function(row){return !_isChild(row);}))
+    : _sum(activeRows.filter(function(row){return !_isChild(row)&&(row.item||'').indexOf('大人')!==-1;}));
+  if(airegiBase>0&&adultCnt>0) airegiPerPerson=Math.round(airegiBase/adultCnt);
 
   var dayNames=['日','月','火','水','木','金','土'];
 
   function slipHtml(nightDate,idx){
     var dateObj=new Date(nightDate+'T00:00:00');
-    var m=dateObj.getMonth()+1;
-    var d2=dateObj.getDate();
-    var dow=dayNames[dateObj.getDay()];
+    var m=dateObj.getMonth()+1;var d2=dateObj.getDate();var dow=dayNames[dateObj.getDay()];
     var dateLabel=m+'月'+d2+'日（'+dow+'）';
     var nightLabel=(idx+1)+'泊目';
-
-    var rows=rowsByDate[nightDate]||[];
-    var itemsHtml='';
-    rows.forEach(function(row){
-      var itemName=row.item||row.cat||'';
-      var qty=parseFloat(row.qty)||1;
-      var price=parseFloat(row.price)||0;
-      var discount=parseFloat(row.discount)||0;
-      var subtotal=price*qty-discount;
-      var qtyStr=qty!==1?' × '+qty+'名':'';
-      itemsHtml+='<tr><td class="td-item">'+itemName+qtyStr+'</td>'
-        +'<td class="td-price">¥'+fmt(price)+'</td>'
-        +'<td class="td-sub">¥'+fmt(subtotal)+'</td></tr>';
-    });
-    // 手書き用空行 — A5をほぼ埋める行数（合計14行になるよう調整、最低10行確保）
-    var blankCount=Math.max(14-rows.length,10);
-    for(var i=0;i<blankCount;i++){
-      itemsHtml+='<tr class="blank-row"><td></td><td></td><td></td></tr>';
-    }
-    var nightTotal=rows.reduce(function(s,row){return s+_billingRowAmt(row);},0);
-
-    // airレジ表示（DX部屋の1枚目のみ）
     var airegiHtml='';
     if(idx===0&&airegiPerPerson>0){
       airegiHtml='<div class="airegi-bar">'
@@ -11468,7 +11491,6 @@ function printDailySlips(){
         +'<span class="airegi-amt">¥'+fmt(airegiPerPerson)+'</span>'
         +'</div>';
     }
-
     return '<div class="slip">'
       +'<div class="slip-header">'
       +'<div class="wassa-logo">WASSA WASSA</div>'
@@ -11479,9 +11501,9 @@ function printDailySlips(){
       +'<span class="guest-name">'+guestName+'　様</span>'
       +'</div>'
       +'<table class="items-table">'
-      +'<thead><tr><th class="td-item">品目</th><th class="td-price">単価</th><th class="td-sub">金額</th></tr></thead>'
-      +'<tbody>'+itemsHtml+'</tbody>'
-      +'<tfoot><tr><td colspan="2" class="total-label">小　計</td><td class="total-amt">¥'+fmt(nightTotal)+'</td></tr></tfoot>'
+      +'<thead><tr><th class="td-item">品目</th><th class="td-sub">金額</th></tr></thead>'
+      +'<tbody>'+summaryHtml+'</tbody>'
+      +'<tfoot><tr><td class="total-label">小　計</td><td class="total-amt">¥'+fmt(summaryTotal)+'</td></tr></tfoot>'
       +'</table>'
       +airegiHtml
       +'<div class="hw-section">'
@@ -11511,15 +11533,16 @@ function printDailySlips(){
     +'.slip-guest{display:flex;align-items:center;gap:6px;margin-bottom:3mm}'
     +'.room-badge{background:#1a6b7a;color:#fff;padding:2px 7px;border-radius:3px;font-size:8pt;font-weight:600;white-space:nowrap}'
     +'.guest-name{font-size:13pt;font-weight:700}'
-    +'.items-table{width:100%;border-collapse:collapse;margin-bottom:3mm}'
-    +'.items-table th,.items-table td{border:1px solid #ccc;padding:2px 4px;vertical-align:middle}'
+    +'.items-table{width:100%;border-collapse:collapse;margin-bottom:2mm}'
+    +'.items-table th,.items-table td{border:1px solid #ccc;padding:2px 5px;vertical-align:middle}'
     +'.items-table thead th{background:#eef5f6;font-size:8pt;color:#555;text-align:center;font-weight:600}'
-    +'.td-item{text-align:left;font-size:8.5pt}'
-    +'.td-price,.td-sub{text-align:right;width:20mm;font-size:8.5pt;white-space:nowrap}'
+    +'.td-item{text-align:left;font-size:8.5pt;width:70%}'
+    +'.td-qty{color:#555;font-size:8pt}'
+    +'.td-sub{text-align:right;font-size:8.5pt;white-space:nowrap;width:30%}'
     +'.blank-row td{height:8mm;border:1px solid #e5e5e5}'
     +'.total-label{text-align:right;font-weight:700;background:#f5f5f5;font-size:9pt;padding:3px 6px}'
-    +'.total-amt{text-align:right;font-weight:700;background:#f5f5f5;font-size:10pt;white-space:nowrap;padding:3px 4px}'
-    +'.airegi-bar{display:flex;justify-content:space-between;align-items:center;background:#eef5f6;border:1px solid #b8d8dd;border-radius:3px;padding:2px 5px;margin-bottom:2mm}'
+    +'.total-amt{text-align:right;font-weight:700;background:#f5f5f5;font-size:10pt;white-space:nowrap;padding:3px 5px}'
+    +'.airegi-bar{display:flex;justify-content:space-between;align-items:center;background:#eef5f6;border:1px solid #b8d8dd;border-radius:3px;padding:2px 6px;margin-bottom:2mm}'
     +'.airegi-label{font-size:8pt;color:#1a6b7a;font-weight:600}'
     +'.airegi-amt{font-size:11pt;font-weight:700;color:#1a6b7a}'
     +'.hw-section{border-top:1px solid #bbb;padding-top:2mm}'
