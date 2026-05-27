@@ -11462,7 +11462,8 @@ function printDailySlips(){
       });
       Object.keys(grp).sort().forEach(function(p){
         var gr=grp[p];var gT=_sum(gr);var gN=_dates(gr)||1;
-        summaryRows.push({item:label,qty:'× '+adultCnt+'名 × '+gN+'日',amt:gT,unit:parseFloat(p)});
+        var gQty=parseFloat(gr[0].qty)||1; // billing行の実際の人数
+        summaryRows.push({item:label,qty:'× '+gQty+'名 × '+gN+'日',amt:gT,unit:parseFloat(p)});
       });
     };
     var aRm=activeRows.filter(function(row){return !_isChild(row)&&_isRoom(row);});
@@ -11473,19 +11474,18 @@ function printDailySlips(){
     if(_sum(aDn)>0) _byPrice(aDn,'夕食料金');
   }
 
-  // テンプレートHTML（全スリップ共通）
-  var summaryHtml='';
+  // 1枚目用：請求明細HTML
+  var firstSlipRows='';
   summaryRows.forEach(function(sr){
-    summaryHtml+='<tr><td class="td-item">'+sr.item+'<span class="td-qty"> '+sr.qty+'</span></td>'
+    firstSlipRows+='<tr><td class="td-item">'+sr.item+'<span class="td-qty"> '+sr.qty+'</span></td>'
       +'<td class="td-price">'+(sr.unit>0?'¥'+fmt(sr.unit):'')+'</td>'
       +'<td class="td-sub">¥'+fmt(sr.amt)+'</td></tr>';
   });
-  // 手書き用空行（合計14行、最低10行確保）
-  var blankCount=Math.max(14-summaryRows.length,10);
-  for(var i=0;i<blankCount;i++){
-    summaryHtml+='<tr class="blank-row"><td></td><td></td><td></td></tr>';
-  }
   var summaryTotal=summaryRows.reduce(function(s,sr){return s+sr.amt;},0);
+  // 空行（1枚目：合計14行、最低10行 / 2枚目以降：14行）
+  var blankFirst=Math.max(14-summaryRows.length,10);
+  var blankRest=14;
+  function makeBlankRows(n){var h='';for(var i=0;i<n;i++)h+='<tr class="blank-row"><td></td><td></td><td></td></tr>';return h;}
 
   var dayNames=['日','月','火','水','木','金','土'];
 
@@ -11494,6 +11494,14 @@ function printDailySlips(){
     var m=dateObj.getMonth()+1;var d2=dateObj.getDate();var dow=dayNames[dateObj.getDay()];
     var dateLabel=m+'月'+d2+'日（'+dow+'）';
     var nightLabel=(idx+1)+'泊目';
+    var tbody,tfoot;
+    if(idx===0){
+      tbody=firstSlipRows+makeBlankRows(blankFirst);
+      tfoot='<tfoot><tr><td colspan="2" class="total-label">小　計</td><td class="total-amt">¥'+fmt(summaryTotal)+'</td></tr></tfoot>';
+    } else {
+      tbody=makeBlankRows(blankRest);
+      tfoot='';
+    }
     return '<div class="slip">'
       +'<div class="slip-header">'
       +'<div class="wassa-logo">WASSA WASSA</div>'
@@ -11505,8 +11513,8 @@ function printDailySlips(){
       +'</div>'
       +'<table class="items-table">'
       +'<thead><tr><th class="td-item">品目</th><th class="td-price">単価</th><th class="td-sub">金額</th></tr></thead>'
-      +'<tbody>'+summaryHtml+'</tbody>'
-      +'<tfoot><tr><td colspan="2" class="total-label">小　計</td><td class="total-amt">¥'+fmt(summaryTotal)+'</td></tr></tfoot>'
+      +'<tbody>'+tbody+'</tbody>'
+      +tfoot
       +'</table>'
       +'<div class="hw-section">'
       +'<div class="hw-row"><span class="hw-label">アレルギー</span><span class="hw-value">'+ngFood.replace(/\n/g,' ')+'</span></div>'
