@@ -11402,10 +11402,13 @@ function printDailySlips(){
   var nights=[];
   var d=new Date(ci+'T00:00:00');
   var dEnd=new Date(co+'T00:00:00');
-  while(d<dEnd){nights.push(d.toISOString().slice(0,10));d.setDate(d.getDate()+1);}
+  while(d<dEnd){
+    nights.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));
+    d.setDate(d.getDate()+1);
+  }
   if(nights.length===0){toast('宿泊日程が不明です');return;}
 
-  var roomName=r.room_name||r.room||'';
+  var roomName=r.room_type||'';
   var guestName=r.guest_name||'—';
   var adultCnt=parseInt(r.adults)||0;
   var childCnt=parseInt(r.children)||0;
