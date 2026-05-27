@@ -1263,6 +1263,11 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
           <span style="font-size:12px;color:var(--text2)">お釣り</span>
           <span style="font-size:14px;font-weight:600;color:var(--ocean2)" id="bill-change">—</span>
         </div>
+        <!-- airレジ 1名あたり -->
+        <div id="bill-airegi-wrap" style="display:none;padding:10px 16px;background:#f0f7f8;border-top:1px solid var(--sand2);display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:12px;color:var(--ocean2);font-weight:600">airレジ（大人1名あたり）</span>
+          <span style="font-size:18px;font-weight:700;color:var(--ocean2);font-family:'Cormorant Garamond',serif" id="bill-airegi-per-person">—</span>
+        </div>
       </div>
     </div>
     <div class="modal-pane" id="pane-food">
@@ -4342,6 +4347,21 @@ function recalcBilling(){
   // 保存用hidden更新
   var lc=document.getElementById('edit-local-charge'); if(lc) lc.value=onsiteTotal;
   var ta=document.getElementById('edit-total-amt'); if(ta) ta.value=Math.max(0,totalA+totalB);
+  // airレジ 大人1名あたり計算
+  var _airegiWrap=document.getElementById('bill-airegi-wrap');
+  var _airegiEl=document.getElementById('bill-airegi-per-person');
+  if(_airegiWrap&&_airegiEl){
+    var _adultRows=billingRows.filter(function(r){return !r.is_ref&&(r.item||'').indexOf('大人')!==-1;});
+    var _adultTotal=_adultRows.reduce(function(s,r){return s+_billingRowAmt(r);},0);
+    var _resv=allReservations.find(function(r){return r.id===currentEditId;});
+    var _adults=_resv?parseInt(_resv.adults||1):(_adultRows.length?(_adultRows[0].qty||1):1);
+    if(_adultTotal>0&&_adults>0){
+      _airegiWrap.style.display='flex';
+      _airegiEl.textContent='¥'+fmt(Math.round(_adultTotal/_adults));
+    } else {
+      _airegiWrap.style.display='none';
+    }
+  }
   recalcChange();
 }
 function recalcChange(){
