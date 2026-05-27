@@ -11419,12 +11419,31 @@ function printDailySlips(){
   var isDX=/DX|デラックス/i.test(roomName);
 
   // ヘルパー関数
+  // _isRoom が true の行は _isBf/_isDin を false にして「大人宿泊料金（朝食付き）」などの重複を防止
   var _isChild=function(row){return /子供|小学生|幼児|こども/i.test(row.item||'');};
   var _isRoom=function(row){return /宿泊|室料/i.test(row.cat||'')||/宿泊|室料/i.test(row.item||'');};
-  var _isBf=function(row){return /朝食/i.test(row.cat||'')||/朝食/i.test(row.item||'');};
-  var _isDin=function(row){return /夕食|ディナー/i.test(row.cat||'')||/夕食|ディナー/i.test(row.item||'');};
+  var _isBf=function(row){if(_isRoom(row))return false;return /朝食/i.test(row.cat||'')||/朝食/i.test(row.item||'');};
+  var _isDin=function(row){if(_isRoom(row))return false;return /夕食|ディナー/i.test(row.cat||'')||/夕食|ディナー/i.test(row.item||'');};
   var _dates=function(rows){var s={};rows.forEach(function(row){if(row.date)s[row.date]=1;});return Object.keys(s).length;};
   var _sum=function(rows){return rows.reduce(function(s,row){return s+_billingRowAmt(row);},0);};
+  // 大人行: 単価別にグループ化（シーズンが違う泊は別行）
+  var _byPrice=function(rows,label){
+    var grp={};
+    rows.forEach(function(row){var p=String(parseFloat(row.price)||0);if(!grp[p])grp[p]=[];grp[p].push(row);});
+    Object.keys(grp).sort().forEach(function(p){
+      var gr=grp[p];var gT=_sum(gr);var gN=_dates(gr)||1;var gQty=parseFloat(gr[0].qty)||1;
+      summaryRows.push({item:label,qty:'× '+gQty+'名 × '+gN+'日',amt:gT,unit:parseFloat(p)});
+    });
+  };
+  // 子供行: 品目名+単価でグループ化 → 「小学生宿泊料金」「幼児（食事有・布団無）」など区分をそのまま表示
+  var _byItem=function(rows){
+    var grp={};
+    rows.forEach(function(row){var k=(row.item||'子供料金')+'__'+String(parseFloat(row.price)||0);if(!grp[k])grp[k]=[];grp[k].push(row);});
+    Object.keys(grp).forEach(function(k){
+      var gr=grp[k];var gT=_sum(gr);var gN=_dates(gr)||1;var gQty=parseFloat(gr[0].qty)||1;
+      summaryRows.push({item:gr[0].item||'子供料金',qty:'× '+gQty+'名 × '+gN+'日',amt:gT,unit:parseFloat(gr[0].price)||0});
+    });
+  };
 
   // ── 集計テンプレート行を生成（全スリップ共通） ──
   var summaryRows=[];
@@ -11436,50 +11455,23 @@ function printDailySlips(){
     if(dxAdultTotal>0)
       summaryRows.push({item:nights.length+'泊'+(nights.length+1)+'日プログラム',qty:'× '+adultCnt+'名',amt:dxAdultTotal,
         unit:adultCnt>0?Math.round(dxAdultTotal/adultCnt):0});
-    // 子供宿泊料金
+    // 子供料金（品目名で区分を明示）
     if(childCnt>0){
-      var cRm=activeRows.filter(function(row){return _isChild(row)&&_isRoom(row);});
-      var cRmT=_sum(cRm);var cRmN=_dates(cRm)||nights.length;
-      if(cRmT>0) summaryRows.push({item:'子供宿泊料金',qty:'× '+childCnt+'名 × '+cRmN+'日',amt:cRmT,
-        unit:cRm.length>0?parseFloat(cRm[0].price)||0:0});
-      var cBf=activeRows.filter(function(row){return _isChild(row)&&_isBf(row);});
-      var cBfT=_sum(cBf);var cBfN=_dates(cBf);
-      if(cBfT>0) summaryRows.push({item:'子供朝食料金',qty:'× '+childCnt+'名 × '+cBfN+'日',amt:cBfT,
-        unit:cBf.length>0?parseFloat(cBf[0].price)||0:0});
-      var cDn=activeRows.filter(function(row){return _isChild(row)&&_isDin(row);});
-      var cDnT=_sum(cDn);var cDnN=_dates(cDn);
-      if(cDnT>0) summaryRows.push({item:'子供夕食料金',qty:'× '+childCnt+'名 × '+cDnN+'日',amt:cDnT,
-        unit:cDn.length>0?parseFloat(cDn[0].price)||0:0});
+      var cRows=activeRows.filter(function(row){return _isChild(row);});
+      if(_sum(cRows)>0) _byItem(cRows);
     }
   } else {
     // スーペリアツイン — 単価別にグループ化（1泊目と2泊目で単価が違う場合は2行に分ける）
-    var _byPrice=function(rows,label){
-      var grp={};
-      rows.forEach(function(row){
-        var p=String(parseFloat(row.price)||0);
-        if(!grp[p])grp[p]=[];
-        grp[p].push(row);
-      });
-      Object.keys(grp).sort().forEach(function(p){
-        var gr=grp[p];var gT=_sum(gr);var gN=_dates(gr)||1;
-        var gQty=parseFloat(gr[0].qty)||1; // billing行の実際の人数
-        summaryRows.push({item:label,qty:'× '+gQty+'名 × '+gN+'日',amt:gT,unit:parseFloat(p)});
-      });
-    };
     var aRm=activeRows.filter(function(row){return !_isChild(row)&&_isRoom(row);});
     if(_sum(aRm)>0) _byPrice(aRm,'宿泊料金');
     var aBf=activeRows.filter(function(row){return !_isChild(row)&&_isBf(row);});
     if(_sum(aBf)>0) _byPrice(aBf,'朝食料金');
     var aDn=activeRows.filter(function(row){return !_isChild(row)&&_isDin(row);});
     if(_sum(aDn)>0) _byPrice(aDn,'夕食料金');
-    // 子供行（DXと同様に別行表示）
+    // 子供行（品目名で区分を明示）
     if(childCnt>0){
-      var cRm2=activeRows.filter(function(row){return _isChild(row)&&_isRoom(row);});
-      if(_sum(cRm2)>0) _byPrice(cRm2,'子供宿泊料金');
-      var cBf2=activeRows.filter(function(row){return _isChild(row)&&_isBf(row);});
-      if(_sum(cBf2)>0) _byPrice(cBf2,'子供朝食料金');
-      var cDn2=activeRows.filter(function(row){return _isChild(row)&&_isDin(row);});
-      if(_sum(cDn2)>0) _byPrice(cDn2,'子供夕食料金');
+      var cRows2=activeRows.filter(function(row){return _isChild(row);});
+      if(_sum(cRows2)>0) _byItem(cRows2);
     }
   }
 
