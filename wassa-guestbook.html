@@ -1194,6 +1194,7 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
       <div id="billing-rows"></div>
       <button class="btn btn-ghost btn-sm owner-only" onclick="addBillingRow()" style="margin-top:8px">＋ 行を追加</button>
       <button class="btn btn-ghost btn-sm owner-only" onclick="addLodgingTax()" style="margin-top:8px;margin-left:6px">🏛 宿泊税を追加</button>
+      <button class="btn btn-ghost btn-sm" onclick="printDailySlips()" style="margin-top:8px;margin-left:6px">🖨 伝票印刷</button>
       <button class="btn btn-sm owner-only" onclick="genQuoteUrlForLine()" style="margin-top:8px;margin-left:6px;background:var(--green);color:#fff;border:none">🔗 LINE用見積書URLを生成</button>
       <button id="btn-reimport-billing" class="btn btn-sm owner-only" onclick="reprocessBillingFromGas()" style="margin-top:8px;margin-left:6px;background:var(--ocean2);color:#fff;border:none;display:none">📧 メールから再取り込み</button>
 
@@ -11389,6 +11390,133 @@ function printFoodSheet(){
   overlay.style.display='block';document.body.classList.add('printing-food');
 }
 function closeFoodPrint(){document.getElementById('food-print-overlay').style.display='none';document.body.classList.remove('printing-food');document.querySelectorAll('.modal-bg').forEach(function(m){m.style.display='';});}
+
+// ━━ 日次伝票印刷 ━━
+function printDailySlips(){
+  var r=allReservations.find(function(x){return x.id===currentEditId;});
+  if(!r){toast('予約データが見つかりません');return;}
+  var ci=r.check_in,co=r.check_out;
+  if(!ci||!co){toast('チェックイン・チェックアウト日が不明です');return;}
+
+  // 泊日程を生成（CI〜CO前日）
+  var nights=[];
+  var d=new Date(ci+'T00:00:00');
+  var dEnd=new Date(co+'T00:00:00');
+  while(d<dEnd){nights.push(d.toISOString().slice(0,10));d.setDate(d.getDate()+1);}
+  if(nights.length===0){toast('宿泊日程が不明です');return;}
+
+  var roomName=r.room_name||r.room||'';
+  var guestName=r.guest_name||'—';
+  var cust=allCustomers?allCustomers.find(function(c){return c.id===r.customer_id;}):null;
+  var ngFood=cust?(cust.ng_food||''):'';
+
+  // 非参考行を日付別にグループ化
+  var activeRows=billingRows.filter(function(row){return !row.is_ref;});
+  var rowsByDate={};
+  activeRows.forEach(function(row){
+    var dt=row.date||nights[0];
+    if(!rowsByDate[dt])rowsByDate[dt]=[];
+    rowsByDate[dt].push(row);
+  });
+
+  var dayNames=['日','月','火','水','木','金','土'];
+
+  function slipHtml(nightDate,idx){
+    var dateObj=new Date(nightDate+'T00:00:00');
+    var m=dateObj.getMonth()+1;
+    var d2=dateObj.getDate();
+    var dow=dayNames[dateObj.getDay()];
+    var dateLabel=m+'月'+d2+'日（'+dow+'）';
+    var nightLabel=(idx+1)+'泊目';
+
+    var rows=rowsByDate[nightDate]||[];
+    var itemsHtml='';
+    rows.forEach(function(row){
+      var itemName=row.item||row.cat||'';
+      var qty=parseFloat(row.qty)||1;
+      var price=parseFloat(row.price)||0;
+      var discount=parseFloat(row.discount)||0;
+      var subtotal=price*qty-discount;
+      var qtyStr=qty!==1?' × '+qty+'名':'';
+      itemsHtml+='<tr><td class="td-item">'+itemName+qtyStr+'</td>'
+        +'<td class="td-price">¥'+fmt(price)+'</td>'
+        +'<td class="td-sub">¥'+fmt(subtotal)+'</td></tr>';
+    });
+    // 手書き用空行（合計6行分確保）
+    var blankCount=Math.max(6-rows.length,3);
+    for(var i=0;i<blankCount;i++){
+      itemsHtml+='<tr class="blank-row"><td></td><td></td><td></td></tr>';
+    }
+    var nightTotal=rows.reduce(function(s,row){return s+_billingRowAmt(row);},0);
+
+    return '<div class="slip">'
+      +'<div class="slip-header">'
+      +'<div class="wassa-logo">WASSA WASSA</div>'
+      +'<div class="slip-date-wrap"><div class="slip-date">'+dateLabel+'</div><div class="slip-night">'+nightLabel+'</div></div>'
+      +'</div>'
+      +'<div class="slip-guest">'
+      +'<span class="room-badge">'+roomName+'</span>'
+      +'<span class="guest-name">'+guestName+'　様</span>'
+      +'</div>'
+      +'<table class="items-table">'
+      +'<thead><tr><th class="td-item">品目</th><th class="td-price">単価</th><th class="td-sub">金額</th></tr></thead>'
+      +'<tbody>'+itemsHtml+'</tbody>'
+      +'<tfoot><tr><td colspan="2" class="total-label">小　計</td><td class="total-amt">¥'+fmt(nightTotal)+'</td></tr></tfoot>'
+      +'</table>'
+      +'<div class="hw-section">'
+      +'<div class="hw-row"><span class="hw-label">アレルギー</span><span class="hw-value">'+ngFood.replace(/\n/g,' ')+'</span></div>'
+      +'<div class="hw-row"><span class="hw-label">朝食時間</span><span class="hw-value"></span></div>'
+      +'<div class="hw-row"><span class="hw-label">夕食時間</span><span class="hw-value"></span></div>'
+      +'<div class="hw-row hw-table"><span class="hw-label">テーブル席</span><span class="hw-boxes">'
+      +'<span class="hw-box">□ 右</span><span class="hw-box">□ 左</span><span class="hw-box">□ DX</span>'
+      +'</span></div>'
+      +'</div>'
+      +'</div>';
+  }
+
+  var allSlips=nights.map(function(nd,idx){return slipHtml(nd,idx);}).join('');
+
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>伝票</title><style>'
+    +'@page{size:A5 portrait;margin:8mm}'
+    +'*{box-sizing:border-box}'
+    +'body{font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans",sans-serif;margin:0;padding:0;font-size:9pt}'
+    +'.slip{width:100%;min-height:185mm;padding:4mm;page-break-after:always}'
+    +'.slip:last-child{page-break-after:auto}'
+    +'.slip-header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1a6b7a;padding-bottom:3mm;margin-bottom:3mm}'
+    +'.wassa-logo{font-size:15pt;font-weight:700;color:#1a6b7a;letter-spacing:1px}'
+    +'.slip-date-wrap{text-align:right}'
+    +'.slip-date{font-size:11pt;font-weight:600}'
+    +'.slip-night{font-size:8pt;color:#888;margin-top:1px}'
+    +'.slip-guest{display:flex;align-items:center;gap:6px;margin-bottom:3mm}'
+    +'.room-badge{background:#1a6b7a;color:#fff;padding:2px 7px;border-radius:3px;font-size:8pt;font-weight:600;white-space:nowrap}'
+    +'.guest-name{font-size:13pt;font-weight:700}'
+    +'.items-table{width:100%;border-collapse:collapse;margin-bottom:3mm}'
+    +'.items-table th,.items-table td{border:1px solid #ccc;padding:2px 4px;vertical-align:middle}'
+    +'.items-table thead th{background:#eef5f6;font-size:8pt;color:#555;text-align:center;font-weight:600}'
+    +'.td-item{text-align:left;font-size:8.5pt}'
+    +'.td-price,.td-sub{text-align:right;width:20mm;font-size:8.5pt;white-space:nowrap}'
+    +'.blank-row td{height:8mm;border:1px solid #e5e5e5}'
+    +'.total-label{text-align:right;font-weight:700;background:#f5f5f5;font-size:9pt;padding:3px 6px}'
+    +'.total-amt{text-align:right;font-weight:700;background:#f5f5f5;font-size:10pt;white-space:nowrap;padding:3px 4px}'
+    +'.hw-section{border-top:1px solid #bbb;padding-top:2mm}'
+    +'.hw-row{display:flex;align-items:center;min-height:9mm;border-bottom:1px solid #e5e5e5;padding:1mm 0}'
+    +'.hw-row:last-child{border-bottom:none}'
+    +'.hw-label{font-size:8pt;color:#555;font-weight:600;min-width:20mm;flex-shrink:0}'
+    +'.hw-value{flex:1;font-size:9pt;padding-left:2mm;border-left:1px dotted #ccc}'
+    +'.hw-boxes{display:flex;gap:8mm}'
+    +'.hw-box{font-size:11pt}'
+    +'@media print{.slip{border:none}}'
+    +'</style></head><body>'
+    +allSlips
+    +'</body></html>';
+
+  var w=window.open('','_blank','width=700,height=900');
+  if(!w){toast('ポップアップがブロックされました。許可してください。');return;}
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  setTimeout(function(){w.print();},400);
+}
 
 // ━━ 宿泊台帳印刷 ━━
 function closeLodgerPrint(){
