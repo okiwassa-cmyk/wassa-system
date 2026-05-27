@@ -4795,12 +4795,19 @@ async function copyFoodToGroupRooms() {
       var match = sibFoods.find(function(f){
         return f.served_date === src.served_date && f.category === src.category;
       });
-      if (!match) continue;
-      await fetch(SB_URL + '/rest/v1/food_records?id=eq.' + match.id, {
-        method: 'PATCH',
-        headers: {'Content-Type':'application/json','apikey':SB_KEY,'Authorization':SB_HEADERS['Authorization'],'Prefer':'return=minimal'},
-        body: JSON.stringify({menu_name: src.menu_name||null, meal_detail: src.meal_detail||null, kids_meal_detail: src.kids_meal_detail||null})
-      });
+      if (match) {
+        await fetch(SB_URL + '/rest/v1/food_records?id=eq.' + match.id, {
+          method: 'PATCH',
+          headers: {'Content-Type':'application/json','apikey':SB_KEY,'Authorization':SB_HEADERS['Authorization'],'Prefer':'return=minimal'},
+          body: JSON.stringify({menu_name: src.menu_name||null, meal_detail: src.meal_detail||null, kids_meal_detail: src.kids_meal_detail||null})
+        });
+      } else {
+        await fetch(SB_URL + '/rest/v1/food_records', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json','apikey':SB_KEY,'Authorization':SB_HEADERS['Authorization'],'Prefer':'return=minimal'},
+          body: JSON.stringify({reservation_id: sib.id, served_date: src.served_date, category: src.category, menu_name: src.menu_name||null, meal_detail: src.meal_detail||null, kids_meal_detail: src.kids_meal_detail||null})
+        });
+      }
       updated++;
     }
   }
