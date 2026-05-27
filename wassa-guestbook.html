@@ -11424,8 +11424,9 @@ function printDailySlips(){
   var airegiPerPerson=0;
   var adultCount2=parseInt(r.adults)||1;
   var isDX2=/DX|デラックス/i.test(roomName);
+  var _isChildRow=function(row){var it=row.item||'';return /子供|小学生|幼児|こども/i.test(it);};
   var airegiBase=isDX2
-    ? activeRows.reduce(function(s,row){return s+_billingRowAmt(row);},0)
+    ? activeRows.filter(function(row){return !_isChildRow(row);}).reduce(function(s,row){return s+_billingRowAmt(row);},0)
     : activeRows.filter(function(row){return (row.item||'').indexOf('大人')!==-1;}).reduce(function(s,row){return s+_billingRowAmt(row);},0);
   if(airegiBase>0&&adultCount2>0) airegiPerPerson=Math.round(airegiBase/adultCount2);
 
