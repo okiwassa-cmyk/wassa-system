@@ -375,6 +375,7 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
 .rc-ch-btn.active{border-color:var(--ocean2);background:var(--ocean2);color:#fff}
 .rc-dir-btn.active{border-color:var(--green);background:var(--green);color:#fff}
 @media print{
+  @page{size:A4 portrait;margin:10mm;}
   /* 食事印刷 */
   body.printing-food>*:not(#food-print-overlay){display:none!important}
   body.printing-food #food-print-overlay{display:block!important;position:static!important;overflow:visible!important;padding:4mm 6mm!important;background:#fff!important}
