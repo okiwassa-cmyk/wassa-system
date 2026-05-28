@@ -11463,7 +11463,7 @@ function printDailySlips(){
   } else {
     // スーペリアツイン — 単価別にグループ化（1泊目と2泊目で単価が違う場合は2行に分ける）
     var aRm=activeRows.filter(function(row){return !_isChild(row)&&_isRoom(row);});
-    if(_sum(aRm)>0) _byPrice(aRm,'宿泊料金');
+    if(_sum(aRm)>0) _byPrice(aRm,'大人宿泊料金');
     var aBf=activeRows.filter(function(row){return !_isChild(row)&&_isBf(row);});
     if(_sum(aBf)>0) _byPrice(aBf,'朝食料金');
     var aDn=activeRows.filter(function(row){return !_isChild(row)&&_isDin(row);});
