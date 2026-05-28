@@ -4456,7 +4456,7 @@ function _menuDetailByName(name, category) {
   var menuCat = category === '朝食' ? '朝食' : 'ディナー';
   var m = allMenus.find(function(x){ return x.name === name && x.category === menuCat; });
   if (!m) m = allMenus.find(function(x){ return x.name === name; }); // カテゴリ不一致でも名前が一致すれば使う
-  return (m && m.detail) ? m.detail : null;
+  return m ? (m.detail || m.name || null) : null;
 }
 
 function renderFoodRuleSelect(resv) {
@@ -11358,7 +11358,7 @@ function printFoodSheet(){
     return !(d.served_date===r.check_in && d.category==='朝食');
   }).sort(function(a,b){
     if(a.served_date!==b.served_date)return a.served_date>b.served_date?1:-1;
-    var p={'朝食':0,'昼食':1,'夕食':2,'ディナー':2};return(p[a.category]||9)-(p[b.category]||9);
+    var p={'朝食':1,'昼食':2,'夕食':3,'ディナー':3};var pa=p[a.category]||9;var pb=p[b.category]||9;return pa-pb;
   });
   var dayNames=['日','月','火','水','木','金','土'];
   // 子供食事がある行が1件でもあるか確認
