@@ -1327,22 +1327,26 @@ async function submit(){
           var famComps = companions.filter(function(c){ return c.name && c.isFamily; });
           if(famComps.length > 0){
             var slots = ['family1','family2','family3','family4'];
+            // 名前の正規化（比較用：全角スペース→半角）
+            var _normName = function(s){ return (s||''').replace(/　/g,' ').trim(); };
             for(var fi=0; fi<famComps.length; fi++){
               var fc = famComps[fi];
+              var fcNorm = _normName(fc.name);
               var matched = false;
-              // 既存スロットに同名があれば上書き（かな・続柄を更新）
+              // 既存スロットに同名（正規化比較）があれば上書き（かな・続柄を更新）
               for(var si=0; si<slots.length; si++){
-                if(cd[slots[si]] === fc.name){
+                if(_normName(cd[slots[si]]) === fcNorm){
                   custUpdate[slots[si]]         = fc.name;
                   custUpdate[slots[si]+'_kana'] = fc.kana || cd[slots[si]+'_kana'] || '';
                   custUpdate[slots[si]+'_rel']  = fc.rel  || cd[slots[si]+'_rel']  || '';
                   matched = true; break;
                 }
               }
-              // 空きスロットに追加
+              // 空きスロットに追加（DB既存値もcustUpdateもない空きを探す）
               if(!matched){
                 for(var si2=0; si2<slots.length; si2++){
-                  if(!cd[slots[si2]] && !custUpdate[slots[si2]]){
+                  var _slotFilled = _normName(cd[slots[si2]]) || _normName(custUpdate[slots[si2]]);
+                  if(!_slotFilled){
                     custUpdate[slots[si2]]         = fc.name;
                     custUpdate[slots[si2]+'_kana'] = fc.kana || '';
                     custUpdate[slots[si2]+'_rel']  = fc.rel  || '';
@@ -1452,6 +1456,7 @@ async function submit(){
             customer_id: null,
             name: comp.name,
             kana: comp.kana || '',
+            rel: comp.rel || '',
             is_family: comp.isFamily||false,
             address: '',
             mobile: ''
