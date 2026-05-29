@@ -803,6 +803,14 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
       <select id="stats-year" style="padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:inherit"></select>
     </div>
     <button class="btn btn-primary btn-sm" onclick="renderCurrentStatsTab()">集計する</button>
+    <span class="owner-only" style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <select id="airreji-room-type" style="padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-family:inherit">
+        <option value="superior">スーペリア</option>
+        <option value="deluxe">デラックス</option>
+      </select>
+      <input type="file" id="airreji-csv-input" accept=".csv" style="display:none" onchange="importAirrejiCsv(event)">
+      <button class="btn btn-secondary btn-sm" onclick="document.getElementById('airreji-csv-input').click()" title="AirレジCSVを取り込んで過去年比較に反映">AirレジCSV取込</button>
+    </span>
   </div>
   <div id="stats-panel-mgmt" style="display:none"></div>
   <div id="stats-panel-dinner"></div>
@@ -1952,6 +1960,7 @@ const SDC={super_high:'sh-d',high:'hi-d',regular:'re-d',low:'lo-d'};
 
 // ━━ STATE ━━
 let allReservations=[], allCustomers=[], allMenus=[], allQuotes=[], allBillingPresets=[];
+let allMonthlyRevenue=[]; // AirレジCSVインポート済みの月別実績
 // 全予約常時ロード（日付ウィンドウ廃止）
 let billingRows=[], foodDays=[], calYear, calMonth;
 // 定休日設定（Supabaseから読み込み）
@@ -2162,6 +2171,7 @@ async function loadAll(){
   ]);
   // 取得成功した場合のみ上書き（エラーで空配列が返った場合は既存データを保持）
   allReservations=resv; allCustomers=custs; allMenus=menus; allQuotes=quotes; allBillingPresets=presets;
+  sbGet('monthly_revenue','select=*&order=year_month.asc').then(function(d){allMonthlyRevenue=d;}).catch(function(){});
   _allResLoaded=false;
   _fillGuestNames(allReservations);
   await loadComms();
@@ -6671,6 +6681,41 @@ function printLodgingTaxReport(month){
   w.document.close();
 }
 
+// ━━ AirレジCSVインポート ━━
+function importAirrejiCsv(evt){
+  var file=evt.target.files[0]; if(!file)return;
+  var roomType=document.getElementById('airreji-room-type').value;
+  var reader=new FileReader();
+  reader.onload=async function(e){
+    var lines=e.target.result.split('\n');
+    var rows=[];
+    lines.forEach(function(line){
+      var cols=line.split(',');
+      var ym=(cols[0]||'').trim().replace(/[^0-9]/g,'');
+      if(!/^\d{6}$/.test(ym))return; // ヘッダー行スキップ
+      var rev=parseInt(cols[1])||0;
+      var bookings=parseInt(cols[2])||0;
+      var guests=parseInt(cols[4])||0;
+      if(!rev)return;
+      rows.push({year_month:ym,room_type:roomType,revenue:rev,bookings:bookings,guests:guests});
+    });
+    if(!rows.length){toast('有効なデータがありません');evt.target.value='';return;}
+    var res=await fetch(SB_URL+'/rest/v1/monthly_revenue',{
+      method:'POST',
+      headers:Object.assign({},SB_HEADERS,{'Prefer':'resolution=merge-duplicates,return=minimal'}),
+      body:JSON.stringify(rows)
+    });
+    if(res.ok||res.status===201){
+      toast(rows.length+'ヶ月分インポートしました（'+roomType+'）');
+      allMonthlyRevenue=await sbGet('monthly_revenue','select=*&order=year_month.asc');
+    } else {
+      toast('インポートエラー: '+res.status);
+    }
+    evt.target.value='';
+  };
+  reader.readAsText(file,'Shift-JIS');
+}
+
 // ━━ 経営集計 ━━
 function renderMgmtStats(year){
   var el=document.getElementById('stats-panel-mgmt');
@@ -6758,9 +6803,13 @@ function renderMgmtStats(year){
     var cyRsvs_=(typeof allReservations!=='undefined'?allReservations:[]).filter(function(r){
       return r.status!=='cancelled'&&r.check_in&&r.check_in.startsWith(cyStr_);
     });
-    if(!cyRsvs_.length)continue;
+    var cyHasMR_=allMonthlyRevenue.some(function(mr){return mr.year_month.startsWith(cyStr_);});
+    if(!cyRsvs_.length&&!cyHasMR_)continue;
     var cyNights_=cyRsvs_.reduce(function(s,r){return s+nights(r);},0);
     var cyRev_=cyRsvs_.reduce(function(s,r){return s+(parseFloat(r.total_amount)||0);},0);
+    // AirレジCSVデータがあれば売上を上書き（より正確な実売上）
+    var cyRevMR_=allMonthlyRevenue.filter(function(mr){return mr.year_month.startsWith(cyStr_);}).reduce(function(s,mr){return s+mr.revenue;},0);
+    if(cyRevMR_>0)cyRev_=cyRevMR_;
     var cyLeap_=cy_%4===0&&(cy_%100!==0||cy_%400===0);
     var cyAvail_=(cyLeap_?366:365)*3;
     var cyADR_=cyNights_>0?Math.round(cyRev_/cyNights_):0;
