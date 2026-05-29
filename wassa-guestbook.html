@@ -1484,7 +1484,7 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
           <div class="fg"><label style="font-size:11px">めい（かな）</label><input type="text" id="fam-new-mei-kana" placeholder="はなこ"></div>
         </div>
         <div style="margin-top:6px">
-          <div class="fg full"><label style="font-size:11px">続柄</label><select id="fam-new-rel" style="font-size:13px"><option value="">続柄を選択</option><option value="配偶者">配偶者</option><option value="夫">夫</option><option value="妻">妻</option><option value="長男">長男</option><option value="長女">長女</option><option value="次男">次男</option><option value="次女">次女</option><option value="三男">三男</option><option value="三女">三女</option><option value="息子">息子</option><option value="娘">娘</option><option value="子">子</option><option value="父">父</option><option value="母">母</option><option value="兄">兄</option><option value="姉">姉</option><option value="弟">弟</option><option value="妹">妹</option><option value="祖父">祖父</option><option value="祖母">祖母</option><option value="その他">その他</option></select></div>
+          <div class="fg full"><label style="font-size:11px">続柄</label><select id="fam-new-rel" style="font-size:13px"><option value="">続柄を選択</option><option value="配偶者">配偶者</option><option value="子">子</option><option value="親">親</option><option value="兄弟・姉妹">兄弟・姉妹</option><option value="祖父母">祖父母</option><option value="その他">その他</option></select></div>
         </div>
         <div style="margin-top:8px">
           <button class="btn btn-primary btn-sm" onclick="addNewFamilyMember()">家族メンバーを追加</button>
@@ -5969,7 +5969,7 @@ async function linkFamilyGroup(id1, id2){
   }catch(e){toast('エラー: '+e.message);}
 }
 
-var _REL_OPTS = ['','配偶者','子','親','兄弟・姉妹','祖父','祖母','その他'];
+var _REL_OPTS = ['','配偶者','子','親','兄弟・姉妹','祖父母','その他'];
 function _relSelectHtml(currentVal, memberId){
   var opts = _REL_OPTS.map(function(o){
     return '<option value="'+o+'"'+(o===(currentVal||'')?' selected':'')+'>'+(o||'続柄')+'</option>';
@@ -11102,7 +11102,7 @@ function renderCompanionRows(){
     html += '<input type="checkbox" '+isFam+' onchange="toggleCompanionFamily('+i+',this.checked)" style="width:15px;height:15px;cursor:pointer">';
     html += '代表者と同じ家族（住所・連絡先不要）</label>';
     if(c.isFamily){
-      var relOpts=['配偶者','子','親','兄弟・姉妹','祖父','祖母','その他'];
+      var relOpts=['配偶者','子','親','兄弟・姉妹','祖父母','その他'];
       html += '<div style="margin-bottom:6px"><label style="font-size:11px;color:var(--text3)">続柄</label>';
       html += '<select onchange="editCompanions['+i+'].rel=this.value" style="width:100%;padding:6px 10px;border:1px solid var(--sand2);border-radius:6px;font-size:13px">';
       html += '<option value="">選択してください</option>';

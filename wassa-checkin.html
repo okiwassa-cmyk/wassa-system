@@ -857,7 +857,7 @@ function renderCompanions(){
       +'</div></label>';
     // 続柄（家族チェック時のみ表示）
     if(comp.isFamily){
-      var relOpts = ['配偶者','子','親','兄弟・姉妹','その他家族'];
+      var relOpts = ['配偶者','子','親','兄弟・姉妹','祖父母','その他'];
       row += '<div style="margin-top:8px"><label style="font-size:11px;color:var(--text2)">'+(lang==='ja'?'続柄':'Relationship')+'</label>';
       row += '<select onchange="companions['+i+'].rel=this.value" style="width:100%;padding:9px 12px;font-size:14px;border:1.5px solid var(--sand2);border-radius:8px;background:white;font-family:inherit">';
       row += '<option value="">'+(lang==='ja'?'選択してください':'Select')+'</option>';
@@ -1003,7 +1003,7 @@ function renderGroupCompList(resId){
   if(!comps.length){ listEl.innerHTML=candidateHtml+'<div style="font-size:12px;color:var(--text3);padding:4px 0 6px">（なし）</div>'; return; }
   listEl.innerHTML = candidateHtml + comps.map(function(comp,i){
     var isFam = comp.isFamily;
-    var relOpts = ['配偶者','子','親','兄弟・姉妹','その他家族'];
+    var relOpts = ['配偶者','子','親','兄弟・姉妹','祖父母','その他'];
     var iconStyle = 'width:22px;height:22px;flex-shrink:0;border-radius:50%;border:2px solid '+(isFam?'var(--ocean2)':'var(--sand3)')+';background:'+(isFam?'var(--ocean2)':'transparent')+';display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff';
     var row = '<div style="background:#fff;border:1px solid var(--sand3);border-radius:8px;padding:10px 12px;margin-bottom:8px">'
       +'<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">'
