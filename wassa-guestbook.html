@@ -6729,6 +6729,15 @@ function renderMgmtStats(year){
     monthNights2[mo]+=nights(r);
   });
 
+  // ── 月別部屋別室泊数 ──
+  var DAYSPM_=[31,isLeap?29:28,31,30,31,30,31,31,30,31,30,31];
+  var monthRoomN_={S01:new Array(12).fill(0),S02:new Array(12).fill(0),DX:new Array(12).fill(0)};
+  rsvs.forEach(function(r){
+    var mo=parseInt((r.check_in||'').slice(5,7))-1;if(mo<0||mo>11)return;
+    var rm=r.room_type||r.room||'';
+    if(monthRoomN_[rm]!==undefined)monthRoomN_[rm][mo]+=nights(r);
+  });
+
   // ── 月別ADR ──
   var monthADR=monthNights2.map(function(n,i){return n>0?Math.round(monthRev[i]/n):0;});
 
@@ -6755,7 +6764,7 @@ function renderMgmtStats(year){
     var cyLeap_=cy_%4===0&&(cy_%100!==0||cy_%400===0);
     var cyAvail_=(cyLeap_?366:365)*3;
     var cyADR_=cyNights_>0?Math.round(cyRev_/cyNights_):0;
-    var cyOcc_=cyAvail_>0?Math.round(cyNights_/cyAvail_*10)/10:0;
+    var cyOcc_=cyAvail_>0?Math.round(cyNights_/cyAvail_*1000)/10:0;
     compareData_.push({year:cy_,occ:cyOcc_,adr:cyADR_,rev:cyRev_,nights:cyNights_,count:cyRsvs_.length});
   }
 
@@ -6861,6 +6870,30 @@ function renderMgmtStats(year){
           +'<td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700;text-align:right">'+fmtY(adr)+'</td>'
           +'<td style="padding:6px 8px;border-top:2px solid var(--ocean);text-align:right">'+totalNights+'泊</td>'
       ))
+    // ── 月別部屋別 ──
+    + card('月別部屋別室泊数・稼働率',
+        '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">'
+        +'<thead><tr>'
+        +['月','S01','S02','DX','合計','稼働率'].map(function(h,i){return'<th style="text-align:'+(i===0?'left':'right')+';padding:6px 8px;border-bottom:2px solid var(--ocean);color:var(--ocean);font-weight:600">'+h+'</th>';}).join('')
+        +'</tr></thead><tbody>'
+        +MONTHS.map(function(mn,i){
+          var s1=monthRoomN_.S01[i],s2=monthRoomN_.S02[i],dx=monthRoomN_.DX[i],tot=s1+s2+dx;
+          if(!tot)return'';
+          var occ_=DAYSPM_[i]>0?Math.round(tot/(DAYSPM_[i]*3)*1000)/10:0;
+          return'<tr><td style="padding:5px 8px;border-bottom:1px solid var(--sand2)">'+mn+'</td>'
+            +'<td style="padding:5px 8px;border-bottom:1px solid var(--sand2);text-align:right">'+(s1||'-')+'</td>'
+            +'<td style="padding:5px 8px;border-bottom:1px solid var(--sand2);text-align:right">'+(s2||'-')+'</td>'
+            +'<td style="padding:5px 8px;border-bottom:1px solid var(--sand2);text-align:right">'+(dx||'-')+'</td>'
+            +'<td style="padding:5px 8px;border-bottom:1px solid var(--sand2);text-align:right;font-weight:600">'+tot+'泊</td>'
+            +'<td style="padding:5px 8px;border-bottom:1px solid var(--sand2);text-align:right;color:var(--ocean)">'+occ_+'%</td></tr>';
+        }).join('')
+        +'</tbody><tfoot><tr>'
+        +'<td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700">年計</td>'
+        +['S01','S02','DX'].map(function(rm){return'<td style="padding:6px 8px;border-top:2px solid var(--ocean);text-align:right;font-weight:700">'+monthRoomN_[rm].reduce(function(a,b){return a+b;},0)+'</td>';}).join('')
+        +'<td style="padding:6px 8px;border-top:2px solid var(--ocean);text-align:right;font-weight:700">'+totalNights+'泊</td>'
+        +'<td style="padding:6px 8px;border-top:2px solid var(--ocean);text-align:right;font-weight:700;color:var(--ocean)">'+occ+'%</td>'
+        +'</tr></tfoot></table></div>'
+      )
     // ── 月別経路内訳 ──
     + (activeSrc_.length>0 ? card('月別経路内訳（件数）',
         '<div style="overflow-x:auto">'
