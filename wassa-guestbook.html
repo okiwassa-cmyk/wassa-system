@@ -6733,6 +6733,13 @@ function renderMgmtStats(year){
     if(!r.check_in||!r.check_out)return 0;
     return Math.max(0,Math.round((new Date(r.check_out)-new Date(r.check_in))/(86400000)));
   }
+  function normRoom_(rm){
+    if(!rm)return'other';
+    if(/^(S01|01|スーペリアツイン01)$/i.test(rm))return'S01';
+    if(/^(S02|02|スーペリアツイン02)$/i.test(rm))return'S02';
+    if(/^(DX|デラックスツイン|デラックス)$/i.test(rm))return'DX';
+    return'other';
+  }
   function fmtY(n){return'¥'+Math.round(n||0).toLocaleString();}
   var MONTHS=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
 
@@ -6740,7 +6747,7 @@ function renderMgmtStats(year){
   var totalNights=0,roomNights={S01:0,S02:0,DX:0,other:0};
   rsvs.forEach(function(r){
     var n=nights(r);totalNights+=n;
-    var rm=r.room_type||r.room||'';
+    var rm=normRoom_(r.room_type);
     if(roomNights[rm]!==undefined)roomNights[rm]+=n;else roomNights.other+=n;
   });
   var avail=daysInYear*ROOM_COUNT;
@@ -6779,7 +6786,7 @@ function renderMgmtStats(year){
   var monthRoomN_={S01:new Array(12).fill(0),S02:new Array(12).fill(0),DX:new Array(12).fill(0)};
   rsvs.forEach(function(r){
     var mo=parseInt((r.check_in||'').slice(5,7))-1;if(mo<0||mo>11)return;
-    var rm=r.room_type||r.room||'';
+    var rm=normRoom_(r.room_type);
     if(monthRoomN_[rm]!==undefined)monthRoomN_[rm][mo]+=nights(r);
   });
 
@@ -6796,9 +6803,12 @@ function renderMgmtStats(year){
   });
   var activeSrc_=SOURCES_ORDER_.filter(function(s){return monthSrcCnt_.some(function(m){return m[s]>0;});});
 
-  // ── 過去5年比較 ──
+  // ── 過去年比較（Airレジデータがある全年） ──
+  var mrMinYear_=allMonthlyRevenue.length>0
+    ?Math.min.apply(null,allMonthlyRevenue.map(function(mr){return parseInt(mr.year_month.slice(0,4));}))
+    :year-4;
   var compareData_=[];
-  for(var cy_=year-4;cy_<=year;cy_++){
+  for(var cy_=Math.min(mrMinYear_,year-4);cy_<=year;cy_++){
     var cyStr_=String(cy_);
     var cyRsvs_=(typeof allReservations!=='undefined'?allReservations:[]).filter(function(r){
       return r.status!=='cancelled'&&r.check_in&&r.check_in.startsWith(cyStr_);
@@ -6977,7 +6987,7 @@ function renderMgmtStats(year){
           }).join(''),
           null
         )
-        +'<div style="font-size:11px;color:var(--text3);margin-top:6px">※ 過去5年分・キャンセル除く</div>'
+        +'<div style="font-size:11px;color:var(--text3);margin-top:6px">※ キャンセル除く　売上はAirレジ実績（インポート済み分）</div>'
       ) : '');
 }
 
