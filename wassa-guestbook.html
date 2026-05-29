@@ -6889,32 +6889,97 @@ function renderMgmtStats(year){
     +card('稼働・収益 — '+year+'年',kpiHtml)
     +card('経路別売上',tbl(['経路','売上','比率'],srcRows,'<td colspan="2" style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700">合計</td><td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700;text-align:right">'+fmtY(srcTotal)+'</td>'))
     +card('月次売上・宿泊者数',tbl(['月','売上','泊数','大人','子供','幼児'],monthRows,'<td colspan="2" style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700">年計 '+fmtY(totalRev)+'</td><td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700;text-align:right">'+totalNights+'泊</td><td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700;text-align:right">'+paxAdult+'</td><td style="padding:6px 8px;border-top:2px solid var(--ocean);text-align:right">'+paxChild+'</td><td style="padding:6px 8px;border-top:2px solid var(--ocean);text-align:right">'+paxInfant+'</td>'))
-    +card('月別部屋別室泊数・稼働率',
-        '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">'
-        +'<thead><tr>'
-        +['月','S01','S02','DX','3室合計','3室稼働率'].map(function(h,i){
-          var isTotal=i>=4;
-          return'<th style="text-align:'+(i===0?'left':'right')+';padding:6px 8px;border-bottom:2px solid var(--ocean);color:var(--ocean);font-weight:600'+(isTotal?';background:var(--sand)':'')+'">'+(isTotal?'<strong>'+h+'</strong>':h)+'</th>';
-        }).join('')
-        +'</tr></thead><tbody>'
-        +MONTHS.map(function(mn,i){
-          var s1=monthRoomN_.S01[i],s2=monthRoomN_.S02[i],dx=monthRoomN_.DX[i],tot=s1+s2+dx;
-          if(!tot)return'';
-          var occ_=DAYSPM_[i]>0?Math.round(tot/(DAYSPM_[i]*3)*1000)/10:0;
-          return'<tr><td style="padding:5px 8px;border-bottom:1px solid var(--sand2)">'+mn+'</td>'
-            +'<td style="padding:5px 8px;border-bottom:1px solid var(--sand2);text-align:right">'+(s1||'-')+'</td>'
-            +'<td style="padding:5px 8px;border-bottom:1px solid var(--sand2);text-align:right">'+(s2||'-')+'</td>'
-            +'<td style="padding:5px 8px;border-bottom:1px solid var(--sand2);text-align:right">'+(dx||'-')+'</td>'
-            +'<td style="padding:5px 8px;border-bottom:1px solid var(--sand2);text-align:right;font-weight:700;background:var(--sand)">'+tot+'泊</td>'
-            +'<td style="padding:5px 8px;border-bottom:1px solid var(--sand2);text-align:right;font-weight:700;color:var(--ocean);background:var(--sand)">'+occ_+'%</td></tr>';
-        }).join('')
-        +'</tbody><tfoot><tr>'
-        +'<td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700">年計</td>'
-        +['S01','S02','DX'].map(function(rm){return'<td style="padding:6px 8px;border-top:2px solid var(--ocean);text-align:right;font-weight:700">'+monthRoomN_[rm].reduce(function(a,b){return a+b;},0)+'泊</td>';}).join('')
-        +'<td style="padding:6px 8px;border-top:2px solid var(--ocean);text-align:right;font-weight:700;background:var(--sand)">'+totalNights+'泊</td>'
-        +'<td style="padding:6px 8px;border-top:2px solid var(--ocean);text-align:right;font-weight:700;color:var(--ocean);background:var(--sand)">'+occ+'%</td>'
-        +'</tr></tfoot></table></div>'
-      )
+    +(function(){
+      // ── 月別・部屋別 詳細集計（AirレジCSV + 予約データ） ──
+      var mrYrStr_=String(year);
+      var mrSup_=new Array(12).fill(null).map(function(){return{rev:0,gs:0};});
+      var mrDlx_=new Array(12).fill(null).map(function(){return{rev:0,gs:0};});
+      allMonthlyRevenue.filter(function(mr){return mr.year_month.startsWith(mrYrStr_);}).forEach(function(mr){
+        var mo=parseInt(mr.year_month.slice(4,6))-1;if(mo<0||mo>11)return;
+        if(mr.room_type==='superior'){mrSup_[mo].rev+=mr.revenue;mrSup_[mo].gs+=mr.guests;}
+        else if(mr.room_type==='deluxe'){mrDlx_[mo].rev+=mr.revenue;mrDlx_[mo].gs+=mr.guests;}
+      });
+      var monthSupN_=MONTHS.map(function(_,i){return monthRoomN_.S01[i]+monthRoomN_.S02[i];});
+      var monthDlxN_=MONTHS.map(function(_,i){return monthRoomN_.DX[i];});
+
+      var thS_='padding:4px 5px;font-size:10px;font-weight:600;text-align:right;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,0.3)';
+      var tdS_='padding:4px 6px;border-bottom:1px solid var(--sand2);text-align:right;font-size:11px';
+      var tfS_='padding:5px 6px;border-top:2px solid var(--ocean);text-align:right;font-size:11px;font-weight:700';
+
+      function cell_(rev,n,gs,avail){
+        var gp=rev>0&&gs>0?fmtY(Math.round(rev/gs)):'-';
+        var adr=rev>0&&n>0?fmtY(Math.round(rev/n)):'-';
+        var occ_=avail>0?(Math.round(n/avail*1000)/10)+'%':'-';
+        return [rev>0?fmtY(rev):'-', gp, gs>0?gs+'名':'-', adr, occ_];
+      }
+
+      var bodyRows_='',hasData_=false;
+      var sTotRev_=0,sTotGs_=0,dTotRev_=0,dTotGs_=0;
+      MONTHS.forEach(function(mn,i){
+        var sRev=mrSup_[i].rev,sGs=mrSup_[i].gs,sN=monthSupN_[i];
+        var dRev=mrDlx_[i].rev,dGs=mrDlx_[i].gs,dN=monthDlxN_[i];
+        var tRev=sRev+dRev,tGs=sGs+dGs,tN=sN+dN;
+        var dpm=DAYSPM_[i];
+        if(!tRev&&!tN)return;
+        hasData_=true;
+        sTotRev_+=sRev;sTotGs_+=sGs;dTotRev_+=dRev;dTotGs_+=dGs;
+        var sC=cell_(sRev,sN,sGs,dpm*2);
+        var dC=cell_(dRev,dN,dGs,dpm*1);
+        var tC=cell_(tRev,tN,tGs,dpm*3);
+        bodyRows_+='<tr><td style="'+tdS_+';text-align:left;font-weight:500">'+mn+'</td>'
+          +sC.map(function(v){return'<td style="'+tdS_+'">'+v+'</td>';}).join('')
+          +'<td style="'+tdS_+';border-left:2px solid var(--sand2)"></td>'
+          +dC.map(function(v){return'<td style="'+tdS_+'">'+v+'</td>';}).join('')
+          +'<td style="'+tdS_+';border-left:2px solid var(--ocean)"></td>'
+          +tC.map(function(v,j){return'<td style="'+tdS_+';background:var(--sand)'+(j===4?';color:var(--ocean);font-weight:700':'')+'">'+ v+'</td>';}).join('')
+          +'</tr>';
+      });
+      if(!hasData_)return'';
+
+      var sTotN_=monthSupN_.reduce(function(a,b){return a+b;},0);
+      var dTotN_=monthDlxN_.reduce(function(a,b){return a+b;},0);
+      var tTotN_=sTotN_+dTotN_,tTotRev_=sTotRev_+dTotRev_,tTotGs_=sTotGs_+dTotGs_;
+      var sFC=cell_(sTotRev_,sTotN_,sTotGs_,daysInYear*2);
+      var dFC=cell_(dTotRev_,dTotN_,dTotGs_,daysInYear*1);
+      var tFC=cell_(tTotRev_,tTotN_,tTotGs_,daysInYear*3);
+      var footRow_='<tr><td style="'+tfS_+';text-align:left">年計</td>'
+        +sFC.map(function(v){return'<td style="'+tfS_+'">'+v+'</td>';}).join('')
+        +'<td style="'+tfS_+';border-left:2px solid var(--sand2)"></td>'
+        +dFC.map(function(v){return'<td style="'+tfS_+'">'+v+'</td>';}).join('')
+        +'<td style="'+tfS_+';border-left:2px solid var(--ocean)"></td>'
+        +tFC.map(function(v,j){return'<td style="'+tfS_+';background:var(--sand)'+(j===4?';color:var(--ocean)':'')+'">'+ v+'</td>';}).join('')
+        +'</tr>';
+
+      var grpTh_=function(label,cols,bg,border){
+        return'<th colspan="'+cols+'" style="padding:6px 8px;text-align:center;font-size:12px;font-weight:700;background:'+bg+';color:'+(bg==='var(--ocean)'?'#fff':'var(--ocean)')+';border-bottom:2px solid var(--ocean)'+(border?';border-left:'+border:'')+'">'+ label+'</th>';
+      };
+      var metrics_=['売上','客単価','客数','ADR','稼働率'];
+
+      return card('月別・部屋別 詳細集計',
+        '<div style="overflow-x:auto">'
+        +'<table style="border-collapse:collapse;min-width:500px">'
+        +'<thead>'
+        +'<tr>'
+        +'<th style="padding:6px 8px;border-bottom:2px solid var(--ocean)" rowspan="2"></th>'
+        +grpTh_('スーペリア（2室合計）',5,'var(--sand)','')
+        +'<th style="border-left:2px solid var(--sand2)" rowspan="2"></th>'
+        +grpTh_('デラックス（1室）',5,'var(--sand2)','')
+        +'<th style="border-left:2px solid var(--ocean)" rowspan="2"></th>'
+        +grpTh_('3室合計',5,'var(--ocean)','')
+        +'</tr>'
+        +'<tr>'
+        +metrics_.map(function(h){return'<th style="'+thS_+';background:var(--sand);color:var(--ocean)">'+h+'</th>';}).join('')
+        +metrics_.map(function(h){return'<th style="'+thS_+';background:var(--sand2);color:var(--ocean)">'+h+'</th>';}).join('')
+        +metrics_.map(function(h){return'<th style="'+thS_+';background:var(--ocean);color:#fff">'+h+'</th>';}).join('')
+        +'</tr>'
+        +'</thead>'
+        +'<tbody>'+bodyRows_+'</tbody>'
+        +'<tfoot>'+footRow_+'</tfoot>'
+        +'</table>'
+        +'<div style="font-size:10px;color:var(--text3);margin-top:6px">※ 売上・客数はAirレジ実績（インポート済み分）　ADR・稼働率は予約データから算出</div>'
+        +'</div>'
+      );
+    })()
     +(taxTotal>0?card('宿泊税年次集計',tbl(['月','徴収額'],taxRows,'<td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700">年計</td><td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700;text-align:right">'+fmtY(taxTotal)+'</td>')):'')
     +((mealBfTotal||mealDinTotal)?card('食事数集計',tbl(['月','朝食','夕食'],mealRows,'<td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700">年計</td><td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700;text-align:right">'+mealBfTotal+'食</td><td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700;text-align:right">'+mealDinTotal+'食</td>')):'')
     +(function(){
