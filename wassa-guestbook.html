@@ -592,7 +592,7 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
 
   <div id="dash-co-section" style="margin-top:16px;display:none"></div>
 
-  <div class="card" style="margin-top:16px">
+  <div class="card owner-only" style="margin-top:16px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
       <div style="font-size:13px;font-weight:700;color:var(--text2)">📊 月次サマリー</div>
       <div style="display:flex;gap:6px;align-items:center">
@@ -6728,6 +6728,37 @@ function renderMgmtStats(year){
     monthAdult[mo]+=(parseInt(r.adults)||0);monthChild[mo]+=(parseInt(r.children)||0);monthInfant[mo]+=(parseInt(r.infants)||0);
     monthNights2[mo]+=nights(r);
   });
+
+  // ── 月別ADR ──
+  var monthADR=monthNights2.map(function(n,i){return n>0?Math.round(monthRev[i]/n):0;});
+
+  // ── 月別経路別件数 ──
+  var SOURCES_ORDER_=['直予約','公式HP','楽天','じゃらん','一休','Booking.com','Agoda'];
+  var monthSrcCnt_=new Array(12).fill(null).map(function(){return{};});
+  rsvs.forEach(function(r){
+    var mo=parseInt((r.check_in||'').slice(5,7))-1;if(mo<0||mo>11)return;
+    var src=r.source||'不明';
+    monthSrcCnt_[mo][src]=(monthSrcCnt_[mo][src]||0)+1;
+  });
+  var activeSrc_=SOURCES_ORDER_.filter(function(s){return monthSrcCnt_.some(function(m){return m[s]>0;});});
+
+  // ── 過去5年比較 ──
+  var compareData_=[];
+  for(var cy_=year-4;cy_<=year;cy_++){
+    var cyStr_=String(cy_);
+    var cyRsvs_=(typeof allReservations!=='undefined'?allReservations:[]).filter(function(r){
+      return r.status!=='cancelled'&&r.check_in&&r.check_in.startsWith(cyStr_);
+    });
+    if(!cyRsvs_.length)continue;
+    var cyNights_=cyRsvs_.reduce(function(s,r){return s+nights(r);},0);
+    var cyRev_=cyRsvs_.reduce(function(s,r){return s+(parseFloat(r.total_amount)||0);},0);
+    var cyLeap_=cy_%4===0&&(cy_%100!==0||cy_%400===0);
+    var cyAvail_=(cyLeap_?366:365)*3;
+    var cyADR_=cyNights_>0?Math.round(cyRev_/cyNights_):0;
+    var cyOcc_=cyAvail_>0?Math.round(cyNights_/cyAvail_*10)/10:0;
+    compareData_.push({year:cy_,occ:cyOcc_,adr:cyADR_,rev:cyRev_,nights:cyNights_,count:cyRsvs_.length});
+  }
+
   var monthRows=MONTHS.map(function(mn,i){
     return '<tr><td>'+mn+'</td><td style="text-align:right">'+fmtY(monthRev[i])+'</td>'
       +'<td style="text-align:right">'+monthNights2[i]+'泊</td>'
@@ -6817,7 +6848,55 @@ function renderMgmtStats(year){
       var otaTotal=otaRsvs.reduce(function(s,r){return s+(parseFloat(r.total_amount)||0);},0);
       return card('OTA入金予定表',tbl(['入金予定日','OTA','件数','金額'],otaRows,'<td colspan="3" style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700">年計</td><td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700;text-align:right">'+fmtY(otaTotal)+'</td>')
         +'<div style="font-size:11px;color:var(--text3);margin-top:6px">※ 楽天：楽天銀行利用→翌月10日 / 楽天銀行以外→当月末払い（手動確認）<br>※ Booking.com：末締め翌月1日払い　※ Agoda：CO後30日経過後に請求→約37日後を目安表示</div>');
-    })();
+    })()
+    // ── 月別ADR ──
+    + card('月別ADR（客室単価）',tbl(
+        ['月','ADR','室泊数'],
+        MONTHS.map(function(mn,i){
+          return monthNights2[i]>0
+            ?'<tr><td>'+mn+'</td><td style="text-align:right;font-weight:600;color:var(--ocean)">'+fmtY(monthADR[i])+'</td><td style="text-align:right">'+monthNights2[i]+'泊</td></tr>'
+            :'';
+        }).join(''),
+        '<td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700">年平均</td>'
+          +'<td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700;text-align:right">'+fmtY(adr)+'</td>'
+          +'<td style="padding:6px 8px;border-top:2px solid var(--ocean);text-align:right">'+totalNights+'泊</td>'
+      ))
+    // ── 月別経路内訳 ──
+    + (activeSrc_.length>0 ? card('月別経路内訳（件数）',
+        '<div style="overflow-x:auto">'
+        +'<table style="width:100%;border-collapse:collapse;font-size:11px;min-width:400px">'
+        +'<thead><tr><th style="padding:5px 6px;border-bottom:2px solid var(--ocean);color:var(--ocean);text-align:left">月</th>'
+        +activeSrc_.map(function(s){return'<th style="padding:5px 6px;border-bottom:2px solid var(--ocean);color:var(--ocean);text-align:center">'+s+'</th>';}).join('')
+        +'<th style="padding:5px 6px;border-bottom:2px solid var(--ocean);color:var(--ocean);text-align:right">計</th></tr></thead>'
+        +'<tbody>'
+        +MONTHS.map(function(mn,i){
+          var total_=activeSrc_.reduce(function(s,src){return s+(monthSrcCnt_[i][src]||0);},0);
+          if(!total_)return '';
+          return '<tr><td style="padding:4px 6px;border-bottom:1px solid var(--sand2)">'+mn+'</td>'
+            +activeSrc_.map(function(src){
+              var cnt=monthSrcCnt_[i][src]||0;
+              return '<td style="padding:4px 6px;border-bottom:1px solid var(--sand2);text-align:center">'+(cnt>0?cnt:'')+'</td>';
+            }).join('')
+            +'<td style="padding:4px 6px;border-bottom:1px solid var(--sand2);text-align:right;font-weight:600">'+total_+'</td></tr>';
+        }).join('')
+        +'</tbody></table></div>'
+      ) : '')
+    // ── 過去年比較 ──
+    + (compareData_.length>1 ? card('過去年比較',
+        tbl(['年','稼働率','ADR','売上','件数'],
+          compareData_.map(function(d){
+            var isThis=d.year===year;
+            var rowStyle=isThis?'background:var(--sand);font-weight:700':'';
+            return '<tr style="'+rowStyle+'"><td style="padding:5px 8px;border-bottom:1px solid var(--sand2)">'+d.year+'年'+(isThis?' ◀':'')+'</td>'
+              +'<td style="padding:5px 8px;border-bottom:1px solid var(--sand2);text-align:right">'+d.occ+'%</td>'
+              +'<td style="padding:5px 8px;border-bottom:1px solid var(--sand2);text-align:right">'+fmtY(d.adr)+'</td>'
+              +'<td style="padding:5px 8px;border-bottom:1px solid var(--sand2);text-align:right">'+fmtY(d.rev)+'</td>'
+              +'<td style="padding:5px 8px;border-bottom:1px solid var(--sand2);text-align:right">'+d.count+'件</td></tr>';
+          }).join(''),
+          null
+        )
+        +'<div style="font-size:11px;color:var(--text3);margin-top:6px">※ 過去5年分・キャンセル除く</div>'
+      ) : '');
 }
 
 function printMgmtStats(year){
