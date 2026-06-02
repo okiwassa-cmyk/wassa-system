@@ -8042,12 +8042,15 @@ function calcEstimate(){
   lastEstimate.allEstimates = estimates;
   lastEstimates = estimates;
 
+  _inCalcEstimate = true;
   applyMealRestrictions(cin, cout);
+  _inCalcEstimate = false;
   renderResult();
 }
 
 // lastEstimatesは複数室の全データ
 var lastEstimates = [];
+var _inCalcEstimate = false; // applyDinCourseRestriction内での再帰calcEstimate防止フラグ
 
 // ── 特別料金期間：食事制限を適用 ──────────────────────────────
 function applyMealRestrictions(cin, cout){
@@ -8104,6 +8107,8 @@ function applyDinCourseRestriction(dinAdult){
   currentDinCourseName = matching[0].name;
   updateMealInfo();
   updatePlanNameHint();
+  // 計算済みの場合は再計算（calcEstimate内からの呼び出し時はスキップしてループ防止）
+  if(!_inCalcEstimate && (lastEstimate||(lastEstimates&&lastEstimates.length))) calcEstimate();
 }
 function _lockMealSel(r, required){
   var sel = document.getElementById('ri-'+r+'-meal');
