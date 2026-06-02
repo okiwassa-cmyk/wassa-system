@@ -8056,11 +8056,13 @@ function applyMealRestrictions(cin, cout){
   if(!cin || !cout || !specialPeriods || !specialPeriods.length){
     banner.style.display='none';
     getCheckedRooms().forEach(function(r){ _unlockMealSel(r); });
+    applyDinCourseRestriction(null);
     return;
   }
   // cin〜cout-1日の各日で最も強い制限を探す
   var required = null;
   var periodLabel = '';
+  var spDinAdult = null;
   var d = new Date(cin);
   var dEnd = new Date(cout);
   while(d < dEnd){
@@ -8070,6 +8072,7 @@ function applyMealRestrictions(cin, cout){
       required = sp.meal_required;
       periodLabel = sp.label || '';
     }
+    if(sp && sp.din_adult) spDinAdult = sp.din_adult;
     d.setDate(d.getDate()+1);
   }
   if(required){
@@ -8082,6 +8085,25 @@ function applyMealRestrictions(cin, cout){
     banner.style.display = 'none';
     getCheckedRooms().forEach(function(r){ _unlockMealSel(r); });
   }
+  applyDinCourseRestriction(spDinAdult);
+}
+function applyDinCourseRestriction(dinAdult){
+  var sel = document.getElementById('q-din-course');
+  if(!sel) return;
+  if(!dinAdult){
+    populateDinCourseSelect();
+    return;
+  }
+  // 特別料金期間 → その価格のコースのみ表示
+  var matching = dinCoursePresets.filter(function(c){ return Number(c.price)===Number(dinAdult); });
+  if(matching.length === 0) matching = [{name:'特別料金コース', price:dinAdult}];
+  sel.innerHTML = matching.map(function(c){
+    return '<option value="'+c.price+':'+escHtml(c.name)+'" selected>'+escHtml(c.name)+'　¥'+Number(c.price).toLocaleString()+'</option>';
+  }).join('');
+  common.din_adult = Number(dinAdult);
+  currentDinCourseName = matching[0].name;
+  updateMealInfo();
+  if(lastEstimate||(lastEstimates&&lastEstimates.length)) calcEstimate();
 }
 function _lockMealSel(r, required){
   var sel = document.getElementById('ri-'+r+'-meal');
