@@ -8103,7 +8103,7 @@ function applyDinCourseRestriction(dinAdult){
   common.din_adult = Number(dinAdult);
   currentDinCourseName = matching[0].name;
   updateMealInfo();
-  if(lastEstimate||(lastEstimates&&lastEstimates.length)) calcEstimate();
+  updatePlanNameHint();
 }
 function _lockMealSel(r, required){
   var sel = document.getElementById('ri-'+r+'-meal');
