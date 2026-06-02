@@ -456,6 +456,7 @@
           <input class="form-input" id="f-cout" type="text" readonly placeholder="日付を選択">
         </div>
       </div>
+      <div id="sp-banner" style="display:none;margin-bottom:10px;padding:10px 14px;background:#fff3cd;border:1.5px solid #f5c842;border-radius:8px;font-size:13px;color:#7a5c00"></div>
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">お食事プラン<span class="req">*</span></label>
@@ -662,7 +663,7 @@ async function loadPriceData() {
     const [mRes, sRes, cRes] = await Promise.all([
       fetch(`${SB_URL}/rest/v1/price_master?select=season,room,pax,pax_type,price`, { headers: SB_H }),
       fetch(`${SB_URL}/rest/v1/season_ranges?select=from_date,to_date,season&order=from_date.asc`, { headers: SB_H }),
-      fetch(`${SB_URL}/rest/v1/price_common?id=eq.1&select=bf_adult,din_adult,bf_infant,din_infant,closed_weekdays,open_exceptions,closed_exceptions`, { headers: SB_H })
+      fetch(`${SB_URL}/rest/v1/price_common?id=eq.1&select=bf_adult,din_adult,bf_infant,din_infant,closed_weekdays,open_exceptions,closed_exceptions,special_periods`, { headers: SB_H })
     ]);
     const master  = await mRes.json();
     const seasons = await sRes.json();
@@ -676,11 +677,47 @@ async function loadPriceData() {
       din_inf:   (common && common[0] && common[0].din_infant)  || 3300,
       closedWd:  (common && common[0] && common[0].closed_weekdays)  || [3],
       openEx:    (common && common[0] && common[0].open_exceptions)  || [],
-      closedEx:  (common && common[0] && common[0].closed_exceptions)|| []
+      closedEx:  (common && common[0] && common[0].closed_exceptions)|| [],
+      specialPeriods: (common && common[0] && common[0].special_periods) || []
     };
   } catch(e) {
     // フォールバック: デフォルト値で動作継続
     _priceData = { master: [], seasons: [], bf: 2200, din: 7700, bf_inf: 2200, din_inf: 3300 };
+  }
+}
+
+function getSpecialPeriodForDate(ds) {
+  if (!_priceData || !_priceData.specialPeriods) return null;
+  return _priceData.specialPeriods.find(p => p.from <= ds && p.to >= ds) || null;
+}
+function applySpecialPeriodRestrictions(cin, cout) {
+  const mealSel = document.getElementById('f-meal');
+  const banner = document.getElementById('sp-banner');
+  if (!cin || !cout || !_priceData || !_priceData.specialPeriods || !_priceData.specialPeriods.length) {
+    if (mealSel) { for (const o of mealSel.options) o.disabled = false; }
+    if (banner) banner.style.display = 'none';
+    return;
+  }
+  let required = null, periodLabel = '';
+  let d = new Date(cin + 'T00:00:00');
+  const end = new Date(cout + 'T00:00:00');
+  while (d < end) {
+    const ds = d.toISOString().split('T')[0];
+    const sp = getSpecialPeriodForDate(ds);
+    if (sp && sp.meal_required) { required = sp.meal_required; periodLabel = sp.label || ''; }
+    d.setDate(d.getDate() + 1);
+  }
+  if (required && mealSel) {
+    for (const o of mealSel.options) o.disabled = (o.value !== required);
+    if (mealSel.value !== required) { mealSel.value = required; updateInfantFields(); }
+    if (banner) {
+      const lbl = {both:'朝食・夕食付きのみ', bf:'朝食のみ', din:'夕食のみ', none:'素泊まりのみ'};
+      banner.textContent = '⭐ ' + (periodLabel ? '【'+periodLabel+'】' : '') + 'この期間は' + (lbl[required]||required) + 'でのご提供となります';
+      banner.style.display = 'block';
+    }
+  } else {
+    if (mealSel) { for (const o of mealSel.options) o.disabled = false; }
+    if (banner) banner.style.display = 'none';
   }
 }
 
@@ -793,6 +830,7 @@ function updateEstimate() {
   const infNone     = parseInt(document.getElementById('f-inf-none').value)||0;
   const infMeal     = infMealBed + infMealOnly;
 
+  applySpecialPeriodRestrictions(cin, cout);
   if (!cin || !cout || cin >= cout) {
     document.getElementById('estimate-wrap').style.display = 'none';
     const _e = document.getElementById('form-error');
@@ -817,7 +855,10 @@ function updateEstimate() {
     const childRate     = getChildRoomRate(season, room);
     const infFutonRate  = getInfantFutonRate(season, room);
     const infNoFutonRate= getInfantNoFutonRate(season, room);
-    nights.push({ ds, season, rate, childRate, infFutonRate, infNoFutonRate });
+    const _sp           = getSpecialPeriodForDate(ds);
+    const dinPrice      = (_sp && _sp.din_adult) ? _sp.din_adult : _priceData.din;
+    const bfPrice       = (_sp && _sp.bf_adult)  ? _sp.bf_adult  : _priceData.bf;
+    nights.push({ ds, season, rate, childRate, infFutonRate, infNoFutonRate, dinPrice, bfPrice });
     d.setDate(d.getDate() + 1);
   }
 
@@ -835,11 +876,11 @@ function updateEstimate() {
 
     if (hasBf) {
       // 朝食付き：室料＋朝食を1行に統合（ゲストブックと同仕様）
-      const adultAmt = (n.rate + _priceData.bf) * adults;
+      const adultAmt = (n.rate + n.bfPrice) * adults;
       dayTotal += adultAmt;
       details += `<div class="est-detail"><span>大人（朝食付き）× ${adults}名</span><span>¥${fmt(adultAmt)}</span></div>`;
       if (children > 0) {
-        const childAmt = (n.childRate + _priceData.bf) * children;
+        const childAmt = (n.childRate + n.bfPrice) * children;
         dayTotal += childAmt;
         details += `<div class="est-detail"><span>小学生（朝食付き）× ${children}名</span><span>¥${fmt(childAmt)}</span></div>`;
       }
@@ -896,7 +937,7 @@ function updateEstimate() {
       }
     }
     if (hasDin) {
-      const dinAdultAmt = _priceData.din * adults;
+      const dinAdultAmt = n.dinPrice * adults;
       dayTotal += dinAdultAmt;
       details += `<div class="est-detail"><span>夕食（大人）× ${adults}名</span><span>¥${fmt(dinAdultAmt)}</span></div>`;
       if (children > 0) {
