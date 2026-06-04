@@ -9046,6 +9046,25 @@ function buildQuote(){
 }
 
 // ━━ 見積もりDB保存 ━━
+// billingRowsから幼児内訳を復元するヘルパー
+function _infBreakdownFromBilling(billingArr){
+  var seen={}, r={inf_meal_bed:0,inf_meal_only:0,inf_bed_only:0,inf_none:0};
+  (billingArr||[]).forEach(function(row){
+    var it=row.item||''; var qty=parseInt(row.qty)||0;
+    if(seen[it])return; seen[it]=true;
+    if(!/幼児|infant/i.test(it))return;
+    var hasFuton=/布団あり|布団有|寝具あり|寝具有/i.test(it);
+    var noFuton=/布団なし|布団無|寝具なし|寝具無/i.test(it);
+    var hasMeal=/食事あり|食事有|朝食|食有/i.test(it);
+    var noMeal=/食事なし|食事無|食なし|食無/i.test(it);
+    if(hasFuton&&!noMeal)      r.inf_meal_bed  +=qty;
+    else if(!hasFuton&&!noMeal)r.inf_meal_only +=qty;
+    else if(hasFuton&&noMeal)  r.inf_bed_only  +=qty;
+    else                       r.inf_none      +=qty;
+  });
+  return r;
+}
+
 async function saveQuoteToDb(){
   if(!lastEstimate){alert('先に計算してください');return;}
   const guest=(document.getElementById('q-guest')?.value||'').trim();
@@ -9553,7 +9572,7 @@ async function confirmReservationFromQuote(quoteId){
         adults: qr.adults||'2',
         children: qr.children||0,
         infants: qr.infants||0,
-        inf_meal_bed:0, inf_meal_only:0, inf_bed_only:0, inf_none:0,
+        ..._infBreakdownFromBilling(billing&&Array.isArray(billing)?billing:(billing&&billing.rows||[])),
         plan_name: planName,
         total_amount: qr.total_amount||'',
         payment: '現地精算',
@@ -9645,7 +9664,7 @@ async function tentativeFromQuote(quoteId){
         adults: qr.adults||'2',
         children: qr.children||0,
         infants: qr.infants||0,
-        inf_meal_bed:0, inf_meal_only:0, inf_bed_only:0, inf_none:0,
+        ..._infBreakdownFromBilling(billing&&Array.isArray(billing)?billing:(billing&&billing.rows||[])),
         plan_name: planName,
         total_amount: qr.total_amount||'',
         payment: '現地精算',
