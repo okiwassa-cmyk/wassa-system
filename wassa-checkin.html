@@ -1328,7 +1328,7 @@ async function submit(){
           if(famComps.length > 0){
             var slots = ['family1','family2','family3','family4'];
             // 名前の正規化（比較用：全角スペース→半角）
-            var _normName = function(s){ return (s||''').replace(/　/g,' ').trim(); };
+            var _normName = function(s){ return (s||'').replace(/　/g,' ').trim(); };
             for(var fi=0; fi<famComps.length; fi++){
               var fc = famComps[fi];
               var fcNorm = _normName(fc.name);
