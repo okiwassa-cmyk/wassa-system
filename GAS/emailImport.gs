@@ -930,15 +930,12 @@ function parseEmail(src, body) {
       // 住所（予約者連絡先の電話番号以降を解析）
       var _lbAddrLine = ex(body, '予約者連絡先[\\s　]*[：:][\\s　]*[0-9][0-9\\-\\+]+[\\s　]+([^\\n]+)');
       if (_lbAddrLine) {
-        var _lbZipM = _lbAddrLine.match(/〒(\d{3}-?\d{4})/);
-        d.zip = _lbZipM ? _lbZipM[1] : '';
-        var _lbARest = _lbAddrLine.replace(/〒\d{3}-?\d{4}\s*/, '').trim();
-        var _lbPrefM = _lbARest.match(/^([^\s　]*?[都道府県])/);
-        d.pref = _lbPrefM ? _lbPrefM[1] : '';
-        var _lbARest2 = _lbPrefM ? _lbARest.slice(d.pref.length).trim() : _lbARest;
-        var _lbCityM = _lbARest2.match(/^([^\s　]*?[市区町村郡])/);
-        d.city = _lbCityM ? _lbCityM[1] : '';
-        d.address = _lbCityM ? _lbARest2.slice(d.city.length).trim() : _lbARest2;
+        d.zip = ex(_lbAddrLine, '\u3012(\\d{3}-?\\d{4})');
+        var _lbARest = d.zip ? _lbAddrLine.slice(_lbAddrLine.indexOf('\u3012') + 1 + d.zip.length).trim() : _lbAddrLine.trim();
+        d.pref = ex(_lbARest, '^([^\\s\\u3000]*?[\\u90fd\\u9053\\u5e9c\\u770c])');
+        var _lbARest2 = _lbARest.slice(d.pref.length).trim();
+        d.city = ex(_lbARest2, '^([^\\s\\u3000]*?[\\u5e02\\u533a\\u753a\\u6751\\u90e1])');
+        d.address = _lbARest2.slice(d.city.length).trim();
       }
       return d;
     }
