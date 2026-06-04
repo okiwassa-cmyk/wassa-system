@@ -11749,9 +11749,9 @@ function printDailySlips(){
       +'<td class="td-sub">¥'+fmt(sr.amt)+'</td></tr>';
   });
   var summaryTotal=summaryRows.reduce(function(s,sr){return s+sr.amt;},0);
-  // 空行（1枚目：合計14行、最低10行 / 2枚目以降：14行）
-  var blankFirst=Math.max(14-summaryRows.length,10);
-  var blankRest=14;
+  // 空行（1枚目：合計8行、最低4行 / 2枚目以降：10行）
+  var blankFirst=Math.max(8-summaryRows.length,4);
+  var blankRest=10;
   function makeBlankRows(n){var h='';for(var i=0;i<n;i++)h+='<tr class="blank-row"><td></td><td></td><td></td></tr>';return h;}
 
   var dayNames=['日','月','火','水','木','金','土'];
