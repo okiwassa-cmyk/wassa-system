@@ -4322,8 +4322,11 @@ async function genQuoteUrlForLine(){
     var tData=await tRes.json();
     if(!tData||!tData[0]||!tData[0].token){toast('URL取得に失敗しました');return;}
     var url='https://okiwassa-cmyk.github.io/wassa-system/wassa-quote-view.html?token='+tData[0].token;
+    var _copied=false;
     if(navigator.clipboard){
-      await navigator.clipboard.writeText(url);
+      try{await navigator.clipboard.writeText(url);_copied=true;}catch(e2){}
+    }
+    if(_copied){
       toast('✅ URLをコピーしました。LINEに貼り付けてください。');
     } else {
       prompt('以下のURLをコピーしてLINEに貼り付けてください：',url);
