@@ -11761,13 +11761,12 @@ function printDailySlips(){
     var m=dateObj.getMonth()+1;var d2=dateObj.getDate();var dow=dayNames[dateObj.getDay()];
     var dateLabel=m+'月'+d2+'日（'+dow+'）';
     var nightLabel=(idx+1)+'泊目';
-    var tbody,tfoot;
+    var _roomNo=/DX|デラックス/i.test(roomName)?'DX':(/02/.test(roomName)?'02':(/01/.test(roomName)?'01':roomName));
+    var tbody;
     if(idx===0){
-      tbody=firstSlipRows+makeBlankRows(blankFirst);
-      tfoot='<tfoot><tr><td colspan="2" class="total-label">小　計</td><td class="total-amt">¥'+fmt(summaryTotal)+'</td></tr></tfoot>';
+      tbody=firstSlipRows+makeBlankRows(blankFirst+1);
     } else {
-      tbody=makeBlankRows(blankRest);
-      tfoot='';
+      tbody=makeBlankRows(blankRest+1);
     }
     return '<div class="slip">'
       +'<div class="slip-header">'
@@ -11776,6 +11775,7 @@ function printDailySlips(){
       +'</div>'
       +'<div class="slip-guest">'
       +'<span class="room-badge">'+roomName+'</span>'
+      +'<span class="room-no">'+_roomNo+'</span>'
       +'<span class="guest-name">'+guestName+'　様</span>'
       +'</div>'
       +'<table class="items-table">'
@@ -11809,6 +11809,7 @@ function printDailySlips(){
     +'.slip-night{font-size:7pt;color:#444;margin-top:0}'
     +'.slip-guest{display:flex;align-items:center;gap:5px;margin-bottom:1mm}'
     +'.room-badge{background:#000;color:#fff;padding:1px 6px;border-radius:3px;font-size:7.5pt;font-weight:600;white-space:nowrap}'
+    +'.room-no{font-size:16pt;font-weight:900;color:#000;line-height:1}'
     +'.guest-name{font-size:12pt;font-weight:700}'
     +'.items-table{width:100%;border-collapse:collapse;margin-bottom:1mm}'
     +'.items-table th,.items-table td{border:1px solid #888;padding:1px 4px;vertical-align:middle}'
