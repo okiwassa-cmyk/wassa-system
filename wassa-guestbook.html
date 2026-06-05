@@ -11726,6 +11726,7 @@ function printDailySlips(){
     rows.forEach(function(row){var p=String(parseFloat(row.price)||0);if(!grp[p])grp[p]=[];grp[p].push(row);});
     Object.keys(grp).sort().forEach(function(p){
       var gr=grp[p];var gT=_sum(gr);var gN=_dates(gr)||1;var gQty=parseFloat(gr[0].qty)||1;
+      if(parseFloat(p)===0 && gT===0) return; // 単価・金額ともに¥0の行はスキップ
       summaryRows.push({item:label,qty:'× '+gQty+'名 × '+gN+'日',amt:gT,unit:parseFloat(p)});
     });
   };
