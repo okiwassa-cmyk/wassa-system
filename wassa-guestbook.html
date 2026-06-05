@@ -3298,10 +3298,18 @@ async function findOrCreateCustomer(name, phone, email, forceNew){
       });
       if(matchEmailName) return matchEmailName;
     }
-    // 3. 氏名完全一致 → 同一人物
+    // 3. 氏名完全一致 → 同一人物（電話・メールが両方あって異なる場合は別人）
     var match3 = allCustomers.find(function(c){
       var cName = ((c.sei||'')+(c.mei||'')).replace(/[\s\u3000]/g,'');
-      return cName === fullName && cName !== '';
+      if(cName !== fullName || cName === '') return false;
+      if(phone && c.mobile){
+        var nt=phone.replace(/[^\d]/g,''), ct=c.mobile.replace(/[^\d]/g,'');
+        if(nt && ct && nt!==ct) return false;
+      }
+      if(email && c.email){
+        if(email.toLowerCase().trim()!==c.email.toLowerCase().trim()) return false;
+      }
+      return true;
     });
     if(match3) return match3;
   }
