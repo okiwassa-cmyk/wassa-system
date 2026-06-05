@@ -1084,7 +1084,7 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
         <div class="fg"><label>決済方法</label>
           <select id="edit-payment">
             <option value="">— 不明 —</option>
-            <option value="現地精算">現地精算</option>
+            <option value="現地清算">現地清算</option>
             <option value="事前決済">事前決済</option>
             <option value="振込済み">振込済み</option>
           </select>
@@ -1244,7 +1244,7 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
         <div style="padding:10px 16px;border-top:1px solid var(--sand2);display:flex;gap:8px;align-items:center">
           <span style="font-size:12px;color:var(--text2);white-space:nowrap">支払方法</span>
           <select id="bill-payment" onchange="syncPaymentEdit();recalcBilling()" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;flex:1">
-            <option value="現地精算">現地精算</option>
+            <option value="現地清算">現地清算</option>
             <option value="現金">現金</option>
             <option value="クレジット">クレジット</option>
             <option value="QR">QR</option>
@@ -1261,7 +1261,7 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
         <!-- 現地精算額 -->
         <div style="background:var(--ocean);padding:14px 18px;display:flex;justify-content:space-between;align-items:center">
           <div>
-            <div style="font-size:12px;color:rgba(255,255,255,.75);font-weight:600" id="bill-onsite-label">現地精算額（A + B）</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.75);font-weight:600" id="bill-onsite-label">現地清算額（A + B）</div>
             <div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:2px" id="bill-onsite-note"></div>
           </div>
           <span style="font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:500;color:var(--star)" id="bill-onsite-total">¥0</span>
@@ -1641,7 +1641,7 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
       <div class="fg"><label>決済方法</label>
         <select id="dr-payment">
           <option value="">— 不明 —</option>
-          <option value="現地精算">現地精算</option>
+          <option value="現地清算">現地清算</option>
           <option value="事前決済">事前決済</option>
           <option value="振込済み">振込済み</option>
         </select>
@@ -3830,7 +3830,7 @@ function addLodgingTax(){
   for(var ni=0;ni<nights;ni++){
     var nd=new Date(ci+'T00:00:00');nd.setDate(nd.getDate()+ni);
     var ds=nd.getFullYear()+'-'+String(nd.getMonth()+1).padStart(2,'0')+'-'+String(nd.getDate()).padStart(2,'0');
-    billingRows.push({cat:'諸費用',date:ds,item:'沖縄県宿泊税',qty:totalPax,price:taxRate,discount:0,payment:'現地精算'});
+    billingRows.push({cat:'諸費用',date:ds,item:'沖縄県宿泊税',qty:totalPax,price:taxRate,discount:0,payment:'現地清算'});
   }
   renderBillingRows();
   toast('宿泊税を追加しました（1人1泊¥'+taxRate+'　課税標準¥'+taxBase+'/人）');
@@ -3838,7 +3838,7 @@ function addLodgingTax(){
 function addBillingRow(){
   // デフォルト日付は最後の行の日付 or 今日
   var lastDate=(billingRows.length?billingRows[billingRows.length-1].date:'')||'';
-  billingRows.push({date:lastDate,cat:'その他',item:'',qty:1,discount:0,price:0,payment:'事後決済'});
+  billingRows.push({date:lastDate,cat:'その他',item:'',qty:1,discount:0,price:0,payment:''});
   renderBillingRows();
 }
 function removeBillingRow(i){
@@ -3913,7 +3913,7 @@ function autoGenBillingRows(){
   var d1=new Date(ci+'T00:00:00'),d2=new Date(co+'T00:00:00');
   var nights=Math.round((d2-d1)/86400000);
   if(nights<=0){toast('日程が正しくありません');return;}
-  var pay=r.payment||'事後決済';
+  var pay=r.payment||'';
   var rows=[];
 
   // ── OTA取り込み済みの場合はbillingをそのまま復元 ──
@@ -4340,12 +4340,12 @@ function recalcBilling(){
   var points=billingMeta.points||0;
   var furusato=billingMeta.furusato||0;
   var totalB=-(coupon+points+furusato);
-  var basePayMethod=(document.getElementById('edit-payment')||{}).value||'現地精算';
+  var basePayMethod=(document.getElementById('edit-payment')||{}).value||'現地清算';
   var billPayMethod=(document.getElementById('bill-payment')||{}).value||'';
   // ラベル更新
   var prepaid=parseFloat((document.getElementById('bill-prepaid')||{}).value||0);
   var lbl=document.getElementById('bill-onsite-label');
-  if(lbl) lbl.textContent=prepaid>0?'現地精算額（A + B - 前払い）':'現地精算額（A + B）';
+  if(lbl) lbl.textContent=prepaid>0?'現地清算額（A + B - 前払い）':'現地清算額（A + B）';
   var onsiteTotal=Math.max(0,totalA+totalB-prepaid);
   var elA=document.getElementById('bill-total-A'); if(elA) elA.textContent='¥'+fmt(totalA);
   var elB=document.getElementById('bill-total-B'); if(elB) elB.textContent=totalB<0?'▲¥'+fmt(coupon+points+furusato):'¥0';
@@ -5092,7 +5092,7 @@ function syncPaymentEdit(){
   var lbl=document.getElementById('bill-onsite-label');
   if(lbl){
     if(v==='事後決済') lbl.textContent='請求合計額';
-    else lbl.textContent='現地精算額（A + B）';
+    else lbl.textContent='現地清算額（A + B）';
   }
 }
 
@@ -8520,7 +8520,7 @@ function openDirectReservation(){
   document.getElementById('dr-phone').value='';
   document.getElementById('dr-email').value='';
   document.getElementById('dr-source').value='直予約';
-  document.getElementById('dr-payment').value='現地精算';
+  document.getElementById('dr-payment').value='現地清算';
   document.getElementById('dr-notes').value='';
   var drRoomRow=document.getElementById('dr-room-row');
   if(ests.length===1&&e.room==='sup'){
@@ -9576,7 +9576,7 @@ async function confirmReservationFromQuote(quoteId){
         ..._infBreakdownFromBilling(billing&&Array.isArray(billing)?billing:(billing&&billing.rows||[])),
         plan_name: planName,
         total_amount: qr.total_amount||'',
-        payment: '現地精算',
+        payment: '現地清算',
         status: 'confirmed',
         billing: billing && billing.length>0 ? billing : null,
         is_full_buyout: buyoutGroupTag ? true : null,
@@ -9668,7 +9668,7 @@ async function tentativeFromQuote(quoteId){
         ..._infBreakdownFromBilling(billing&&Array.isArray(billing)?billing:(billing&&billing.rows||[])),
         plan_name: planName,
         total_amount: qr.total_amount||'',
-        payment: '現地精算',
+        payment: '現地清算',
         status: 'tentative',
         billing: billing && billing.length>0 ? billing : null,
         is_full_buyout: buyoutGroupTag ? true : null,

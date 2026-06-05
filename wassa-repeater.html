@@ -1082,7 +1082,7 @@ async function initMain() {
 // ── お客様提示見積もりと同じ billing 行を生成 ──
 function buildBillingRows(cin, cout, adults, children, meal, room, infMealBed, infMealOnly, infBedOnly, infNone) {
   if (!_priceData) return [];
-  const pay    = '現地精算';
+  const pay    = '現地清算';
   const hasBf  = meal === 'bf'  || meal === 'both';
   const hasDin = meal === 'din' || meal === 'both';
   const infMeal = infMealBed + infMealOnly;
@@ -1196,7 +1196,7 @@ async function submitBooking() {
       status:        'tentative',
       source:        '直予約',
       room_type:     roomKey === 'dlx' ? 'デラックス' : 'スーペリアツイン02',
-      payment:       '現地精算',
+      payment:       '現地清算',
       plan_name:     { none:'素泊まりプラン', bf:'朝食付きプラン', din:'夕食付きプラン', both:'2食付きプラン' }[meal] || '',
     };
 
