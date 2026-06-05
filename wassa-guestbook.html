@@ -3346,11 +3346,11 @@ async function findOrCreateCustomer(name, phone, email, forceNew){
   return null;
 }
 
-async function saveReservation(andClose){
-  const gname=document.getElementById('edit-guestname').value.trim();if(!gname){toast('お名前を入力してください');return;}
+async function saveReservation(andClose, autoSave){
+  const gname=document.getElementById('edit-guestname').value.trim();if(!gname){if(!autoSave)toast('お名前を入力してください');return;}
   const room=document.getElementById('edit-room-select')?.value;
   // 部屋未選択の場合は警告（カレンダーに表示されない）
-  if(!room){
+  if(!room && !autoSave){
     if(!confirm('⚠ 部屋が選択されていません。\nこのまま保存するとカレンダーに表示されません。\n保存しますか？')) return;
   }
   const payload={reservation_no:document.getElementById('edit-resno1').value,reservation_no2:document.getElementById('edit-resno2').value,source:document.getElementById('edit-source').value,guest_name:gname,plan_name:document.getElementById('edit-planname').value,check_in:document.getElementById('edit-checkin').value||null,check_out:document.getElementById('edit-checkout').value||null,check_in_time:document.getElementById('edit-citime').value,adults:document.getElementById('edit-adults').value||'0',children:document.getElementById('edit-children').value||'0',infants:document.getElementById('edit-infants').value||'0',inf_meal_bed:parseInt(document.getElementById('edit-inf-meal-bed').value)||0,inf_meal_only:parseInt(document.getElementById('edit-inf-meal-only').value)||0,inf_bed_only:parseInt(document.getElementById('edit-inf-bed-only').value)||0,inf_none:parseInt(document.getElementById('edit-inf-none').value)||0,room_type:room,status:document.getElementById('edit-status').value,payment:document.getElementById('edit-payment')?document.getElementById('edit-payment').value:'',companions:collectCompanions(),phone:document.getElementById('edit-phone').value,email:document.getElementById('edit-email').value,notes:document.getElementById('edit-notes').value,
@@ -3371,7 +3371,7 @@ async function saveReservation(andClose){
   // ── ダブルブッキング防止チェック ──
   // waitlist・cancelled は重複OK。それ以外はチェック。
   var _newStatus = payload.status;
-  if(room && payload.check_in && payload.check_out && _newStatus !== 'waitlist' && _newStatus !== 'cancelled'){
+  if(!autoSave && room && payload.check_in && payload.check_out && _newStatus !== 'waitlist' && _newStatus !== 'cancelled'){
     try{
       var _dbq = SUPA_URL+'/rest/v1/reservations'
         +'?room_type=eq.'+encodeURIComponent(room)
@@ -11580,10 +11580,10 @@ function switchModalTab(btn,paneId){
     var leaving=_curPane.id;
     if(leaving==='pane-food' && paneId!=='pane-food'){
       autoSaveFoodRecords(); // 食事タブ
-    } else if((leaving==='pane-basic'||leaving==='pane-billing') && _resDirty){
-      saveReservation(false); // 基本情報・請求タブ（モーダルは閉じない）
-    } else if(leaving==='pane-record' && _resDirty){
-      saveRecordTab(); // 宿泊メモタブ
+    } else if(leaving==='pane-basic'||leaving==='pane-billing'){
+      saveReservation(false, true); // 基本情報・請求タブ（自動保存）
+    } else if(leaving==='pane-record'){
+      saveRecordTab(); // 宿泊記録タブ
     }
   }
   modal.querySelectorAll('.modal-tab').forEach(t=>t.classList.remove('active'));
