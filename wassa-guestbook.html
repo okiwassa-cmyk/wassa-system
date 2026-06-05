@@ -11854,9 +11854,9 @@ function printDailySlips(){
     +'.hw-value{flex:1;font-size:8pt;padding-left:2mm;border-left:1px dotted #888}'
     +'.hw-boxes{display:flex;gap:5mm}'
     +'.hw-box{font-size:9.5pt}'
-    +'@media print{.slip{border:none}button{display:none}}'
+    +'@media print{.slip{border:none}.no-print{display:none}}'
     +'</style></head><body>'
-    +'<div style="padding:8px;text-align:right"><button onclick="window.print()" style="padding:8px 20px;font-size:14px;border:none;border-radius:6px;background:#333;color:#fff;cursor:pointer">印刷</button></div>'
+    +'<div class="no-print" style="padding:8px;text-align:right"><button onclick="window.print()" style="padding:8px 20px;font-size:14px;border:none;border-radius:6px;background:#333;color:#fff;cursor:pointer">印刷</button></div>'
     +allSlips
     +'</body></html>';
 
