@@ -12027,7 +12027,7 @@ async function printLodgerCard(resId){
     h+='<div class="lodger-section">';
     h+='<div class="lodger-section-title">旅券写し</div>';
     h+='<div style="border:1px solid #ccc;padding:8px;display:inline-block;border-radius:4px">';
-    h+='<img src="'+photoDataUrl+'" style="max-width:240px;max-height:160px;display:block" alt="passport">';
+    h+='<img src="'+photoDataUrl+'" style="max-width:100%;max-height:320px;display:block;border-radius:4px" alt="passport">';
     h+='</div>';
     h+='</div>';
   }
@@ -12057,12 +12057,12 @@ async function printLodgerCard(resId){
   }
 
   // ── 署名 ──
-  var sigData=ciData&&ciData.signature ? ciData.signature : '';
+  var sigData=ciData&&ciData.signature&&ciData.signature.length>10 ? ciData.signature : '';
   h+='<div class="lodger-section" style="margin-top:24px">';
   h+='<div class="lodger-section-title">署名</div>';
   if(sigData){
     h+='<div style="border:1px solid #ccc;padding:8px;display:inline-block;border-radius:4px;background:#fff">';
-    h+='<img src="'+sigData+'" style="max-width:300px;max-height:100px;display:block" alt="signature">';
+    h+='<img src="'+sigData+'" style="max-width:100%;max-height:150px;display:block" alt="signature">';
     h+='</div>';
   }else if(!ciData){
     h+='<div style="font-size:12px;color:#999;padding:8px 0">チェックインシート未提出のため署名なし</div>';
