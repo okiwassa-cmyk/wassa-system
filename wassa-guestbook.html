@@ -9310,6 +9310,12 @@ async function openMailPreviewModal(email, guest, quoteIds){
 async function _doSendQuoteEmail(email, guest, quoteHtml, quoteId, urlLines, customSubject, customBody){
   toast('送信中...');
 
+  // doc_type: 確定済み予約なら confirmation、それ以外は estimate
+  var _tqId = quoteId || currentSavedQuoteId;
+  var _tq = allQuotes ? allQuotes.find(function(x){return x.id===_tqId;}) : null;
+  var _tRsv = (_tq && allReservations) ? allReservations.find(function(x){return x.id===_tq.reservation_id;}) : (allReservations ? allReservations.find(function(x){return x.id===currentEditId;}) : null);
+  var _docType = (_tRsv && _tRsv.status==='confirmed') ? 'confirmation' : 'estimate';
+
   // 見積もりデータ（全明細込み）をGASに渡す
   var e = lastEstimate;
   var quoteData = null;
