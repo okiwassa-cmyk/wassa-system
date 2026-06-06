@@ -3088,10 +3088,16 @@ function openCheckinSheet(lang){
     if(cust.gender) p.gender=cust.gender;
     if(!p.pref && cust.pref) p.pref=cust.pref;
     if(!p.city_addr && cust.city) p.city_addr=cust.city;
-    if(!p.addr_detail && cust.address) p.addr_detail=cust.address;
+    if(!p.addr_detail && cust.address){
+      // pref/cityと重複していたら除去してから渡す（重複防止）
+      var _ad=cust.address;
+      if(cust.pref && _ad.indexOf(cust.pref)===0) _ad=_ad.slice(cust.pref.length).trim();
+      if(cust.city && _ad.indexOf(cust.city)===0) _ad=_ad.slice(cust.city.length).trim();
+      p.addr_detail=_ad;
+    }
     // 後方互換：住所を結合してaddressにも設定
     if(!p.address){
-      var _custAddr=[cust.pref||'',cust.city||'',cust.address||''].filter(Boolean).join('');
+      var _custAddr=[cust.pref||'',cust.city||'',p.addr_detail||''].filter(Boolean).join(' ');
       if(_custAddr) p.address=_custAddr;
     }
     if(!p.zip && cust.zip) p.zip=cust.zip;
