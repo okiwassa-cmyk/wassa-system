@@ -3077,7 +3077,7 @@ function openCheckinSheet(lang){
   var cust=r.customer_id?allCustomers.find(function(c){return c.id===r.customer_id;}):null;
   // ⑩住所は顧客マスタ優先（2重登録防止）
   var _resAddr = r.address||'';
-  var p={id:r.id,name:r.guest_name||'',checkin:r.check_in||'',checkout:r.check_out||'',adults:r.adults||0,children:r.children||0,infants:r.infants||0,plan:r.plan_name||'',phone:r.phone||'',email:r.email||'',address:'',notes:r.notes||'',lang:lang||'ja'};
+  var p={id:r.id,name:(cust&&(cust.sei||cust.mei)?((cust.sei||'')+(cust.mei?'　'+cust.mei:'')):(r.guest_name||'').replace(/（[^）]*）|\([^)]*\)/g,'').trim()),checkin:r.check_in||'',checkout:r.check_out||'',adults:r.adults||0,children:r.children||0,infants:r.infants||0,plan:r.plan_name||'',phone:r.phone||'',email:r.email||'',address:'',notes:r.notes||'',lang:lang||'ja'};
   if(r.group_id) p.group_id=r.group_id;
   if(r.room) p.room=r.room;
   if(r.customer_id) p.customer_id=r.customer_id;
