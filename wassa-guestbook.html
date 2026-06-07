@@ -1297,7 +1297,6 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <button id="btn-copy-food-group" class="btn btn-ghost btn-sm owner-only" onclick="copyFoodToGroupRooms()" style="display:none">📋 他の部屋にコピー</button>
           <button class="btn btn-ghost btn-sm owner-only" onclick="showAddFoodDatePicker()">＋ 個別追加</button>
-          <button class="btn btn-primary btn-sm owner-only" onclick="saveAllDirtyFood()">保存</button>
           <button class="btn btn-secondary btn-sm" onclick="printFoodSheet()">印刷</button>
         </div>
       </div>
@@ -1333,7 +1332,7 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
       </div>
       <div class="fg full" style="margin-top:14px"><label>宿泊メモ</label><textarea id="rec-memo" rows="4" placeholder="お客様の様子、特別な出来事など..."></textarea></div>
       <div style="margin-top:10px;display:flex;align-items:center;gap:10px">
-        <button class="btn btn-primary btn-sm owner-only" onclick="saveRecordTab()">宿泊メモを保存</button>
+        <span style="font-size:11px;color:var(--text3)">タブ移動時に自動保存されます</span>
         <span id="rec-save-status" style="font-size:11px;color:var(--text3)"></span>
       </div>
     </div>
