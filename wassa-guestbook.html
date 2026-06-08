@@ -11149,21 +11149,6 @@ function renderCustFamily(){
     html+='<div style="margin-top:8px;padding:8px 12px">'
       +'<button onclick="unlinkFamilyAll()" style="background:none;border:1px solid var(--coral);border-radius:6px;color:var(--coral);font-size:12px;padding:4px 12px;cursor:pointer">🔓 グループ全員を解除</button>'
       +'</div>';
-    // family_idメンバーがいる場合でもスロット子供を追加表示
-    var slots=['family1','family2','family3','family4'];
-    var slotEntries=slots.filter(function(s){return !!c[s];});
-    if(slotEntries.length>0){
-      html+=slotEntries.map(function(s){
-        var nm=c[s]||'';var kn=c[s+'_kana']||'';var rl=c[s+'_rel']||'';
-        return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--sand)">'
-          +'<div class="avatar" style="width:32px;height:32px;font-size:13px;background:var(--sand2);color:var(--text2)">'+(nm[0]||'?')+'</div>'
-          +'<div style="flex:1"><div style="font-size:13px;font-weight:500;color:var(--text)">'+nm+(rl?'<span style="font-size:11px;color:var(--ocean2);margin-left:6px">'+rl+'</span>':'')+'</div>'
-          +(kn?'<div style="font-size:11px;color:var(--text3)">'+kn+'</div>':'')+'</div>'
-          +'<input type="text" placeholder="続柄" value="'+rl+'" onchange="updateFamilySlotRel(\''+s+'\',this.value)" onclick="event.stopPropagation()" style="width:90px;padding:3px 8px;border:1px solid var(--sand2);border-radius:4px;font-size:11px;color:var(--text2);flex-shrink:0">'
-          +'<button onclick="removeFamilySlot(\''+s+'\')" style="background:none;border:1px solid var(--coral);border-radius:4px;color:var(--coral);font-size:11px;padding:2px 8px;cursor:pointer;white-space:nowrap">削除</button>'
-          +'</div>';
-      }).join('');
-    }
   } else {
     // family1〜4スロットを確認
     var slots=['family1','family2','family3','family4'];
