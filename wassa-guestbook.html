@@ -4814,10 +4814,10 @@ function renderFoodRecords() {
       // 大人テキストの行数を計算（最低4行）
       var mealLines = Math.max(4, (r.meal_detail||'').split('\n').length + 1);
       var kidsLines = Math.max(3, (r.kids_meal_detail||'').split('\n').length + 1);
-      html += '<div style="padding:10px 12px;border-top:1px solid var(--sand2)">';
+      html += '<div data-food-id="'+r.id+'" style="padding:10px 12px;border-top:1px solid var(--sand2)">';
       // カテゴリ選択 + 削除・保存ボタン
       html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
-      html += '<select onchange="frUpdate('+idx+',\'category\',this.value)" style="font-size:12px;font-weight:600;background:'+catBg+';color:'+catFg+';border:none;padding:2px 8px;border-radius:10px;font-family:inherit">';
+      html += '<select data-food-field="category" onchange="frUpdate('+idx+',\'category\',this.value)" style="font-size:12px;font-weight:600;background:'+catBg+';color:'+catFg+';border:none;padding:2px 8px;border-radius:10px;font-family:inherit">';
       // ディナー→夕食に統一、null→夕食にデフォルト（FileMaker移行データ対応）
       ['朝食','夕食','昼食'].forEach(function(c) {
         html += '<option value="'+c+'" '+(_effCat===c?'selected':'')+'>'+c+'</option>';
@@ -4829,22 +4829,22 @@ function renderFoodRecords() {
       html += '</div>';
       // コース名（menu_name）＋全カテゴリに料金入力
       html += '<div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">';
-      html += '<input type="text" value="'+escHtml(r.menu_name||'')+'" placeholder="コース名・食事名（例：沖縄料理コース）" oninput="frUpdate('+idx+',\'menu_name\',this.value)" style="flex:1;font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-family:inherit">';
+      html += '<input type="text" data-food-field="menu_name" value="'+escHtml(r.menu_name||'')+'" placeholder="コース名・食事名（例：沖縄料理コース）" oninput="frUpdate('+idx+',\'menu_name\',this.value)" style="flex:1;font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-family:inherit">';
       html += '</div>';
       // 子供食事がある場合のみ2列、ない場合は大人のみ全幅
       if (hasKids) {
         html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
         html += '<div><div style="font-size:10px;font-weight:600;color:var(--text3);margin-bottom:3px">大人食事内容</div>';
         html += '<button onclick="openMenuPicker('+idx+',\'meal_detail\')" style="margin-bottom:4px;background:none;border:1px solid var(--ocean2);border-radius:4px;padding:2px 8px;font-size:11px;color:var(--ocean2);cursor:pointer">メニューから選択</button>';
-        html += '<textarea class="fr-ta" style="font-size:12px;width:100%;box-sizing:border-box;resize:vertical;min-height:80px" oninput="frUpdate('+idx+',\'meal_detail\',this.value);autoResize(this)">'+escHtml(r.meal_detail||'')+'</textarea></div>';
+        html += '<textarea class="fr-ta" data-food-field="meal_detail" style="font-size:12px;width:100%;box-sizing:border-box;resize:vertical;min-height:80px" oninput="frUpdate('+idx+',\'meal_detail\',this.value);autoResize(this)">'+escHtml(r.meal_detail||'')+'</textarea></div>';
         html += '<div><div style="display:flex;align-items:center;gap:8px;margin-bottom:3px"><span style="font-size:10px;font-weight:600;color:var(--green)">子供食事内容</span><button onclick="frUpdate('+idx+',\'kids_meal_detail\',\'\');renderFoodRecords()" style="background:none;border:1px solid var(--coral);border-radius:4px;cursor:pointer;color:var(--coral);font-size:11px;padding:1px 8px;line-height:1.4" title="子供食事を削除">削除</button></div>';
         html += '<button onclick="openMenuPicker('+idx+',\'kids_meal_detail\')" style="margin-bottom:4px;background:none;border:1px solid var(--green);border-radius:4px;padding:2px 8px;font-size:11px;color:var(--green);cursor:pointer">メニューから選択</button>';
-        html += '<textarea class="fr-ta" style="font-size:12px;width:100%;box-sizing:border-box;resize:vertical;min-height:60px" oninput="frUpdate('+idx+',\'kids_meal_detail\',this.value);autoResize(this)">'+escHtml(r.kids_meal_detail||'')+'</textarea></div>';
+        html += '<textarea class="fr-ta" data-food-field="kids_meal_detail" style="font-size:12px;width:100%;box-sizing:border-box;resize:vertical;min-height:60px" oninput="frUpdate('+idx+',\'kids_meal_detail\',this.value);autoResize(this)">'+escHtml(r.kids_meal_detail||'')+'</textarea></div>';
         html += '</div>';
       } else {
         html += '<div>';
         html += '<button onclick="openMenuPicker('+idx+',\'meal_detail\')" style="margin-bottom:4px;background:none;border:1px solid var(--ocean2);border-radius:4px;padding:2px 8px;font-size:11px;color:var(--ocean2);cursor:pointer">メニューから選択</button>';
-        html += '<textarea class="fr-ta" style="font-size:12px;width:100%;box-sizing:border-box;resize:vertical;min-height:80px" oninput="frUpdate('+idx+',\'meal_detail\',this.value);autoResize(this)">'+escHtml(r.meal_detail||'')+'</textarea>';
+        html += '<textarea class="fr-ta" data-food-field="meal_detail" style="font-size:12px;width:100%;box-sizing:border-box;resize:vertical;min-height:80px" oninput="frUpdate('+idx+',\'meal_detail\',this.value);autoResize(this)">'+escHtml(r.meal_detail||'')+'</textarea>';
         html += '<button onclick="openKidsField('+idx+')" style="margin-top:4px;background:none;border:1px solid var(--green);border-radius:4px;padding:4px 10px;font-size:11px;color:var(--green);cursor:pointer">＋ 子供食事を追加</button>';
         html += '</div>';
       }
@@ -5341,6 +5341,20 @@ async function unlinkFromGroup(){
 
 function saveAllDirtyFood(){ autoSaveFoodRecords(); } // 食事タブ保存ボタン用エイリアス
 async function autoSaveFoodRecords(silent){
+  // 保存前にDOMから最新値を currentFoodRecords へ同期（oninput 未発火でも確実に反映）
+  var listEl = document.getElementById('food-records-list');
+  if(listEl){
+    listEl.querySelectorAll('[data-food-id]').forEach(function(container){
+      var foodId = parseInt(container.getAttribute('data-food-id'));
+      var rec = currentFoodRecords.find(function(r){ return r.id === foodId; });
+      if(!rec) return;
+      container.querySelectorAll('[data-food-field]').forEach(function(el){
+        var field = el.getAttribute('data-food-field');
+        var val = el.tagName === 'SELECT' ? el.value : el.value;
+        if(rec[field] !== val){ rec[field] = val; rec._dirty = true; }
+      });
+    });
+  }
   var toSave = currentFoodRecords.filter(function(r){ return r.id; });
   if(toSave.length === 0){ if(!silent) toast('食事データがありません'); return; }
   // 保存前に _dirty の有無を確認（トースト表示判定用）
