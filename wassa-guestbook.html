@@ -4230,6 +4230,17 @@ function applyBillingPreset(presetId){
   closeModal('billing-picker-modal');
 }
 function _billingRowAmt(r){return r.is_ref?0:(parseFloat(r.price)||0)*(parseFloat(r.qty)||1)-(parseFloat(r.discount)||0);}
+function _calcRev(r){
+  var b=r.billing;
+  var fallback=parseFloat(String(r.total_amount||'').replace(/,/g,''))||0;
+  if(!b)return fallback;
+  var rows=Array.isArray(b)?b:(b.rows||[]);
+  if(!rows.length)return fallback;
+  var total=rows.reduce(function(s,row){return s+_billingRowAmt(row);},0);
+  var meta=Array.isArray(b)?{}:b;
+  total-=(parseFloat(meta.coupon)||0)+(parseFloat(meta.points)||0)+(parseFloat(meta.furusato)||0);
+  return Math.max(0,Math.round(total));
+}
 
 // ── 宿泊プランドロップダウンから食事行を自動展開・再計算 ──
 function applyMealPlanToBilling(planName){
@@ -6771,7 +6782,7 @@ function renderMgmtStats(year){
   var roomOcc={};ROOMS.forEach(function(rm){roomOcc[rm]=Math.round((roomNights[rm]||0)/daysInYear*1000)/10;});
 
   // ── 売上・ADR・RevPAR ──
-  var totalRev=rsvs.reduce(function(s,r){return s+(parseFloat(r.total_amount)||0);},0);
+  var totalRev=rsvs.reduce(function(s,r){return s+_calcRev(r);},0);
   var adr=totalNights>0?Math.round(totalRev/totalNights):0;
   var revpar=avail>0?Math.round(totalRev/avail):0;
 
@@ -6781,7 +6792,7 @@ function renderMgmtStats(year){
 
   // ── 経路別 ──
   var srcMap={};
-  rsvs.forEach(function(r){var s=r.source||'不明';srcMap[s]=(srcMap[s]||0)+(parseFloat(r.total_amount)||0);});
+  rsvs.forEach(function(r){var s=r.source||'不明';srcMap[s]=(srcMap[s]||0)+_calcRev(r);});
   var srcTotal=Object.values(srcMap).reduce(function(a,b){return a+b;},0);
   var srcRows=Object.entries(srcMap).sort(function(a,b){return b[1]-a[1];}).map(function(kv){
     var pct=srcTotal>0?Math.round(kv[1]/srcTotal*1000)/10:0;
@@ -6792,7 +6803,7 @@ function renderMgmtStats(year){
   var monthRev=new Array(12).fill(0),monthAdult=new Array(12).fill(0),monthChild=new Array(12).fill(0),monthInfant=new Array(12).fill(0),monthNights2=new Array(12).fill(0);
   rsvs.forEach(function(r){
     var mo=parseInt((r.check_in||'').slice(5,7))-1;if(mo<0||mo>11)return;
-    monthRev[mo]+=(parseFloat(r.total_amount)||0);
+    monthRev[mo]+=_calcRev(r);
     monthAdult[mo]+=(parseInt(r.adults)||0);monthChild[mo]+=(parseInt(r.children)||0);monthInfant[mo]+=(parseInt(r.infants)||0);
     monthNights2[mo]+=nights(r);
   });
@@ -6832,7 +6843,7 @@ function renderMgmtStats(year){
     var cyHasMR_=allMonthlyRevenue.some(function(mr){return mr.year_month.startsWith(cyStr_);});
     if(!cyRsvs_.length&&!cyHasMR_)continue;
     var cyNights_=cyRsvs_.reduce(function(s,r){return s+nights(r);},0);
-    var cyRev_=cyRsvs_.reduce(function(s,r){return s+(parseFloat(r.total_amount)||0);},0);
+    var cyRev_=cyRsvs_.reduce(function(s,r){return s+_calcRev(r);},0);
     // AirレジCSVデータがあれば売上を上書き（より正確な実売上）
     var cyRevMR_=allMonthlyRevenue.filter(function(mr){return mr.year_month.startsWith(cyStr_);}).reduce(function(s,mr){return s+mr.revenue;},0);
     if(cyRevMR_>0)cyRev_=cyRevMR_;
@@ -11617,7 +11628,7 @@ function renderDashboardChart(){
   // バー表示：targetMonthを末尾にした直近7ヶ月
   var barEnd=centerIdx, barStart=Math.max(0,barEnd-6);
   var months=allMonths.slice(barStart,barEnd+1);
-  var stats=months.map(function(m){var recs=allReservations.filter(function(r){return r.status!=='cancelled'&&(r.check_in||'').startsWith(m);});var sales=recs.reduce(function(s,r){return s+(parseInt((r.total_amount||'0').toString().replace(/,/g,''))||0);},0);return{month:m,count:recs.length,sales:sales};});
+  var stats=months.map(function(m){var recs=allReservations.filter(function(r){return r.status!=='cancelled'&&(r.check_in||'').startsWith(m);});var sales=recs.reduce(function(s,r){return s+_calcRev(r);},0);return{month:m,count:recs.length,sales:sales};});
   var labelEl=document.getElementById('dash-chart-label');if(labelEl)labelEl.textContent=targetMonth.replace('-','年')+'月';
   var tmStats=stats.find(function(s){return s.month===targetMonth;})||{count:0,sales:0};
   var parts=targetMonth.split('-');var ty=parseInt(parts[0]),tm2=parseInt(parts[1]);var daysInMonth=new Date(ty,tm2,0).getDate();
