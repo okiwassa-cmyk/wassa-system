@@ -1297,6 +1297,7 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <button id="btn-copy-food-group" class="btn btn-ghost btn-sm owner-only" onclick="copyFoodToGroupRooms()" style="display:none">📋 他の部屋にコピー</button>
           <button class="btn btn-ghost btn-sm owner-only" onclick="showAddFoodDatePicker()">＋ 個別追加</button>
+          <button class="btn btn-primary btn-sm" onclick="autoSaveFoodRecords()">保存</button>
           <button class="btn btn-secondary btn-sm" onclick="printFoodSheet()">印刷</button>
         </div>
       </div>
@@ -3352,11 +3353,11 @@ async function findOrCreateCustomer(name, phone, email, forceNew){
 }
 
 async function saveReservation(andClose, autoSave){
-  // 食事タブが開いていてdirtyなレコードがあれば一緒に保存
+  // 食事タブが開いていてdirtyなレコードがあれば先に保存（awaitで完了を待つ）
   var _foodPane=document.getElementById('pane-food');
-  if(_foodPane&&(_foodPane.classList.contains('active')||_foodPane.style.display==='block')){
+  if(_foodPane&&_foodPane.classList.contains('active')){
     var _hasDirty=(currentFoodRecords||[]).some(function(r){return r._dirty;});
-    if(_hasDirty) autoSaveFoodRecords();
+    if(_hasDirty) await autoSaveFoodRecords();
   }
   const gname=document.getElementById('edit-guestname').value.trim();if(!gname){if(!autoSave)toast('お名前を入力してください');return;}
   const room=document.getElementById('edit-room-select')?.value;
