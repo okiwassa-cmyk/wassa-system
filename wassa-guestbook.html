@@ -2528,6 +2528,22 @@ function updateLockPin(phone){
   var val=document.getElementById('lock-pin-value');
   if(disp&&val){disp.style.display=pin?'flex':'none';if(pin)val.textContent=pin;}
 }
+async function _callRemoteLock(resvId){
+  try{
+    var resp=await fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'setRemoteLock',reservation_id:resvId})});
+    var data=resp.ok?await resp.json().catch(function(){return null;}):null;
+    if(data&&data.ok){
+      toast('🔑 リモートロック設定完了 PIN: '+data.pin);
+    } else {
+      toast('⚠️ リモートロック自動設定失敗: '+(data&&data.error||'GAS未接続')+'（メールで通知済み）');
+    }
+  }catch(e){ console.warn('RemoteLOCK call error:',e); }
+}
+async function _cancelRemoteLock(rlBookingId){
+  try{
+    fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'cancelRemoteLock',rl_booking_id:rlBookingId})});
+  }catch(e){ console.warn('RemoteLOCK cancel error:',e); }
+}
 function updateTentativeBanner(){
   var sel=document.getElementById('edit-status');
   var banner=document.getElementById('tentative-banner');
@@ -2731,6 +2747,7 @@ async function loadCompanionsFromDB(reservationId){
 
 // ── 代表者名サジェスト ──
 var _modalCustomerId = null;
+var _editOrigStatus  = null;  // フォームを開いた時点のステータス（RemoteLOCK変更検知用）
 
 function updateGuestSuggest(){
   var q = (document.getElementById('edit-guestname').value||'').trim();
@@ -3174,6 +3191,7 @@ function fillResForm(r){
   _setDate('edit-checkin',r.check_in);_setDate('edit-checkout',r.check_out);set('edit-citime',r.check_in_time||'16:00');
   set('edit-adults',parseInt(r.adults)||2);set('edit-children',parseInt(r.children)||0);set('edit-inf-meal-bed',parseInt(r.inf_meal_bed)||0);set('edit-inf-meal-only',parseInt(r.inf_meal_only)||0);set('edit-inf-bed-only',parseInt(r.inf_bed_only)||0);set('edit-inf-none',parseInt(r.inf_none)||0);calcInfTotal();
   set('edit-status',r.status||'confirmed');updateTentativeBanner();loadCompanions(r.companions||'');
+  _editOrigStatus = r.status || 'confirmed';
   // ②予約番号2：空なら非表示
   var rn2row = document.getElementById('resno2-row');
   if(rn2row) rn2row.style.display = (r.reservation_no2||r.resno2||'') ? '' : 'none';
@@ -3523,6 +3541,16 @@ async function saveReservation(andClose, autoSave){
     }
     _resDirty=false;_setDirtyIndicator('res-modal',false);renderDashboard();renderReservations();renderCalendar();
     localStorage.removeItem('wassa_res_draft'); // 保存成功時は下書きを削除
+    // RemoteLOCK: confirmed に変更したとき自動設定
+    if(payload.status==='confirmed' && _editOrigStatus!=='confirmed' && savedResId){
+      _callRemoteLock(savedResId);
+    }
+    // RemoteLOCK: cancelled に変更したとき無効化
+    if(payload.status==='cancelled' && _editOrigStatus!=='cancelled' && savedResId){
+      var _rlBkId=(_existing&&_existing.rl_booking_id)||null;
+      if(_rlBkId) _cancelRemoteLock(_rlBkId);
+    }
+    _editOrigStatus=payload.status; // 保存後に更新
     if(andClose){ toast('✅ 保存しました'); closeModal('res-modal'); }
     else { toast('✅ 自動保存しました'); }
   }catch(e){
@@ -11269,12 +11297,20 @@ function renderCustFamily(){
     html+='<div style="margin-top:8px;padding:8px 12px">'
       +'<button onclick="unlinkFamilyAll()" style="background:none;border:1px solid var(--coral);border-radius:6px;color:var(--coral);font-size:12px;padding:4px 12px;cursor:pointer">🔓 グループ全員を解除</button>'
       +'</div>';
-  } else {
-    // family1〜4スロットを確認
-    var slots=['family1','family2','family3','family4'];
-    var slotEntries=slots.filter(function(s){return !!c[s];});
+  }
+  // family1〜4スロット（family_idグループや既出と重複しない名前のみ表示）
+  var _famNorm=function(s){return (s||'').replace(/[\s\u3000　]+/g,'');};
+  var _grpNames=members.map(function(m){return _famNorm((m.sei||'')+(m.mei||''));});
+  var slots=['family1','family2','family3','family4'];
+  var _seenSlot={};
+  var slotEntries=slots.filter(function(s){
+    if(!c[s])return false;
+    var k=_famNorm(c[s]);
+    if(!k||_grpNames.indexOf(k)!==-1||_seenSlot[k])return false;
+    _seenSlot[k]=true;return true;
+  });
     if(slotEntries.length>0){
-      html+='<div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--sand2)">👨‍👩‍👧 同室家族</div>';
+      html+='<div style="font-size:11px;font-weight:600;color:var(--text3);margin:'+(members.length>0?'18px 0 8px':'0 0 8px')+';padding-bottom:4px;border-bottom:1px solid var(--sand2)">👨‍👩‍👧 同室家族</div>';
       html+=slotEntries.map(function(s){
         var nm=c[s]||'';
         var kn=c[s+'_kana']||'';
@@ -11289,10 +11325,9 @@ function renderCustFamily(){
           +'<button onclick="removeFamilySlot(\''+s+'\')" style="background:none;border:1px solid var(--coral);border-radius:4px;color:var(--coral);font-size:11px;padding:2px 8px;cursor:pointer;white-space:nowrap">削除</button>'
           +'</div>';
       }).join('');
-    } else {
+    } else if(members.length===0){
       html+='<div style="padding:20px 0;color:var(--text3);font-size:13px">家族メンバーが登録されていません</div>';
     }
-  }
   // 同住所の顧客
   var addr=((c.pref||'')+(c.city||'')+(c.address||'')).replace(/[\s\u3000]/g,'').trim();
   if(addr.length>=10){
