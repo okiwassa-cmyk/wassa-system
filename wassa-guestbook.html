@@ -3353,11 +3353,10 @@ async function findOrCreateCustomer(name, phone, email, forceNew){
 }
 
 async function saveReservation(andClose, autoSave){
-  // 食事タブが開いていてdirtyなレコードがあれば先に保存（awaitで完了を待つ）
+  // 食事タブが開いていれば先に保存（awaitで完了を待つ）
   var _foodPane=document.getElementById('pane-food');
-  if(_foodPane&&_foodPane.classList.contains('active')){
-    var _hasDirty=(currentFoodRecords||[]).some(function(r){return r._dirty;});
-    if(_hasDirty) await autoSaveFoodRecords();
+  if(_foodPane&&_foodPane.classList.contains('active')&&(currentFoodRecords||[]).length>0){
+    await autoSaveFoodRecords(true); // silent（主保存トーストと重複しないよう）
   }
   const gname=document.getElementById('edit-guestname').value.trim();if(!gname){if(!autoSave)toast('お名前を入力してください');return;}
   const room=document.getElementById('edit-room-select')?.value;
@@ -5312,31 +5311,28 @@ async function unlinkFromGroup(){
 }
 
 function saveAllDirtyFood(){ autoSaveFoodRecords(); } // 食事タブ保存ボタン用エイリアス
-async function autoSaveFoodRecords(){
-  var dirty = currentFoodRecords.filter(function(r){return r._dirty;});
-  if(dirty.length===0) return;
-  for(var i=0;i<currentFoodRecords.length;i++){
-    if(currentFoodRecords[i]._dirty) await saveFoodRecord(i);
+async function autoSaveFoodRecords(silent){
+  var toSave = currentFoodRecords.filter(function(r){ return r.id; });
+  if(toSave.length === 0){ if(!silent) toast('食事データがありません'); return; }
+  var failed = 0;
+  for(var i = 0; i < currentFoodRecords.length; i++){
+    var r = currentFoodRecords[i];
+    if(!r || !r.id) continue;
+    try {
+      await sbPatch('food_records', r.id, {
+        category:         r.category,
+        served_date:      r.served_date,
+        menu_name:        r.menu_name || null,
+        meal_detail:      r.meal_detail || null,
+        kids_meal_detail: r.kids_meal_detail || null
+      });
+      currentFoodRecords[i]._dirty = false;
+    } catch(e) { failed++; console.error('food save error', r.id, e); }
   }
-  toast('✅ 食事内容を保存しました');
-}
-
-async function saveFoodRecord(idx) {
-  var savedEl = document.getElementById('food-saved-'+idx);
-  if(savedEl) { savedEl.textContent = '保存中…'; }
-  if(currentFoodRecords[idx]) currentFoodRecords[idx]._dirty = false;
-  var r = currentFoodRecords[idx];
-  if (!r) return;
-  try {
-    await sbPatch('food_records', r.id, {
-      category:          r.category,
-      served_date:       r.served_date,
-      menu_name:         r.menu_name || null,
-      meal_detail:       r.meal_detail || null,
-      kids_meal_detail:  r.kids_meal_detail || null
-    });
-    toast('✅ 保存しました');
-  } catch(e) { toast('⚠️ エラー: '+e.message); }
+  if(!silent){
+    if(failed) toast('⚠️ ' + failed + '件の保存に失敗しました');
+    else toast('✅ 食事内容を保存しました');
+  }
 }
 
 async function deleteFoodRecord(idx) {
@@ -11563,7 +11559,7 @@ function closeModal(id){
   if(id==='res-modal' && currentEditId){
     var foodPane = document.getElementById('pane-food');
     if(foodPane && (foodPane.classList.contains('active')||foodPane.style.display==='block')){
-      autoSaveFoodRecords();
+      autoSaveFoodRecords(true); // モーダル閉じ時サイレント保存
     }
   }
   // 予約モーダル：変更があれば自動保存して閉じる
@@ -11593,7 +11589,7 @@ function switchModalTab(btn,paneId){
   if(_curPane && modal.id==='res-modal' && currentEditId){
     var leaving=_curPane.id;
     if(leaving==='pane-food' && paneId!=='pane-food'){
-      autoSaveFoodRecords(); // 食事タブ
+      autoSaveFoodRecords(true); // 食事タブ（タブ離脱時サイレント保存）
     } else if(leaving==='pane-basic'||leaving==='pane-billing'){
       saveReservation(false, true); // 基本情報・請求タブ（自動保存）
     } else if(leaving==='pane-record'){
