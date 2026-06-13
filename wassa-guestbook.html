@@ -1389,6 +1389,34 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
       <button class="modal-close" onclick="closeModal('dup-modal')">✕</button>
     </div>
     <div style="padding:0 20px 8px;font-size:12px;color:var(--text3)">同じ名前の顧客を一覧表示します。内容を確認して不要な方を統合・削除してください。</div>
+    <!-- 手動統合パネル -->
+    <div style="margin:0 16px 14px;border:1px solid var(--border);border-radius:10px;overflow:hidden">
+      <div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="background:var(--sand);padding:8px 14px;font-size:12px;font-weight:600;color:var(--ocean);cursor:pointer;display:flex;align-items:center;gap:6px">
+        <span>✏️ 手動統合（ひらがな↔漢字など名前が違う場合）</span>
+        <span style="margin-left:auto;color:var(--text3);font-size:11px">タップで開く</span>
+      </div>
+      <div id="manual-merge-panel" style="display:none;padding:14px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <!-- 残す顧客 -->
+          <div>
+            <div style="font-size:11px;font-weight:600;color:var(--ocean);margin-bottom:5px">🔵 残す顧客（こちらに統合）</div>
+            <input id="mm-keep-q" type="text" placeholder="名前・よみ・電話で検索" oninput="mmSearch('keep')" style="width:100%;box-sizing:border-box;font-size:12px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-family:inherit">
+            <div id="mm-keep-results" style="max-height:140px;overflow-y:auto;border:1px solid var(--border);border-top:none;border-radius:0 0 6px 6px;display:none"></div>
+            <div id="mm-keep-selected" style="margin-top:6px;font-size:12px;color:var(--ocean);font-weight:600;min-height:18px"></div>
+          </div>
+          <!-- 削除する顧客 -->
+          <div>
+            <div style="font-size:11px;font-weight:600;color:#c0392b;margin-bottom:5px">🔴 削除する顧客（予約だけ残す）</div>
+            <input id="mm-del-q" type="text" placeholder="名前・よみ・電話で検索" oninput="mmSearch('del')" style="width:100%;box-sizing:border-box;font-size:12px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-family:inherit">
+            <div id="mm-del-results" style="max-height:140px;overflow-y:auto;border:1px solid var(--border);border-top:none;border-radius:0 0 6px 6px;display:none"></div>
+            <div id="mm-del-selected" style="margin-top:6px;font-size:12px;color:#c0392b;font-weight:600;min-height:18px"></div>
+          </div>
+        </div>
+        <div style="text-align:center">
+          <button id="mm-exec-btn" onclick="mmExec()" style="display:none;background:#c0392b;color:white;border:none;border-radius:6px;padding:8px 24px;font-size:13px;font-weight:600;cursor:pointer">統合→削除（赤い方を削除して予約を青い方に移す）</button>
+        </div>
+      </div>
+    </div>
     <div id="dup-list" style="padding:0 16px 20px"></div>
   </div>
 </div>
@@ -6278,6 +6306,48 @@ async function mergeCustomer(deleteId, keepId) {
   } catch(e) {
     toast('エラー: '+e.message);
   }
+}
+
+// ━━ 手動統合（手動マージUI） ━━
+var _mmKeepId = null;
+var _mmDelId  = null;
+function mmSearch(side) {
+  var q = (document.getElementById('mm-'+side+'-q').value||'').replace(/[\s\u3000]/g,'').toLowerCase();
+  var resEl = document.getElementById('mm-'+side+'-results');
+  if(q.length < 1){ resEl.style.display='none'; return; }
+  var hits = allCustomers.filter(function(c){
+    var name = ((c.sei||'')+(c.mei||'')).toLowerCase();
+    var kana = ((c.sei_kana||'')+(c.mei_kana||'')).toLowerCase();
+    var tel  = (c.mobile||c.tel||'').replace(/\D/g,'');
+    return name.indexOf(q)>-1 || kana.indexOf(q)>-1 || tel.indexOf(q)>-1;
+  }).slice(0,8);
+  if(!hits.length){ resEl.innerHTML='<div style="padding:8px;font-size:12px;color:var(--text3)">該当なし</div>'; resEl.style.display='block'; return; }
+  resEl.innerHTML = hits.map(function(c){
+    var resvCnt = allReservations.filter(function(r){ return r.customer_id===c.id; }).length;
+    var label = (c.sei||'')+'　'+(c.mei||'');
+    var sub   = [c.sei_kana,c.mei_kana].filter(Boolean).join('　') + (c.mobile?' / '+c.mobile:'');
+    return '<div onclick="mmSelect(\''+side+'\','+c.id+')" style="padding:7px 12px;cursor:pointer;border-top:1px solid var(--sand2);font-size:12px;display:flex;justify-content:space-between;align-items:center" onmouseover="this.style.background=\'var(--sand)\'" onmouseout="this.style.background=\'\'">'
+      +'<div><div style="font-weight:600">'+label+'</div><div style="color:var(--text3);font-size:11px">'+sub+'</div></div>'
+      +'<div style="font-size:11px;color:var(--text3)">予約'+resvCnt+'件</div></div>';
+  }).join('');
+  resEl.style.display='block';
+}
+function mmSelect(side, custId) {
+  var c = allCustomers.find(function(x){ return x.id === custId; });
+  if(!c) return;
+  var label = (c.sei||'')+'　'+(c.mei||'') + '（ID:'+c.id+'）';
+  var resvCnt = allReservations.filter(function(r){ return r.customer_id===c.id; }).length;
+  document.getElementById('mm-'+side+'-q').value = (c.sei||'')+'　'+(c.mei||'');
+  document.getElementById('mm-'+side+'-results').style.display='none';
+  document.getElementById('mm-'+side+'-selected').textContent = label + '　予約'+resvCnt+'件';
+  if(side==='keep') _mmKeepId = custId;
+  else              _mmDelId  = custId;
+  var btn = document.getElementById('mm-exec-btn');
+  btn.style.display = (_mmKeepId && _mmDelId && _mmKeepId !== _mmDelId) ? '' : 'none';
+}
+function mmExec() {
+  if(!_mmKeepId || !_mmDelId || _mmKeepId === _mmDelId) return;
+  mergeCustomer(_mmDelId, _mmKeepId);
 }
 
 // ━━ MENUS ━━
