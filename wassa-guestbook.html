@@ -3352,6 +3352,12 @@ async function findOrCreateCustomer(name, phone, email, forceNew){
 }
 
 async function saveReservation(andClose, autoSave){
+  // 食事タブが開いていてdirtyなレコードがあれば一緒に保存
+  var _foodPane=document.getElementById('pane-food');
+  if(_foodPane&&(_foodPane.classList.contains('active')||_foodPane.style.display==='block')){
+    var _hasDirty=(currentFoodRecords||[]).some(function(r){return r._dirty;});
+    if(_hasDirty) autoSaveFoodRecords();
+  }
   const gname=document.getElementById('edit-guestname').value.trim();if(!gname){if(!autoSave)toast('お名前を入力してください');return;}
   const room=document.getElementById('edit-room-select')?.value;
   // 部屋未選択の場合は警告（カレンダーに表示されない）
