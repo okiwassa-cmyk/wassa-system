@@ -2614,10 +2614,10 @@ function openReservation(id){
   if(grpCiBtn) grpCiBtn.style.display='none';
   // 手動CI済ボタン：confirmed かつ check_in が今日以前のときのみ表示
   var qciBtn=document.getElementById('quick-checkin-btn');
-  if(qciBtn){var _ciDate=r.check_in?new Date(r.check_in):null;var _today=new Date();_today.setHours(0,0,0,0);qciBtn.style.display=(r.status==='confirmed'&&_ciDate&&_ciDate<=_today)?'':'none';}
+  if(qciBtn){var _tod=new Date();var _todStr=_tod.getFullYear()+'-'+String(_tod.getMonth()+1).padStart(2,'0')+'-'+String(_tod.getDate()).padStart(2,'0');qciBtn.style.display=(r.status==='confirmed'&&r.check_in&&r.check_in<=_todStr)?'':'none';}
   // 宿泊台帳：checkin/checkout、またはconfirmedでもcheck_inが今日以前なら表示
   var lodgerBtn=document.getElementById('lodger-print-btn');
-  if(lodgerBtn){var _ciDate2=r.check_in?new Date(r.check_in):null;var _today2=new Date();_today2.setHours(0,0,0,0);var _showLodger=(r.status==='checkin'||r.status==='checkout')||(r.status==='confirmed'&&_ciDate2&&_ciDate2<=_today2);lodgerBtn.style.display=_showLodger?'':'none';}
+  if(lodgerBtn){var _tod2=new Date();var _todStr2=_tod2.getFullYear()+'-'+String(_tod2.getMonth()+1).padStart(2,'0')+'-'+String(_tod2.getDate()).padStart(2,'0');var _showLodger=(r.status==='checkin'||r.status==='checkout')||(r.status==='confirmed'&&r.check_in&&r.check_in<=_todStr2);lodgerBtn.style.display=_showLodger?'':'none';}
   document.querySelectorAll('#res-modal .modal-tab').forEach(function(t,i){t.classList.toggle('active',i===0);});
   document.querySelectorAll('#res-modal .modal-pane').forEach(function(p,i){p.classList.toggle('active',i===0);});
   // 家族・同住所リピーターチェック
@@ -2651,10 +2651,10 @@ async function refreshReservationStatus(id){
       }
       // 手動CI済ボタン
       var qciBtn2 = document.getElementById('quick-checkin-btn');
-      if(qciBtn2){var _ciD=latest[0].check_in?new Date(latest[0].check_in):null;var _tod=new Date();_tod.setHours(0,0,0,0);qciBtn2.style.display=(latest[0].status==='confirmed'&&_ciD&&_ciD<=_tod)?'':'none';}
+      if(qciBtn2){var _tqd=new Date();var _tqStr=_tqd.getFullYear()+'-'+String(_tqd.getMonth()+1).padStart(2,'0')+'-'+String(_tqd.getDate()).padStart(2,'0');qciBtn2.style.display=(latest[0].status==='confirmed'&&latest[0].check_in&&latest[0].check_in<=_tqStr)?'':'none';}
       // 宿泊台帳ボタン
       var lodgerBtn2 = document.getElementById('lodger-print-btn');
-      if(lodgerBtn2){var _ciD2=latest[0].check_in?new Date(latest[0].check_in):null;var _tod2=new Date();_tod2.setHours(0,0,0,0);var _sl=(latest[0].status==='checkin'||latest[0].status==='checkout')||(latest[0].status==='confirmed'&&_ciD2&&_ciD2<=_tod2);lodgerBtn2.style.display=_sl?'':'none';}
+      if(lodgerBtn2){var _tld=new Date();var _tlStr=_tld.getFullYear()+'-'+String(_tld.getMonth()+1).padStart(2,'0')+'-'+String(_tld.getDate()).padStart(2,'0');var _sl=(latest[0].status==='checkin'||latest[0].status==='checkout')||(latest[0].status==='confirmed'&&latest[0].check_in&&latest[0].check_in<=_tlStr);lodgerBtn2.style.display=_sl?'':'none';}
     }
     // デジタルチェックインシート記録確認（checkin/checkout状態のみ）
     if(latest[0].status==='checkin'||latest[0].status==='checkout'){
