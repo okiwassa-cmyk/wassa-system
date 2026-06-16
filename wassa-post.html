@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WASSA POST</title>
+<style>
+  :root {
+    --primary: #2D6A4F;
+    --primary-light: #40916C;
+    --accent: #F4A261;
+    --bg: #F8F5F0;
+    --card: #FFFFFF;
+    --text: #1A1A1A;
+    --muted: #6B7280;
+    --border: #E5E7EB;
+    --feed: #3B82F6;
+    --reel: #8B5CF6;
+    --story: #F97316;
+    --gbp: #059669;
+    --danger: #EF4444;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* Header */
+  .header { background: var(--primary); color: white; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+  .header h1 { font-size: 18px; font-weight: 700; letter-spacing: 0.05em; }
+  .header-tabs { display: flex; gap: 4px; background: rgba(255,255,255,0.15); border-radius: 8px; padding: 3px; }
+  .header-tab { padding: 5px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; background: transparent; color: rgba(255,255,255,0.7); transition: all 0.2s; }
+  .header-tab.active { background: white; color: var(--primary); }
+  .btn-add { background: var(--accent); color: white; border: none; border-radius: 8px; padding: 7px 14px; font-size: 13px; font-weight: 700; cursor: pointer; }
+
+  /* List View */
+  #view-list { padding: 16px; }
+  .section-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin: 16px 0 8px; }
+  .section-label:first-child { margin-top: 0; }
+
+  .post-card { background: var(--card); border-radius: var(--radius); padding: 14px; margin-bottom: 10px; cursor: pointer; border: 1px solid var(--border); transition: box-shadow 0.2s; display: flex; gap: 12px; align-items: flex-start; }
+  .post-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+  .post-card.status-posted { opacity: 0.55; }
+  .post-card.status-draft { border-left: 3px solid var(--muted); }
+
+  .card-thumb { width: 56px; height: 56px; border-radius: 8px; object-fit: cover; flex-shrink: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 24px; }
+  .card-body { flex: 1; min-width: 0; }
+  .card-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; flex-wrap: wrap; }
+  .badge { display: inline-flex; align-items: center; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 999px; }
+  .badge-feed { background: #EFF6FF; color: var(--feed); }
+  .badge-reel { background: #F5F3FF; color: var(--reel); }
+  .badge-story { background: #FFF7ED; color: var(--story); }
+  .badge-gbp { background: #ECFDF5; color: var(--gbp); }
+  .badge-posted { background: #F3F4F6; color: var(--muted); }
+  .badge-draft { background: #F3F4F6; color: var(--muted); }
+  .card-date { font-size: 11px; color: var(--muted); }
+  .card-title { font-size: 14px; font-weight: 600; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card-highlight { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .card-target { font-size: 11px; color: var(--primary); margin-top: 2px; }
+
+  .empty-state { text-align: center; color: var(--muted); padding: 40px 20px; font-size: 14px; }
+
+  /* Calendar View */
+  #view-calendar { padding: 16px; display: none; }
+  .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .cal-nav { background: none; border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 16px; }
+  .cal-month { font-size: 16px; font-weight: 700; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .cal-dow { text-align: center; font-size: 10px; font-weight: 700; color: var(--muted); padding: 4px 0; }
+  .cal-cell { min-height: 52px; background: white; border-radius: 8px; padding: 4px; cursor: pointer; border: 1px solid var(--border); transition: background 0.15s; }
+  .cal-cell:hover { background: #F0FDF4; }
+  .cal-cell.other-month { opacity: 0.35; }
+  .cal-cell.today { border-color: var(--primary); }
+  .cal-cell.selected { background: #ECFDF5; border-color: var(--primary-light); }
+  .cal-day-num { font-size: 11px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+  .cal-dots { display: flex; flex-wrap: wrap; gap: 2px; }
+  .cal-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .cal-dot.feed { background: var(--feed); }
+  .cal-dot.reel { background: var(--reel); }
+  .cal-dot.story { background: var(--story); }
+  .cal-dot.gbp { background: var(--gbp); }
+
+  .cal-day-posts { margin-top: 16px; }
+  .cal-day-label { font-size: 13px; font-weight: 700; margin-bottom: 10px; color: var(--primary); }
+
+  /* Modal base */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: flex-end; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: white; border-radius: 20px 20px 0 0; width: 100%; max-width: 600px; max-height: 92vh; overflow-y: auto; padding: 20px; }
+  .modal-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 16px; }
+  .modal-title { font-size: 17px; font-weight: 700; margin-bottom: 16px; }
+  .modal-close { float: right; background: none; border: none; font-size: 22px; cursor: pointer; color: var(--muted); line-height: 1; }
+
+  /* Detail modal */
+  .detail-media { width: 100%; max-height: 280px; object-fit: cover; border-radius: 10px; margin-bottom: 14px; }
+  .detail-media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; margin-bottom: 14px; }
+  .detail-media-item { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; }
+  .detail-media-video { width: 100%; border-radius: 10px; margin-bottom: 14px; }
+  .detail-media-placeholder { background: var(--bg); border-radius: 10px; padding: 20px; text-align: center; color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+
+  .detail-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .detail-date { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  .detail-target { font-size: 12px; color: var(--primary); margin-bottom: 12px; }
+
+  .caption-box { background: var(--bg); border-radius: 10px; padding: 12px; font-size: 13px; line-height: 1.7; white-space: pre-wrap; margin-bottom: 14px; max-height: 180px; overflow-y: auto; }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 16px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; width: 100%; margin-bottom: 8px; transition: opacity 0.2s; }
+  .btn:active { opacity: 0.8; }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-accent { background: var(--accent); color: white; }
+  .btn-outline { background: white; color: var(--text); border: 1px solid var(--border); }
+  .btn-danger { background: var(--danger); color: white; }
+  .btn-sm { padding: 6px 12px; font-size: 12px; width: auto; margin-bottom: 0; }
+
+  .action-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .action-row .btn { margin-bottom: 0; }
+
+  /* Form */
+  .form-group { margin-bottom: 14px; }
+  .form-label { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 5px; display: block; }
+  .form-control { width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 14px; background: white; outline: none; font-family: inherit; }
+  .form-control:focus { border-color: var(--primary); }
+  textarea.form-control { min-height: 120px; resize: vertical; }
+  select.form-control { appearance: none; }
+
+  /* Upload area */
+  .upload-area { border: 2px dashed var(--border); border-radius: 10px; padding: 24px; text-align: center; cursor: pointer; transition: border-color 0.2s; }
+  .upload-area:hover, .upload-area.drag-over { border-color: var(--primary); background: #F0FDF4; }
+  .upload-area p { font-size: 13px; color: var(--muted); margin-top: 8px; }
+  .upload-preview { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 8px; margin-top: 12px; }
+  .upload-thumb { position: relative; }
+  .upload-thumb img, .upload-thumb video { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; }
+  .upload-thumb .remove-btn { position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .upload-progress { margin-top: 8px; background: var(--bg); border-radius: 4px; height: 4px; overflow: hidden; display: none; }
+  .upload-progress-bar { height: 100%; background: var(--primary); transition: width 0.3s; width: 0; }
+
+  .divider { height: 1px; background: var(--border); margin: 14px 0; }
+
+  /* Spinner */
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Toast */
+  .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #1A1A1A; color: white; padding: 10px 18px; border-radius: 24px; font-size: 13px; font-weight: 600; z-index: 999; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; }
+  .toast.show { opacity: 1; }
+
+  .media-file-name { font-size: 11px; color: var(--muted); word-break: break-all; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>WASSA POST</h1>
+  <div class="header-tabs">
+    <button class="header-tab active" onclick="switchView('list')">一覧</button>
+    <button class="header-tab" onclick="switchView('calendar')">カレンダー</button>
+  </div>
+  <button class="btn-add" onclick="openNewModal()">＋ 追加</button>
+</div>
+
+<div id="view-list">
+  <div id="section-today"></div>
+  <div id="section-upcoming"></div>
+  <div id="section-past"></div>
+</div>
+
+<div id="view-calendar">
+  <div class="cal-header">
+    <button class="cal-nav" onclick="calPrev()">◀</button>
+    <div class="cal-month" id="cal-month-label"></div>
+    <button class="cal-nav" onclick="calNext()">▶</button>
+  </div>
+  <div class="cal-grid" id="cal-grid"></div>
+  <div class="cal-day-posts" id="cal-day-posts"></div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal-overlay" id="detail-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <button class="modal-close" onclick="closeDetail()">×</button>
+    <div id="detail-content"></div>
+  </div>
+</div>
+
+<!-- New/Edit Modal -->
+<div class="modal-overlay" id="form-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <button class="modal-close" onclick="closeForm()">×</button>
+    <div class="modal-title" id="form-title">新規投稿</div>
+
+    <div class="form-group">
+      <label class="form-label">タイトル *</label>
+      <input type="text" class="form-control" id="f-title" placeholder="投稿のタイトル">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">種別 *</label>
+      <select class="form-control" id="f-type">
+        <option value="フィード">フィード</option>
+        <option value="リール">リール</option>
+        <option value="ストーリー">ストーリー</option>
+        <option value="GBP">GBP</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">投稿予定日</label>
+      <input type="date" class="form-control" id="f-date">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">ハイライト</label>
+      <select class="form-control" id="f-highlight">
+        <option value="">選択なし</option>
+        <option value="海と星空">海と星空</option>
+        <option value="ごはん">ごはん</option>
+        <option value="お部屋と宿">お部屋と宿</option>
+        <option value="やんばる体験">やんばる体験</option>
+        <option value="クチコミ">クチコミ</option>
+        <option value="お知らせ">お知らせ</option>
+        <option value="最新情報">最新情報</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">ターゲット</label>
+      <select class="form-control" id="f-target">
+        <option value="">選択なし</option>
+        <option value="県外ファミリー×幼児">県外ファミリー × 幼児連れ</option>
+        <option value="県外ファミリー×小学生">県外ファミリー × 小学生連れ</option>
+        <option value="県内ファミリー×幼児">県内ファミリー × 幼児連れ</option>
+        <option value="県内ファミリー×小学生">県内ファミリー × 小学生連れ</option>
+        <option value="インバウンド×幼児">インバウンド × 幼児連れ</option>
+        <option value="インバウンド×小学生">インバウンド × 小学生連れ</option>
+        <option value="新婚カップル">新婚カップル</option>
+        <option value="カップル">カップル（同性含む）</option>
+        <option value="子育て卒業夫婦">子育て卒業夫婦（50代）</option>
+        <option value="シルバー夫婦">シルバー夫婦（60代〜）</option>
+        <option value="友達・家族グループ">友達・家族グループ（貸切）</option>
+        <option value="3世代旅行">3世代旅行</option>
+        <option value="インバウンド×カップル">インバウンド × カップル</option>
+        <option value="インバウンド×夫婦シニア">インバウンド × 夫婦・シニア</option>
+        <option value="一人旅">一人旅</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">ステータス</label>
+      <select class="form-control" id="f-status">
+        <option value="未投稿">未投稿</option>
+        <option value="下書き">下書き</option>
+        <option value="投稿済み">投稿済み</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">キャプション</label>
+      <textarea class="form-control" id="f-caption" placeholder="キャプションを入力..."></textarea>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">メディア（写真・動画）</label>
+      <div class="upload-area" id="upload-area" onclick="document.getElementById('file-input').click()" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+        <div style="font-size:32px">📎</div>
+        <p>タップまたはドロップでアップロード</p>
+        <p style="font-size:11px;margin-top:4px">JPG / PNG / MOV / MP4</p>
+      </div>
+      <input type="file" id="file-input" multiple accept="image/*,video/*" style="display:none" onchange="handleFiles(this.files)">
+      <div class="upload-progress" id="upload-progress">
+        <div class="upload-progress-bar" id="upload-progress-bar"></div>
+      </div>
+      <div class="upload-preview" id="upload-preview"></div>
+    </div>
+
+    <button class="btn btn-primary" id="form-save-btn" onclick="savePost()">保存</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── Config ────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://mtsdhheqddrckksiqlim.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10c2RoaGVxZGRyY2trc2lxbGltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1OTc5NDgsImV4cCI6MjA4ODE3Mzk0OH0.c18ExSxNHBOani7CN4QAqaerhvpr5ZCYA0GGkUg0mlc';
+const CLOUDINARY_CLOUD = 'dqy3geksc';
+const CLOUDINARY_PRESET = 'wassa_post';
+
+// ─── State ─────────────────────────────────────────────────────────
+let posts = [];
+let currentView = 'list';
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth();
+let calSelectedDate = null;
+let editingId = null;
+let pendingFiles = []; // {file, cloudinaryId, url, isVideo}
+
+// ─── API ───────────────────────────────────────────────────────────
+async function sbFetch(path, opts = {}) {
+  const res = await fetch(SUPABASE_URL + path, {
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=representation', ...opts.headers },
+    ...opts
+  });
+  if (!res.ok) { const err = await res.text(); throw new Error(err); }
+  return res.status === 204 ? null : res.json();
+}
+
+async function loadPosts() {
+  const data = await sbFetch('/rest/v1/insta_posts?order=scheduled_date.asc,created_at.asc&select=*');
+  posts = data || [];
+  render();
+}
+
+// ─── Render list ───────────────────────────────────────────────────
+function render() {
+  if (currentView === 'list') renderList();
+  else renderCalendar();
+}
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function renderList() {
+  const today = todayStr();
+  const todayPosts = posts.filter(p => p.scheduled_date === today);
+  const upcoming = posts.filter(p => p.scheduled_date && p.scheduled_date > today && p.status !== '投稿済み');
+  const past = posts.filter(p => !p.scheduled_date || p.scheduled_date < today || p.status === '投稿済み').reverse();
+
+  document.getElementById('section-today').innerHTML = renderSection('今日', todayPosts);
+  document.getElementById('section-upcoming').innerHTML = renderSection('予定', upcoming);
+  document.getElementById('section-past').innerHTML = renderSection('過去・下書き', past);
+}
+
+function renderSection(label, items) {
+  if (!items.length) return '';
+  return `<div class="section-label">${label}（${items.length}件）</div>` + items.map(renderCard).join('');
+}
+
+function renderCard(p) {
+  const typeCls = {'フィード':'feed','リール':'reel','ストーリー':'story','GBP':'gbp'}[p.post_type] || 'feed';
+  const statusCls = p.status === '投稿済み' ? 'status-posted' : p.status === '下書き' ? 'status-draft' : '';
+  const thumb = getThumb(p);
+  return `<div class="post-card ${statusCls}" onclick="openDetail('${p.id}')">
+    <div class="card-thumb">${thumb}</div>
+    <div class="card-body">
+      <div class="card-meta">
+        <span class="badge badge-${typeCls}">${p.post_type}</span>
+        ${p.status !== '未投稿' ? `<span class="badge badge-${p.status === '投稿済み' ? 'posted' : 'draft'}">${p.status}</span>` : ''}
+        <span class="card-date">${p.scheduled_date ? fmtDate(p.scheduled_date) : '日付未定'}</span>
+      </div>
+      <div class="card-title">${esc(p.title)}</div>
+      ${p.highlight ? `<div class="card-highlight"># ${esc(p.highlight)}</div>` : ''}
+      ${p.target ? `<div class="card-target">→ ${esc(p.target)}</div>` : ''}
+    </div>
+  </div>`;
+}
+
+function getThumb(p) {
+  if (p.media_urls && p.media_urls.length > 0) {
+    const url = p.media_urls[0];
+    if (isVideo(url)) return `<video src="${url}" style="width:56px;height:56px;border-radius:8px;object-fit:cover"></video>`;
+    return `<img src="${url}" style="width:56px;height:56px;border-radius:8px;object-fit:cover" onerror="this.style.display='none'">`;
+  }
+  const icons = {'フィード':'🖼️','リール':'🎬','ストーリー':'⭕','GBP':'📍'};
+  return icons[p.post_type] || '📷';
+}
+
+function isVideo(url) {
+  return /\.(mp4|mov|MOV|MP4|avi|webm)(\?|$)/i.test(url);
+}
+
+function fmtDate(d) {
+  if (!d) return '';
+  const dt = new Date(d + 'T00:00:00');
+  return `${dt.getMonth()+1}/${dt.getDate()}（${'日月火水木金土'[dt.getDay()]}）`;
+}
+
+function esc(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ─── Calendar ──────────────────────────────────────────────────────
+function renderCalendar() {
+  const months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  document.getElementById('cal-month-label').textContent = `${calYear}年 ${months[calMonth]}`;
+
+  const first = new Date(calYear, calMonth, 1);
+  const startDow = first.getDay();
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+  const daysInPrev = new Date(calYear, calMonth, 0).getDate();
+
+  const today = todayStr();
+  let html = ['日','月','火','水','木','金','土'].map(d => `<div class="cal-dow">${d}</div>`).join('');
+
+  let cells = [];
+  for (let i = startDow-1; i >= 0; i--) cells.push({day: daysInPrev-i, other: true});
+  for (let d = 1; d <= daysInMonth; d++) cells.push({day: d, other: false});
+  while (cells.length % 7 !== 0) { cells.push({day: cells.length - startDow - daysInMonth + 1, other: true}); }
+
+  for (const c of cells) {
+    const dateStr = c.other ? '' : `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(c.day).padStart(2,'0')}`;
+    const dayPosts = dateStr ? posts.filter(p => p.scheduled_date === dateStr) : [];
+    const isToday = dateStr === today;
+    const isSel = dateStr === calSelectedDate;
+    const dots = dayPosts.map(p => {
+      const cls = {'フィード':'feed','リール':'reel','ストーリー':'story','GBP':'gbp'}[p.post_type] || 'feed';
+      return `<div class="cal-dot ${cls}"></div>`;
+    }).join('');
+    html += `<div class="cal-cell ${c.other?'other-month':''} ${isToday?'today':''} ${isSel?'selected':''}" onclick="${dateStr?`calSelectDate('${dateStr}')`:''}">
+      <div class="cal-day-num">${c.day}</div>
+      <div class="cal-dots">${dots}</div>
+    </div>`;
+  }
+
+  document.getElementById('cal-grid').innerHTML = html;
+  renderCalDayPosts();
+}
+
+function calSelectDate(d) {
+  calSelectedDate = calSelectedDate === d ? null : d;
+  renderCalendar();
+}
+
+function renderCalDayPosts() {
+  const el = document.getElementById('cal-day-posts');
+  if (!calSelectedDate) { el.innerHTML = ''; return; }
+  const dayPosts = posts.filter(p => p.scheduled_date === calSelectedDate);
+  if (!dayPosts.length) { el.innerHTML = `<div class="cal-day-label">${fmtDate(calSelectedDate)}</div><div class="empty-state">投稿なし</div>`; return; }
+  el.innerHTML = `<div class="cal-day-label">${fmtDate(calSelectedDate)}</div>` + dayPosts.map(renderCard).join('');
+}
+
+function calPrev() { calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; } renderCalendar(); }
+function calNext() { calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } renderCalendar(); }
+
+// ─── View switch ───────────────────────────────────────────────────
+function switchView(v) {
+  currentView = v;
+  document.getElementById('view-list').style.display = v === 'list' ? 'block' : 'none';
+  document.getElementById('view-calendar').style.display = v === 'calendar' ? 'block' : 'none';
+  document.querySelectorAll('.header-tab').forEach((t,i) => t.classList.toggle('active', (i===0&&v==='list')||(i===1&&v==='calendar')));
+  render();
+}
+
+// ─── Detail modal ──────────────────────────────────────────────────
+function openDetail(id) {
+  const p = posts.find(x => x.id === id);
+  if (!p) return;
+  const typeCls = {'フィード':'feed','リール':'reel','ストーリー':'story','GBP':'gbp'}[p.post_type] || 'feed';
+
+  let mediaHtml = '';
+  if (p.media_urls && p.media_urls.length > 0) {
+    if (p.media_urls.length === 1) {
+      const url = p.media_urls[0];
+      if (isVideo(url)) {
+        mediaHtml = `<video class="detail-media-video" src="${url}" controls></video>`;
+      } else {
+        mediaHtml = `<img class="detail-media" src="${url}" onerror="this.parentNode.innerHTML='<div class=detail-media-placeholder>画像を読み込めませんでした</div>'">`;
+      }
+    } else {
+      const items = p.media_urls.map(url => {
+        if (isVideo(url)) return `<video style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px" src="${url}" controls></video>`;
+        return `<img class="detail-media-item" src="${url}" onerror="this.style.background='#eee'">`;
+      }).join('');
+      mediaHtml = `<div class="detail-media-grid">${items}</div>`;
+    }
+  } else if (p.cloudinary_ids && p.cloudinary_ids.length > 0) {
+    mediaHtml = `<div class="detail-media-placeholder">Cloudinary ID: ${p.cloudinary_ids.join(', ')}</div>`;
+  }
+
+  const captionHtml = p.caption
+    ? `<div class="caption-box">${esc(p.caption)}</div>
+       <button class="btn btn-outline" onclick="copyCaption('${id}')">📋 キャプションをコピー</button>`
+    : '';
+
+  const postedBtn = p.status !== '投稿済み'
+    ? `<button class="btn btn-primary" onclick="markPosted('${id}')">✅ 投稿済みにする</button>`
+    : `<button class="btn btn-outline" onclick="markUnposted('${id}')">↩ 未投稿に戻す</button>`;
+
+  document.getElementById('detail-content').innerHTML = `
+    ${mediaHtml}
+    <div class="detail-badges">
+      <span class="badge badge-${typeCls}">${p.post_type}</span>
+      ${p.status !== '未投稿' ? `<span class="badge badge-${p.status==='投稿済み'?'posted':'draft'}">${p.status}</span>` : ''}
+      ${p.highlight ? `<span class="badge" style="background:#FEF3C7;color:#92400E"># ${esc(p.highlight)}</span>` : ''}
+    </div>
+    <div class="detail-date">${p.scheduled_date ? fmtDate(p.scheduled_date) : '日付未定'}</div>
+    ${p.target ? `<div class="detail-target">ターゲット: ${esc(p.target)}</div>` : ''}
+    <div style="font-size:16px;font-weight:700;margin-bottom:12px">${esc(p.title)}</div>
+    ${captionHtml}
+    <div class="divider"></div>
+    ${postedBtn}
+    <div class="action-row">
+      <button class="btn btn-outline" style="flex:1" onclick="openEdit('${id}')">✏️ 編集</button>
+      <button class="btn btn-danger" style="flex:1" onclick="deletePost('${id}')">🗑 削除</button>
+    </div>
+  `;
+  document.getElementById('detail-modal').classList.add('open');
+}
+
+function closeDetail() {
+  document.getElementById('detail-modal').classList.remove('open');
+}
+
+function copyCaption(id) {
+  const p = posts.find(x => x.id === id);
+  if (!p || !p.caption) return;
+  navigator.clipboard.writeText(p.caption).then(() => showToast('キャプションをコピーしました'));
+}
+
+async function markPosted(id) {
+  await sbFetch(`/rest/v1/insta_posts?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ status: '投稿済み', updated_at: new Date().toISOString() }) });
+  await loadPosts();
+  openDetail(id);
+  showToast('投稿済みにしました！');
+}
+
+async function markUnposted(id) {
+  await sbFetch(`/rest/v1/insta_posts?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ status: '未投稿', updated_at: new Date().toISOString() }) });
+  await loadPosts();
+  openDetail(id);
+  showToast('未投稿に戻しました');
+}
+
+async function deletePost(id) {
+  if (!confirm('この投稿を削除しますか？')) return;
+  await sbFetch(`/rest/v1/insta_posts?id=eq.${id}`, { method: 'DELETE' });
+  closeDetail();
+  await loadPosts();
+  showToast('削除しました');
+}
+
+// ─── Form modal ────────────────────────────────────────────────────
+function openNewModal() {
+  editingId = null;
+  pendingFiles = [];
+  document.getElementById('form-title').textContent = '新規投稿';
+  document.getElementById('f-title').value = '';
+  document.getElementById('f-type').value = 'フィード';
+  document.getElementById('f-date').value = '';
+  document.getElementById('f-highlight').value = '';
+  document.getElementById('f-target').value = '';
+  document.getElementById('f-status').value = '未投稿';
+  document.getElementById('f-caption').value = '';
+  document.getElementById('upload-preview').innerHTML = '';
+  document.getElementById('upload-progress').style.display = 'none';
+  document.getElementById('form-modal').classList.add('open');
+}
+
+function openEdit(id) {
+  const p = posts.find(x => x.id === id);
+  if (!p) return;
+  editingId = id;
+  pendingFiles = [];
+  document.getElementById('form-title').textContent = '編集';
+  document.getElementById('f-title').value = p.title || '';
+  document.getElementById('f-type').value = p.post_type || 'フィード';
+  document.getElementById('f-date').value = p.scheduled_date || '';
+  document.getElementById('f-highlight').value = p.highlight || '';
+  document.getElementById('f-target').value = p.target || '';
+  document.getElementById('f-status').value = p.status || '未投稿';
+  document.getElementById('f-caption').value = p.caption || '';
+
+  // Show existing media
+  const preview = document.getElementById('upload-preview');
+  preview.innerHTML = '';
+  if (p.media_urls && p.media_urls.length) {
+    p.media_urls.forEach(url => {
+      const div = document.createElement('div');
+      div.className = 'upload-thumb';
+      if (isVideo(url)) {
+        div.innerHTML = `<video src="${url}" style="width:80px;height:80px;object-fit:cover;border-radius:8px"></video><div class="media-file-name">${url.split('/').pop()}</div>`;
+      } else {
+        div.innerHTML = `<img src="${url}" style="width:80px;height:80px;object-fit:cover;border-radius:8px">`;
+      }
+      preview.appendChild(div);
+    });
+  }
+
+  closeDetail();
+  document.getElementById('form-modal').classList.add('open');
+}
+
+function closeForm() {
+  document.getElementById('form-modal').classList.remove('open');
+  pendingFiles = [];
+}
+
+// ─── File upload ───────────────────────────────────────────────────
+function onDragOver(e) { e.preventDefault(); document.getElementById('upload-area').classList.add('drag-over'); }
+function onDragLeave(e) { document.getElementById('upload-area').classList.remove('drag-over'); }
+function onDrop(e) { e.preventDefault(); onDragLeave(e); handleFiles(e.dataTransfer.files); }
+
+function handleFiles(files) {
+  const arr = Array.from(files);
+  arr.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const entry = { file, cloudinaryId: null, url: null, localUrl: e.target.result, isVideo: file.type.startsWith('video') };
+      pendingFiles.push(entry);
+      addThumb(entry, pendingFiles.length - 1);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function addThumb(entry, idx) {
+  const preview = document.getElementById('upload-preview');
+  const div = document.createElement('div');
+  div.className = 'upload-thumb';
+  div.id = `thumb-${idx}`;
+  if (entry.isVideo) {
+    div.innerHTML = `<video src="${entry.localUrl}" style="width:80px;height:80px;object-fit:cover;border-radius:8px"></video>
+      <div class="media-file-name">${entry.file.name}</div>
+      <button class="remove-btn" onclick="removeFile(${idx})">×</button>`;
+  } else {
+    div.innerHTML = `<img src="${entry.localUrl}" style="width:80px;height:80px;object-fit:cover;border-radius:8px">
+      <button class="remove-btn" onclick="removeFile(${idx})">×</button>`;
+  }
+  preview.appendChild(div);
+}
+
+function removeFile(idx) {
+  pendingFiles[idx] = null;
+  const el = document.getElementById(`thumb-${idx}`);
+  if (el) el.remove();
+}
+
+async function uploadToCloudinary(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', CLOUDINARY_PRESET);
+  formData.append('folder', 'wassa_post');
+
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/auto/upload`, {
+    method: 'POST',
+    body: formData
+  });
+  if (!res.ok) throw new Error('Cloudinaryアップロード失敗');
+  return res.json();
+}
+
+// ─── Save post ─────────────────────────────────────────────────────
+async function savePost() {
+  const title = document.getElementById('f-title').value.trim();
+  if (!title) { showToast('タイトルを入力してください'); return; }
+
+  const btn = document.getElementById('form-save-btn');
+  btn.innerHTML = '<span class="spinner"></span> 保存中...';
+  btn.disabled = true;
+
+  try {
+    // Upload new files to Cloudinary
+    const filesToUpload = pendingFiles.filter(f => f && f.cloudinaryId === null && f.url === null);
+    const progress = document.getElementById('upload-progress');
+    const bar = document.getElementById('upload-progress-bar');
+
+    let newUrls = [];
+    let newIds = [];
+    if (filesToUpload.length > 0) {
+      progress.style.display = 'block';
+      for (let i = 0; i < filesToUpload.length; i++) {
+        bar.style.width = `${Math.round(i / filesToUpload.length * 100)}%`;
+        const result = await uploadToCloudinary(filesToUpload[i].file);
+        newUrls.push(result.secure_url);
+        newIds.push(result.public_id);
+      }
+      bar.style.width = '100%';
+    }
+
+    // If editing, keep existing media
+    let media_urls = newUrls;
+    let cloudinary_ids = newIds;
+    if (editingId) {
+      const existing = posts.find(p => p.id === editingId);
+      if (existing) {
+        media_urls = [...(existing.media_urls || []), ...newUrls];
+        cloudinary_ids = [...(existing.cloudinary_ids || []), ...newIds];
+      }
+    }
+
+    const payload = {
+      title,
+      post_type: document.getElementById('f-type').value,
+      scheduled_date: document.getElementById('f-date').value || null,
+      highlight: document.getElementById('f-highlight').value || null,
+      target: document.getElementById('f-target').value || null,
+      status: document.getElementById('f-status').value,
+      caption: document.getElementById('f-caption').value || null,
+      media_urls,
+      cloudinary_ids,
+      updated_at: new Date().toISOString()
+    };
+
+    if (editingId) {
+      await sbFetch(`/rest/v1/insta_posts?id=eq.${editingId}`, { method: 'PATCH', body: JSON.stringify(payload) });
+    } else {
+      await sbFetch('/rest/v1/insta_posts', { method: 'POST', body: JSON.stringify(payload) });
+    }
+
+    closeForm();
+    await loadPosts();
+    showToast(editingId ? '更新しました！' : '追加しました！');
+  } catch(e) {
+    console.error(e);
+    showToast('エラーが発生しました: ' + e.message);
+  } finally {
+    btn.innerHTML = '保存';
+    btn.disabled = false;
+  }
+}
+
+// ─── Toast ─────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ─── Tap outside to close ──────────────────────────────────────────
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
+});
+
+// ─── Init ──────────────────────────────────────────────────────────
+switchView('list');
+loadPosts();
+</script>
+</body>
+</html>
