@@ -11373,7 +11373,8 @@ function renderCustFamily(){
   el.innerHTML=html;
 }
 
-function renderCustStays(){
+async function renderCustStays(){
+  await ensureAllReservations();
   var stays=allReservations.filter(function(r){return String(r.customer_id)===String(currentEditId);});
   stays.sort(function(a,b){return (b.check_in||'').localeCompare(a.check_in||'');});
   var el=document.getElementById('cust-stays-list');
