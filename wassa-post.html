@@ -196,7 +196,7 @@
 
     <div class="form-group">
       <label class="form-label">種別 *</label>
-      <select class="form-control" id="f-type">
+      <select class="form-control" id="f-type" onchange="onTypeChange(this.value)">
         <option value="フィード">フィード</option>
         <option value="リール">リール</option>
         <option value="ストーリー">ストーリー</option>
@@ -271,6 +271,14 @@
         <div class="upload-progress-bar" id="upload-progress-bar"></div>
       </div>
       <div class="upload-preview" id="upload-preview"></div>
+    </div>
+
+    <div id="story-set-wrap" style="display:none;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:12px 14px;margin-bottom:14px">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;font-weight:600">
+        <input type="checkbox" id="f-story-set" style="width:18px;height:18px;accent-color:var(--primary)">
+        ストーリーも同時に作る
+      </label>
+      <p style="font-size:11px;color:var(--muted);margin-top:4px;margin-left:28px">同じ日付でストーリー枠を自動追加します</p>
     </div>
 
     <button class="btn btn-primary" id="form-save-btn" onclick="savePost()">保存</button>
@@ -544,6 +552,8 @@ function openNewModal() {
   document.getElementById('f-caption').value = '';
   document.getElementById('upload-preview').innerHTML = '';
   document.getElementById('upload-progress').style.display = 'none';
+  document.getElementById('f-story-set').checked = false;
+  document.getElementById('story-set-wrap').style.display = 'block';
   document.getElementById('form-modal').classList.add('open');
 }
 
@@ -578,7 +588,16 @@ function openEdit(id) {
   }
 
   closeDetail();
+  // ストーリーチェックボックスは編集時は非表示
+  document.getElementById('f-story-set').checked = false;
+  document.getElementById('story-set-wrap').style.display = 'none';
   document.getElementById('form-modal').classList.add('open');
+}
+
+function onTypeChange(val) {
+  const show = val === 'フィード' || val === 'リール';
+  document.getElementById('story-set-wrap').style.display = show ? 'block' : 'none';
+  if (!show) document.getElementById('f-story-set').checked = false;
 }
 
 function closeForm() {
@@ -698,9 +717,27 @@ async function savePost() {
       await sbFetch('/rest/v1/insta_posts', { method: 'POST', body: JSON.stringify(payload) });
     }
 
+    // ストーリー自動生成（新規投稿かつフィード/リールのとき）
+    const storySet = !editingId && document.getElementById('f-story-set').checked;
+    if (storySet) {
+      const storyPayload = {
+        title: document.getElementById('f-title').value.trim() + '（ストーリー）',
+        post_type: 'ストーリー',
+        scheduled_date: document.getElementById('f-date').value || null,
+        highlight: document.getElementById('f-highlight').value || null,
+        target: document.getElementById('f-target').value || null,
+        status: '未投稿',
+        caption: null,
+        media_urls: [],
+        cloudinary_ids: [],
+        updated_at: new Date().toISOString()
+      };
+      await sbFetch('/rest/v1/insta_posts', { method: 'POST', body: JSON.stringify(storyPayload) });
+    }
+
     closeForm();
     await loadPosts();
-    showToast(editingId ? '更新しました！' : '追加しました！');
+    showToast(storySet ? '投稿＋ストーリーを追加しました！' : (editingId ? '更新しました！' : '追加しました！'));
   } catch(e) {
     console.error(e);
     showToast('エラーが発生しました: ' + e.message);
