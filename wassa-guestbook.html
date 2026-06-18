@@ -5936,6 +5936,7 @@ var _savedResEditId = null; // 顧客モーダルを開く前の予約IDを退�
 function openCustomer(id, defaultTab){
   if(document.body.classList.contains('staff-mode')){ toast('スタッフモードでは顧客情報を閲覧できません'); return; }
   var c=allCustomers.find(function(x){return x.id===id;});if(!c)return;
+  ensureAllReservations(); // バックグラウンドで先読み（予約履歴タブ用）
   _custDirty=false;
   // 予約編集中なら予約IDを退避してから顧客IDに切り替え
   if(currentEditId && allReservations.find(function(r){ return r.id===currentEditId; })){
