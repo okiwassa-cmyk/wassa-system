@@ -260,6 +260,11 @@
     </div>
 
     <div class="form-group">
+      <label class="form-label" style="color:var(--story)">⭕ ストーリーキャプション</label>
+      <textarea class="form-control" id="f-story-caption" placeholder="宣伝ストーリー用のキャプション..." style="min-height:80px"></textarea>
+    </div>
+
+    <div class="form-group">
       <label class="form-label">メディア（写真・動画）</label>
       <div class="upload-area" id="upload-area" onclick="document.getElementById('file-input').click()" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
         <div style="font-size:32px">📎</div>
@@ -314,7 +319,7 @@ async function sbFetch(path, opts = {}) {
 }
 
 async function loadPosts() {
-  const data = await sbFetch('/rest/v1/insta_posts?order=scheduled_date.asc,created_at.asc&select=*');
+  const data = await sbFetch('/rest/v1/insta_posts?order=scheduled_date.asc,created_at.asc&select=*,story_caption');
   posts = data || [];
   render();
 }
@@ -480,6 +485,11 @@ function openDetail(id) {
     ? `<div class="caption-box">${esc(p.caption)}</div>
        <button class="btn btn-outline" onclick="copyCaption('${id}')">📋 キャプションをコピー</button>`
     : '';
+  const storyCaptionHtml = p.story_caption
+    ? `<div style="font-size:12px;font-weight:700;color:var(--story);margin:12px 0 4px">⭕ ストーリーキャプション</div>
+       <div class="caption-box" style="border:1px solid #FED7AA">${esc(p.story_caption)}</div>
+       <button class="btn btn-outline" onclick="copyStoryCaption('${id}')">📋 ストーリーキャプションをコピー</button>`
+    : '';
 
   const postedBtn = p.status !== '投稿済み'
     ? `<button class="btn btn-primary" onclick="markPosted('${id}')">✅ 投稿済みにする</button>`
@@ -496,6 +506,7 @@ function openDetail(id) {
     ${p.target ? `<div class="detail-target">ターゲット: ${esc(p.target)}</div>` : ''}
     <div style="font-size:16px;font-weight:700;margin-bottom:12px">${esc(p.title)}</div>
     ${captionHtml}
+    ${storyCaptionHtml}
     <div class="divider"></div>
     ${postedBtn}
     <div class="action-row">
@@ -514,6 +525,12 @@ function copyCaption(id) {
   const p = posts.find(x => x.id === id);
   if (!p || !p.caption) return;
   navigator.clipboard.writeText(p.caption).then(() => showToast('キャプションをコピーしました'));
+}
+
+function copyStoryCaption(id) {
+  const p = posts.find(x => x.id === id);
+  if (!p || !p.story_caption) return;
+  navigator.clipboard.writeText(p.story_caption).then(() => showToast('ストーリーキャプションをコピーしました'));
 }
 
 async function markPosted(id) {
@@ -552,6 +569,7 @@ function openNewModal() {
   document.getElementById('f-caption').value = '';
   document.getElementById('upload-preview').innerHTML = '';
   document.getElementById('upload-progress').style.display = 'none';
+  document.getElementById('f-story-caption').value = '';
   document.getElementById('f-story-set').checked = false;
   document.getElementById('story-set-wrap').style.display = 'block';
   document.getElementById('form-modal').classList.add('open');
@@ -570,6 +588,7 @@ function openEdit(id) {
   document.getElementById('f-target').value = p.target || '';
   document.getElementById('f-status').value = p.status || '未投稿';
   document.getElementById('f-caption').value = p.caption || '';
+  document.getElementById('f-story-caption').value = p.story_caption || '';
 
   // Show existing media
   const preview = document.getElementById('upload-preview');
@@ -711,6 +730,7 @@ async function savePost() {
       target: document.getElementById('f-target').value || null,
       status: document.getElementById('f-status').value,
       caption: document.getElementById('f-caption').value || null,
+      story_caption: document.getElementById('f-story-caption').value || null,
       media_urls,
       cloudinary_ids,
       updated_at: new Date().toISOString()
