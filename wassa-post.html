@@ -574,18 +574,18 @@ function openEdit(id) {
   // Show existing media
   const preview = document.getElementById('upload-preview');
   preview.innerHTML = '';
-  if (p.media_urls && p.media_urls.length) {
-    p.media_urls.forEach(url => {
-      const div = document.createElement('div');
-      div.className = 'upload-thumb';
-      if (isVideo(url)) {
-        div.innerHTML = `<video src="${url}" style="width:80px;height:80px;object-fit:cover;border-radius:8px"></video><div class="media-file-name">${url.split('/').pop()}</div>`;
-      } else {
-        div.innerHTML = `<img src="${url}" style="width:80px;height:80px;object-fit:cover;border-radius:8px">`;
-      }
-      preview.appendChild(div);
-    });
-  }
+  window._existingUrls = p.media_urls ? [...p.media_urls] : [];
+  window._existingUrls.forEach((url, i) => {
+    const div = document.createElement('div');
+    div.className = 'upload-thumb';
+    div.id = `existing-${i}`;
+    if (isVideo(url)) {
+      div.innerHTML = `<video src="${url}" style="width:80px;height:80px;object-fit:cover;border-radius:8px"></video><div class="media-file-name">${url.split('/').pop()}</div><button class="remove-btn" onclick="removeExisting(${i})">×</button>`;
+    } else {
+      div.innerHTML = `<img src="${url}" style="width:80px;height:80px;object-fit:cover;border-radius:8px"><button class="remove-btn" onclick="removeExisting(${i})">×</button>`;
+    }
+    preview.appendChild(div);
+  });
 
   closeDetail();
   // ストーリーチェックボックスは編集時は非表示
@@ -645,6 +645,12 @@ function removeFile(idx) {
   if (el) el.remove();
 }
 
+function removeExisting(idx) {
+  if (window._existingUrls) window._existingUrls[idx] = null;
+  const el = document.getElementById(`existing-${idx}`);
+  if (el) el.remove();
+}
+
 async function uploadToCloudinary(file) {
   const formData = new FormData();
   formData.append('file', file);
@@ -687,15 +693,14 @@ async function savePost() {
       bar.style.width = '100%';
     }
 
-    // If editing, keep existing media
+    // If editing, keep existing media (minus removed ones)
     let media_urls = newUrls;
     let cloudinary_ids = newIds;
     if (editingId) {
+      const keptUrls = (window._existingUrls || []).filter(u => u !== null);
+      media_urls = [...keptUrls, ...newUrls];
       const existing = posts.find(p => p.id === editingId);
-      if (existing) {
-        media_urls = [...(existing.media_urls || []), ...newUrls];
-        cloudinary_ids = [...(existing.cloudinary_ids || []), ...newIds];
-      }
+      cloudinary_ids = [...(existing?.cloudinary_ids || []), ...newIds];
     }
 
     const payload = {
