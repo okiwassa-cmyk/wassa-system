@@ -3482,7 +3482,8 @@ async function saveReservation(andClose, autoSave){
     // reservation_companionsを更新（既存削除→再登録）
     if(savedResId && editCompanions.length >= 0){
       try{
-        await fetch(SUPA_URL+'/rest/v1/reservation_companions?reservation_id=eq.'+savedResId,{method:'DELETE',headers:{'apikey':SUPA_KEY,'Authorization':SB_HEADERS['Authorization']}});
+        var _delRes=await fetch(SUPA_URL+'/rest/v1/reservation_companions?reservation_id=eq.'+savedResId,{method:'DELETE',headers:Object.assign({},SB_HEADERS,{'Prefer':'return=minimal'})});
+        if(!_delRes.ok) throw new Error('companion DELETE failed:'+_delRes.status);
         for(var ci=0;ci<editCompanions.length;ci++){
           var ec=editCompanions[ci];
           if(!ec.name) continue;
