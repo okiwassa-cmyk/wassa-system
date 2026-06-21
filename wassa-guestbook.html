@@ -11777,7 +11777,9 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
 // ━━ DASHBOARD CHART ━━
 var dashChartOffset=0;
 function dashChartMove(d){dashChartOffset+=d;renderDashboardChart();}
-function renderDashboardChart(){
+async function renderDashboardChart(){
+  // バーチャートは6ヶ月前まで表示するため、90日ウィンドウ外のデータも必要
+  if(!_allResLoaded) await ensureAllReservations();
   var now=new Date();
   // 過去12〜未来12ヶ月の候補プール
   var allMonths=[];
