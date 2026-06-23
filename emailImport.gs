@@ -824,19 +824,27 @@ function parseEmail(src, body) {
     d.payment        = '事前決済';
     d.email          = '';
     d.address        = ex(body, '宿泊代表者都道府県[\\s\\u3000]*[：:][\\s\\u3000]*([^\\n]+)');
-    // ■質問・回答■ セクションを解析
-    var _ikQaSec = body.match(/■質問[・･]回答■([\s\S]*?)(?=■|$)/);
+    // ■質問・回答■ セクションを解析（複数行にまたがる回答も結合）
+    var _ikQaSec = body.match(/■質問[・･]回答■([\s\S]*?)(?=■|={5,}|$)/);
+    var _ikNotes = [];
+    // 折り返し行を結合（改行＋行頭の空白を除去して1行にまとめる）
+    var _ikJoin = function(t){ return t.replace(/[\r\n]+[\s\u3000]*/g, '').replace(/^[\s\u3000]+|[\s\u3000]+$/g, ''); };
     if (_ikQaSec) {
-      var _ikParts = [];
-      var _ikBulletPat = /[・･]([^\n⇒→]+)\n[\s　]*[⇒→][\s　]*([^\n]+)/g, _ikBM;
+      var _ikBulletPat = /[・･]([\s\S]*?)[⇒→]([\s\S]*?)(?=\n[\s\u3000]*[・･]|\n[\s\u3000]*[-―━]{3,}|$)/g, _ikBM;
       while ((_ikBM = _ikBulletPat.exec(_ikQaSec[1])) !== null) {
-        var _ikQ = _ikBM[1].trim(), _ikA = _ikBM[2].trim();
+        var _ikQ = _ikJoin(_ikBM[1]), _ikA = _ikJoin(_ikBM[2]);
         if (_ikQ && _ikA && _ikA !== '（未回答）' && _ikA !== '(未回答)') {
-          _ikParts.push(_ikQ + '：' + _ikA);
+          _ikNotes.push('・' + _ikQ + '：' + _ikA);
         }
       }
-      if (_ikParts.length > 0) d.notes = _ikParts.join('\n');
     }
+    // ■コメント■ セクションを特記事項に転記
+    var _ikCmt = body.match(/■コメント■([\s\S]*?)(?=\n[\s\u3000]*[-―━]{3,}|\n={5,}|■|$)/);
+    if (_ikCmt) {
+      var _ikCmtTxt = _ikJoin(_ikCmt[1]);
+      if (_ikCmtTxt) _ikNotes.push('【コメント】' + _ikCmtTxt);
+    }
+    if (_ikNotes.length > 0) d.notes = _ikNotes.join('\n');
 
   } else if (src === '公式HP') {
 
@@ -847,12 +855,12 @@ function parseEmail(src, body) {
     }
     // じゃらんnet自社サイト予約フォーマット（2024〜）
     if (body.indexOf('じゃらんnet_予約通知') !== -1) {
-      d.reservation_no = ex(body, '予約番号[\\s\\u3000]+[：:][\\s\\u3000]+([A-Z0-9a-z]+)');
-      var _jlName = ex(body, '宿泊代表者氏名[\\s\\u3000]+[：:][\\s\\u3000]+([^\\n（(]+)');
+      d.reservation_no = ex(body, '予約番号[\\s\\u3000]*[：:][\\s\\u3000]*([A-Z0-9a-z]+)');
+      var _jlName = ex(body, '宿泊代表者氏名[\\s\\u3000]*[：:][\\s\\u3000]*([^\\n（(]+)');
       d.guest_name = _jlName.replace(/[\\s　]*様[\\s　]*$/, '').trim();
-      var _jlKana = ex(body, '宿泊代表者氏名（カナ）[\\s\\u3000]+[：:][\\s\\u3000]+([^\\n（(]+)').replace(/[\\s　]*様[\\s　]*$/, '').trim();
+      var _jlKana = ex(body, '宿泊代表者氏名（カナ）[\\s\\u3000]*[：:][\\s\\u3000]*([^\\n（(]+)').replace(/[\\s　]*様[\\s　]*$/, '').trim();
       if (_jlKana) { var _jlKP = _jlKana.split(/[\\s　]+/); d.sei_kana = _jlKP[0]||''; d.mei_kana = _jlKP.slice(1).join('')||''; }
-      d.phone = ex(body, '宿泊代表者連絡先[\\s\\u3000]+[：:][\\s\\u3000]+([0-9][0-9\\-]+)');
+      d.phone = ex(body, '宿泊代表者連絡先[\\s\\u3000]*[：:][\\s\\u3000]*([0-9][0-9\\-]+)');
       d.email = ex(body, '予約者Ｅメールアドレス[\\s\\u3000]*[：:][\\s\\u3000]*([^\\s\\n]+@[^\\s\\n]+)');
       var _jlDate = ex(body, '宿泊日時[\\s\\u3000]*[：:][\\s\\u3000]*([0-9]{4}年[0-9]{1,2}月[0-9]{1,2}日)');
       d.check_in = toYMD(_jlDate);
@@ -900,6 +908,7 @@ function parseEmail(src, body) {
         }
         if (_jlNotes.length>0) d.notes = _jlNotes.join('\n');
       }
+      d.source = 'じゃらん'; // じゃらんnetは公式HPではなくじゃらん扱い
       return d;
     }
     // liberty-service.com（新公式HP予約システム、2026年〜）
