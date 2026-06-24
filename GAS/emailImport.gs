@@ -479,8 +479,6 @@ function parseDailyDetail(src, body) {
         {p:/([\d,]+)円（幼児・食事布団付）\s*[×x×Ｘ]\s*(\d+)名/,   it:'幼児（食事有・布団有）'},
         {p:/([\d,]+)円（幼児・食事のみ）\s*[×x×Ｘ]\s*(\d+)名/,     it:'幼児（食事有・布団無）'},
         {p:/([\d,]+)円（幼児・布団のみ）\s*[×x×Ｘ]\s*(\d+)名/,     it:'幼児（食事無・布団有）'},
-        {p:/([\d,]+)円（幼児・食事のみ）\s*[×x×Ｘ]\s*(\d+)名/,     it:'幼児（食事有・布団無）'},
-        {p:/([\d,]+)円（幼児・食事のみ）\s*[×x×Ｘ]\s*(\d+)名/,     it:'幼児（食事有・布団無）'},
         {p:/([\d,]+)円（幼児・食事布団なし）\s*[×x×Ｘ]\s*(\d+)名/, it:'幼児（食事無・布団無）'}
       ].forEach(function(d){ var m=block3.match(d.p); if(m) items3.push({item:d.it,qty:parseInt(m[2]),price:toInt(m[1])}); });
       if (items3.length>0) days.push({date:date3, items:items3});
@@ -597,6 +595,13 @@ function parseDailyDetail(src, body) {
         while ((cm = cPat.exec(block_jl)) !== null) {
           items_jl.push({item:'小学生宿泊料金', qty:parseInt(cm[2]), price:parseInt(cm[1].replace(/,/g,''))});
         }
+        // 幼児4区分（じゃらんnetもじゃらん系のカテゴリ表記を使用）
+        [
+          {p:/([\d,]+)円[（(]幼児・食事布団付[）)][^=＝]*[×xｘＸ×][\s　]*(\d+)名/g, it:'幼児（食事有・布団有）'},
+          {p:/([\d,]+)円[（(]幼児・食事のみ[）)][^=＝]*[×xｘＸ×][\s　]*(\d+)名/g,   it:'幼児（食事有・布団無）'},
+          {p:/([\d,]+)円[（(]幼児・布団のみ[）)][^=＝]*[×xｘＸ×][\s　]*(\d+)名/g,   it:'幼児（食事無・布団有）'},
+          {p:/([\d,]+)円[（(]幼児・食事布団なし[）)][^=＝]*[×xｘＸ×][\s　]*(\d+)名/g, it:'幼児（食事無・布団無）'}
+        ].forEach(function(d){ var im; while((im=d.p.exec(block_jl))!==null){ items_jl.push({item:d.it, qty:parseInt(im[2]), price:parseInt(im[1].replace(/,/g,''))}); } });
         if (items_jl.length > 0) days.push({date:date_jl, items:items_jl});
       }
       if (days.length > 0) return days;
@@ -1154,8 +1159,9 @@ function parseEmail(src, body) {
     var rtm = body.match(/\n((?:Superior|Deluxe)[^\t\n:]*)/i);
     d.room_type  = rtm ? rtm[1].trim() : '';
     d.plan_name  = ex(body, '料金プラン名:\\s*([^\\n]+)');
-    d.adults     = parseInt(ex(body, '(\\d+)\\s*Adults'))||0;
-    d.children = 0; d.infants = 0;
+    d.adults     = parseInt(ex(body, '(\\d+)\\s*Adults?'))||0;
+    d.children   = parseInt(ex(body, '(\\d+)\\s*Child(?:ren)?'))||0;
+    d.infants = 0;
     d.total_amount = ex(body, '表示販売料金[^\\n]*JPY\\s*([\\d,\\.]+)');
     d.payment = '事前払い';
   }
@@ -1205,14 +1211,17 @@ function saveToSupabase(data) {
     var _billingPayload = (_billingPts === 0 && _billingCpn === 0)
       ? billingData
       : {rows: billingData, coupon: _billingCpn, points: _billingPts, furusato: 0};
-    var infMealBed = 0, infMealOnly = 0, infBedOnly = 0, infNone = 0;
+    var infMealBed = 0, infMealOnly = 0, infBedOnly = 0, infNone = 0, billChildren = 0;
     billingData.forEach(function(row) {
+      if (row.item === '小学生宿泊料金')       billChildren += (row.qty || 0);
       if (row.item === '幼児（食事有・布団有）') infMealBed  += (row.qty || 0);
       if (row.item === '幼児（食事有・布団無）') infMealOnly += (row.qty || 0);
       if (row.item === '幼児（食事無・布団有）') infBedOnly  += (row.qty || 0);
       if (row.item === '幼児（食事無・布団無）') infNone     += (row.qty || 0);
     });
     var totalInfants = infMealBed + infMealOnly + infBedOnly + infNone || data.infants || 0;
+    // 子供（小学生）は明細から算出。公式HP等の「子供・幼児」合算ヘッダーの二重計上を防ぐ
+    var totalChildren = billChildren || data.children || 0;
 
     var payload = {
       source:         data.source,
@@ -1228,7 +1237,7 @@ function saveToSupabase(data) {
       room_type:      data.room_type,
       plan_name:      data.plan_name,
       adults:         data.adults,
-      children:       data.children,
+      children:       totalChildren,
       infants:        String(totalInfants),
       inf_meal_bed:   String(infMealBed),
       inf_meal_only:  String(infMealOnly),
