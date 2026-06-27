@@ -1211,13 +1211,26 @@ function saveToSupabase(data) {
     var _billingPayload = (_billingPts === 0 && _billingCpn === 0)
       ? billingData
       : {rows: billingData, coupon: _billingCpn, points: _billingPts, furusato: 0};
+    // 明細は1泊ごとに行があるため、日付ごとに集計し最大の泊（=実人数）を採用する。
+    // 泊数ぶん単純合算すると小学生・幼児が泊数倍に膨らむ（例: 2泊×小学生2名→4）
     var infMealBed = 0, infMealOnly = 0, infBedOnly = 0, infNone = 0, billChildren = 0;
+    var _byDate = {};
     billingData.forEach(function(row) {
-      if (row.item === '小学生宿泊料金')       billChildren += (row.qty || 0);
-      if (row.item === '幼児（食事有・布団有）') infMealBed  += (row.qty || 0);
-      if (row.item === '幼児（食事有・布団無）') infMealOnly += (row.qty || 0);
-      if (row.item === '幼児（食事無・布団有）') infBedOnly  += (row.qty || 0);
-      if (row.item === '幼児（食事無・布団無）') infNone     += (row.qty || 0);
+      var dt = row.date || '_';
+      if (!_byDate[dt]) _byDate[dt] = {child:0, mb:0, mo:0, bo:0, nn:0};
+      if (row.item === '小学生宿泊料金')       _byDate[dt].child += (row.qty || 0);
+      if (row.item === '幼児（食事有・布団有）') _byDate[dt].mb    += (row.qty || 0);
+      if (row.item === '幼児（食事有・布団無）') _byDate[dt].mo    += (row.qty || 0);
+      if (row.item === '幼児（食事無・布団有）') _byDate[dt].bo    += (row.qty || 0);
+      if (row.item === '幼児（食事無・布団無）') _byDate[dt].nn    += (row.qty || 0);
+    });
+    Object.keys(_byDate).forEach(function(dt) {
+      var v = _byDate[dt];
+      if (v.child > billChildren) billChildren = v.child;
+      if (v.mb    > infMealBed)   infMealBed   = v.mb;
+      if (v.mo    > infMealOnly)  infMealOnly  = v.mo;
+      if (v.bo    > infBedOnly)   infBedOnly   = v.bo;
+      if (v.nn    > infNone)      infNone      = v.nn;
     });
     var totalInfants = infMealBed + infMealOnly + infBedOnly + infNone || data.infants || 0;
     // 子供（小学生）は明細から算出。公式HP等の「子供・幼児」合算ヘッダーの二重計上を防ぐ
