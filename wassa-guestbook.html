@@ -3519,38 +3519,49 @@ async function saveReservation(andClose, autoSave){
           });
         }
       }catch(e){ console.warn('同室者保存エラー:',e); }
-      // 家族同室者をwassa_customersにリンク（子ども続柄は除く）
+      // 家族同室者を代表者の顧客情報（family1〜4スロット）に同期
+      // ※ payload.customer_id を使う（新規予約でも _existing 無しで動くように）
       try{
-        var CHILD_RELS=['子','息子','娘','長男','長女','次男','次女','三男','三女','配偶者','親','兄弟・姉妹','祖父','祖母','その他'];
         var famComps=editCompanions.filter(function(c){return c.name&&c.isFamily;});
-        if(famComps.length>0){
-          var repCust=allCustomers.find(function(c){return c.id===(_existing&&_existing.customer_id);});
-          var custId=repCust?repCust.id:null;
-          if(custId){
-            var repRow=await supa('wassa_customers?id=eq.'+custId+'&select=family_id');
-            var famId=(repRow&&repRow[0]&&repRow[0].family_id)||custId;
-            if(!repRow||!repRow[0]||!repRow[0].family_id){
-              await sbPatch('wassa_customers',custId,{family_id:famId});
-              if(repCust) repCust.family_id=famId;
+        var custId=payload.customer_id||(_existing&&_existing.customer_id)||null;
+        if(famComps.length>0 && custId){
+          var repCust=allCustomers.find(function(c){return c.id===custId;});
+          if(repCust){
+            var _norm=function(s){return (s||'').replace(/[\s\u3000]+/g,'');};
+            // 既に登録済みの家族名（family1〜4スロット ＋ family_idリンク顧客）→ 重複登録を防ぐ
+            var existingFamNames={};
+            ['family1','family2','family3','family4'].forEach(function(f){
+              if(repCust[f]) existingFamNames[_norm(repCust[f])]=true;
+            });
+            if(repCust.family_id){
+              allCustomers.forEach(function(c){
+                if(c.family_id===repCust.family_id && c.id!==repCust.id){
+                  existingFamNames[_norm((c.sei||'')+(c.mei||''))]=true;
+                }
+              });
             }
+            var slotPatch={};
             for(var fi=0;fi<famComps.length;fi++){
               var fc=famComps[fi];
-              if(CHILD_RELS.indexOf(fc.rel||'')!==-1) continue;
-              var parts=fc.name.trim().split(/[\s\u3000]+/);
-              var fSei=parts[0]||'',fMei=parts[1]||'';
-              var kp=(fc.kana||'').trim().split(/[\s\u3000]+/);
-              var fSeiK=kp[0]||'',fMeiK=kp[1]||'';
-              var existing2=await supa('wassa_customers?sei=eq.'+encodeURIComponent(fSei)+(fMei?'&mei=eq.'+encodeURIComponent(fMei):'')+'&select=id,family_id');
-              if(existing2&&existing2[0]){
-                if(existing2[0].family_id!==famId) await sbPatch('wassa_customers',existing2[0].id,{family_id:famId});
-              } else {
-                var newMem=await sbPost('wassa_customers',{sei:fSei,mei:fMei||null,sei_kana:fSeiK||null,mei_kana:fMeiK||null,family_id:famId});
-                if(newMem&&newMem[0]) allCustomers.unshift(newMem[0]);
-              }
+              var fkey=_norm(fc.name);
+              if(!fkey || existingFamNames[fkey]) continue; // 既出はスキップ
+              var emptySlot=null;
+              ['family1','family2','family3','family4'].forEach(function(f){
+                if(!emptySlot && !repCust[f] && !slotPatch[f]) emptySlot=f;
+              });
+              if(!emptySlot) break; // スロット満杯（最大4名）
+              slotPatch[emptySlot]=fc.name;
+              slotPatch[emptySlot+'_kana']=fc.kana||'';
+              slotPatch[emptySlot+'_rel']=fc.rel||'';
+              existingFamNames[fkey]=true;
+            }
+            if(Object.keys(slotPatch).length){
+              await sbPatch('wassa_customers',custId,slotPatch);
+              Object.keys(slotPatch).forEach(function(k){ repCust[k]=slotPatch[k]; });
             }
           }
         }
-      }catch(e2){ console.warn('family link error:',e2); }
+      }catch(e2){ console.warn('family sync error:',e2); }
     }
     // グループ貸切：チェックイン時は全室を自動同期
     if(payload.status==='checkin' && payload.group_id){
