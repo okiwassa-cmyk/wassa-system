@@ -11953,7 +11953,9 @@ function printDailySlips(){
   // ヘルパー関数
   // _isRoom が true の行は _isBf/_isDin を false にして「大人宿泊料金（朝食付き）」などの重複を防止
   var _isChild=function(row){return /子供|小学生|幼児|こども/i.test(row.item||'');};
-  var _isRoom=function(row){return /宿泊|室料/i.test(row.cat||'')||/宿泊|室料/i.test(row.item||'');};
+  // cat（カテゴリ）を最優先で判定。cat が朝食/夕食なら品目名に「宿泊」が含まれても宿泊扱いしない
+  // （例: cat=朝食 / item=「大人宿泊（朝食付き）」を宿泊料金に誤吸収するのを防ぐ）
+  var _isRoom=function(row){if(/朝食|夕食|ディナー/i.test(row.cat||''))return false;return /宿泊|室料/i.test(row.cat||'')||/宿泊|室料/i.test(row.item||'');};
   var _isBf=function(row){if(_isRoom(row))return false;return /朝食/i.test(row.cat||'')||/朝食/i.test(row.item||'');};
   var _isDin=function(row){if(_isRoom(row))return false;return /夕食|ディナー/i.test(row.cat||'')||/夕食|ディナー/i.test(row.item||'');};
   var _dates=function(rows){var s={};rows.forEach(function(row){if(row.date)s[row.date]=1;});return Object.keys(s).length;};
