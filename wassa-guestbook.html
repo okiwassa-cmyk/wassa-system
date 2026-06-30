@@ -4095,8 +4095,8 @@ function autoGenBillingRows(){
       if(_infNone>0) rows.push({cat:'宿泊料金',date:_ds,item:'幼児（布団なし・食なし）',qty:_infNone,discount:0,price:_er.infNoFutonUnit,payment:pay});
       if(_hasDin){
         if(_adults>0) rows.push({cat:'夕食',date:_ds,item:'夕食（大人）',qty:_adults,discount:0,price:Math.round((_er.dinAdultAmt||0)/(_adults||1)),payment:pay});
-        if(_children>0) rows.push({cat:'夕食',date:_ds,item:'夕食（お子様）',qty:_children,discount:0,price:_dinChild,payment:pay});
-        if(_infMealBed+_infMealOnly+_infDlx>0) rows.push({cat:'夕食',date:_ds,item:'夕食（幼児）',qty:_infMealBed+_infMealOnly+_infDlx,discount:0,price:_dinChild,payment:pay});
+        if(_children>0) rows.push({cat:'夕食',date:_ds,item:'小学生夕食',qty:_children,discount:0,price:_dinChild,payment:pay});
+        if(_infMealBed+_infMealOnly+_infDlx>0) rows.push({cat:'夕食',date:_ds,item:'幼児夕食',qty:_infMealBed+_infMealOnly+_infDlx,discount:0,price:_dinChild,payment:pay});
       }
     }
     billingRows=rows;
@@ -4145,13 +4145,13 @@ function autoGenBillingRows(){
     if(infants>0) rows.push({cat:'宿泊料金',date:ds,item:'幼児',qty:infants,discount:0,price:0,payment:pay});
     if(_hasDin){
       if(adults>0) rows.push({cat:'夕食',date:ds,item:'夕食（大人）',qty:adults,discount:0,price:getDinnerPrice(ds),payment:pay});
-      if(children>0) rows.push({cat:'夕食',date:ds,item:'夕食（お子様）',qty:children,discount:0,price:Math.round(getDinnerPrice(ds)*(common.din_child_rate||0.65)),payment:pay});
-      if(infants>0) rows.push({cat:'夕食',date:ds,item:'夕食（幼児）',qty:infants,discount:0,price:common.din_infant||0,payment:pay});
+      if(children>0) rows.push({cat:'夕食',date:ds,item:'小学生夕食',qty:children,discount:0,price:Math.round(getDinnerPrice(ds)*(common.din_child_rate||0.65)),payment:pay});
+      if(infants>0) rows.push({cat:'夕食',date:ds,item:'幼児夕食',qty:infants,discount:0,price:common.din_infant||0,payment:pay});
     }
     if(_hasBf){
       if(adults>0) rows.push({cat:'朝食',date:ds,item:'朝食（大人）',qty:adults,discount:0,price:getBreakfastPrice(ds),payment:pay});
-      if(children>0) rows.push({cat:'朝食',date:ds,item:'朝食（お子様）',qty:children,discount:0,price:common.bf_child||getBreakfastPrice(ds),payment:pay});
-      if(infants>0) rows.push({cat:'朝食',date:ds,item:'朝食（幼児）',qty:infants,discount:0,price:common.bf_infant||0,payment:pay});
+      if(children>0) rows.push({cat:'朝食',date:ds,item:'小学生朝食',qty:children,discount:0,price:common.bf_child||getBreakfastPrice(ds),payment:pay});
+      if(infants>0) rows.push({cat:'朝食',date:ds,item:'幼児朝食',qty:infants,discount:0,price:common.bf_infant||0,payment:pay});
     }
   }
   billingRows=rows;
@@ -4216,15 +4216,15 @@ function renderBillingPicker(){
         mealItems.push({cat:'夕食',name:'夕食 '+defMark+c.name,price:c.price,courseName:c.name});
       });
       // 小学生・幼児は共通料金
-      mealItems.push({cat:'夕食',name:'夕食（小学生）',price:dinChild});
-      mealItems.push({cat:'夕食',name:'夕食（幼児）',price:common.din_infant});
+      mealItems.push({cat:'夕食',name:'小学生夕食',price:dinChild});
+      mealItems.push({cat:'夕食',name:'幼児夕食',price:common.din_infant});
     }
     // 朝食
     var showBf=!cat||cat==='朝食';
     if(showBf){
       mealItems.push({cat:'朝食',name:'朝食（大人）',price:common.bf_adult});
-      mealItems.push({cat:'朝食',name:'朝食（小学生）',price:common.bf_child});
-      mealItems.push({cat:'朝食',name:'朝食（幼児）',price:common.bf_infant});
+      mealItems.push({cat:'朝食',name:'小学生朝食',price:common.bf_child});
+      mealItems.push({cat:'朝食',name:'幼児朝食',price:common.bf_infant});
     }
     if(mealItems.length){
       html+='<div style="background:var(--ocean-light);padding:6px 14px;font-size:10px;font-weight:700;color:var(--ocean2);letter-spacing:.06em">食事設定価格（自動反映）</div>';
@@ -8586,7 +8586,7 @@ function renderResult(){
         html+='<div style="display:flex;align-items:center;gap:6px;margin:2px 4px 2px"><span style="font-size:10px;color:var(--text3);white-space:nowrap">コース：</span><select style="font-size:11px;padding:2px 6px;border:1px solid var(--border);border-radius:4px;flex:1;background:var(--sand);color:var(--text)" onchange="onDinCourseChange('+ri+',this.value)">'+_courseOpts+'</select></div>';
         html+=unitInput(ri,'dinAdultUnit',Math.round(rr.dinAdultAmt/(e.adult||1)),(rr.dinCourseName||currentDinCourseName||'ディナー')+'（大人）',e.adult);
       } else if(it.type==='din_child'){
-        html+=unitInput(ri,'dinChildUnit',Math.round(rr.dinChildAmt/(e.child||1)),'子供ディナー（小学生）',e.child);
+        html+=unitInput(ri,'dinChildUnit',Math.round(rr.dinChildAmt/(e.child||1)),'小学生夕食',e.child);
       } else if(it.type==='din_inf_futon'){
         var _dfc=Math.min(e.infFuton,rr.dinInfFutonAmt?Math.round(rr.dinInfFutonAmt/(common.din_child_price||Math.round(common.din_adult*common.din_child_rate)||1)):e.infFuton);
         html+=unitInput(ri,'dinInfFutonUnit',Math.round(rr.dinInfFutonAmt/(_dfc||1)),'幼児ディナー',_dfc||e.infFuton);
@@ -8599,14 +8599,14 @@ function renderResult(){
       } else if(it.type==='bf_adult'){
         html+=unitInput(ri,'bfAdultUnit',Math.round(rr.bfAdultAmt/(e.adult||1)),'朝食（大人）',e.adult);
       } else if(it.type==='bf_child'){
-        html+=unitInput(ri,'bfChildUnit',Math.round(rr.bfChildAmt/(e.child||1)),'朝食（小学生）',e.child);
+        html+=unitInput(ri,'bfChildUnit',Math.round(rr.bfChildAmt/(e.child||1)),'小学生朝食',e.child);
       } else if(it.type==='bf_inf_futon'){
-        html+=unitInput(ri,'bfInfFutonUnit',Math.round(rr.bfInfFutonAmt/(e.infFuton||1)),'朝食（幼児）',e.infFuton);
+        html+=unitInput(ri,'bfInfFutonUnit',Math.round(rr.bfInfFutonAmt/(e.infFuton||1)),'幼児朝食',e.infFuton);
       } else if(it.type==='bf_inf_nofuton'){
         var _bfIC3=rr.bfInfNoFutonCt||e.infNoFuton||0;
         html+=unitInput(ri,'bfInfNoFutonUnit',Math.round(rr.bfInfNoFutonAmt/(_bfIC3||1)),'朝食（幼児・布団なし）',_bfIC3);
       } else if(it.type==='bf_inf_dlx'){
-        html+=unitInput(ri,'bfInfDlxUnit',Math.round(rr.bfInfDlxAmt/(e.infDlx||1)),'朝食（幼児）',e.infDlx);
+        html+=unitInput(ri,'bfInfDlxUnit',Math.round(rr.bfInfDlxAmt/(e.infDlx||1)),'幼児朝食',e.infDlx);
       }
     }
     html+='</div>';
@@ -8841,9 +8841,9 @@ async function saveDirectReservation(){
       if(e.infDlx&&r.infDlxRoom) billing.push({cat:'宿泊料金', date:r.date||r.label, item:_hasMeal?'幼児（食事有）':'幼児（食事無）', qty:e.infDlx, price:r.infDlxUnit, discount:0});
     }
     if(r.bfAdultOn&&r.bfAdultAmt) billing.push({cat:'朝食', date:r.date||r.label, item:'朝食（大人）', qty:e.adult, price:Math.round(r.bfAdultAmt/(e.adult||1)), discount:0});
-    if(r.bfChildOn&&r.bfChildAmt) billing.push({cat:'朝食', date:r.date||r.label, item:'朝食（小学生）', qty:e.child, price:Math.round(r.bfChildAmt/(e.child||1)), discount:0});
+    if(r.bfChildOn&&r.bfChildAmt) billing.push({cat:'朝食', date:r.date||r.label, item:'小学生朝食', qty:e.child, price:Math.round(r.bfChildAmt/(e.child||1)), discount:0});
     if(r.dinAdultOn&&r.dinAdultAmt) billing.push({cat:'ディナー', date:r.date||r.label, item:'ディナー（大人）', qty:e.adult, price:Math.round(r.dinAdultAmt/(e.adult||1)), discount:0});
-    if(r.dinChildOn&&r.dinChildAmt) billing.push({cat:'ディナー', date:r.date||r.label, item:'ディナー（小学生）', qty:e.child, price:Math.round(r.dinChildAmt/(e.child||1)), discount:0});
+    if(r.dinChildOn&&r.dinChildAmt) billing.push({cat:'ディナー', date:r.date||r.label, item:'小学生夕食', qty:e.child, price:Math.round(r.dinChildAmt/(e.child||1)), discount:0});
   }
   var payload = {
     source: document.getElementById('dr-source').value,
@@ -8898,9 +8898,9 @@ async function saveDirectReservation(){
             if(est.infDlx&&br.infDlxRoom) estBilling.push({cat:'宿泊料金',date:br.date||br.label,item:_estMeal?'幼児（食事有）':'幼児（食事無）',qty:est.infDlx,price:br.infDlxUnit,discount:0});
           }
           if(br.bfAdultOn&&br.bfAdultAmt) estBilling.push({cat:'朝食',date:br.date||br.label,item:'朝食（大人）',qty:est.adult,price:Math.round(br.bfAdultAmt/(est.adult||1)),discount:0});
-          if(br.bfChildOn&&br.bfChildAmt) estBilling.push({cat:'朝食',date:br.date||br.label,item:'朝食（小学生）',qty:est.child,price:Math.round(br.bfChildAmt/(est.child||1)),discount:0});
+          if(br.bfChildOn&&br.bfChildAmt) estBilling.push({cat:'朝食',date:br.date||br.label,item:'小学生朝食',qty:est.child,price:Math.round(br.bfChildAmt/(est.child||1)),discount:0});
           if(br.dinAdultOn&&br.dinAdultAmt) estBilling.push({cat:'ディナー',date:br.date||br.label,item:'ディナー（大人）',qty:est.adult,price:Math.round(br.dinAdultAmt/(est.adult||1)),discount:0});
-          if(br.dinChildOn&&br.dinChildAmt) estBilling.push({cat:'ディナー',date:br.date||br.label,item:'ディナー（小学生）',qty:est.child,price:Math.round(br.dinChildAmt/(est.child||1)),discount:0});
+          if(br.dinChildOn&&br.dinChildAmt) estBilling.push({cat:'ディナー',date:br.date||br.label,item:'小学生夕食',qty:est.child,price:Math.round(br.dinChildAmt/(est.child||1)),discount:0});
         }
         var mp={
           source:document.getElementById('dr-source').value,
@@ -9368,16 +9368,16 @@ async function saveQuoteToDb(){
         // 夕食：大人・小学生・幼児
         var _cn2=r.dinCourseName||currentDinCourseName||'ディナー';
         if(r.dinAdultOn&&r.dinAdultAmt) brows.push({cat:'ディナー',date:_ds,item:_cn2+'（大人）',qty:e.adult,price:Math.round(r.dinAdultAmt/(e.adult||1)),discount:0});
-        if(r.dinChildOn&&r.dinChildAmt) brows.push({cat:'ディナー',date:_ds,item:_cn2+'（小学生）',qty:e.child,price:Math.round(r.dinChildAmt/(e.child||1)),discount:0});
+        if(r.dinChildOn&&r.dinChildAmt) brows.push({cat:'ディナー',date:_ds,item:'小学生夕食',qty:e.child,price:Math.round(r.dinChildAmt/(e.child||1)),discount:0});
         // 幼児夕食（これまで抜けていた）。qtyは「夕食を食べる幼児数」＝amt/単価（全幼児数ではない）
         var _infDinUnit=common.din_child_price||Math.round((r.dinCoursePrice||common.din_adult)*common.din_child_rate)||1;
-        if(r.dinInfFutonOn&&r.dinInfFutonAmt) brows.push({cat:'ディナー',date:_ds,item:_cn2+'（幼児）',qty:Math.round(r.dinInfFutonAmt/_infDinUnit),price:_infDinUnit,discount:0});
-        if(r.dinInfNoFutonOn&&r.dinInfNoFutonAmt) brows.push({cat:'ディナー',date:_ds,item:_cn2+'（幼児）',qty:Math.round(r.dinInfNoFutonAmt/_infDinUnit),price:_infDinUnit,discount:0});
-        if(r.dinInfDlxOn&&r.dinInfDlxAmt) brows.push({cat:'ディナー',date:_ds,item:_cn2+'（幼児）',qty:Math.round(r.dinInfDlxAmt/_infDinUnit),price:_infDinUnit,discount:0});
+        if(r.dinInfFutonOn&&r.dinInfFutonAmt) brows.push({cat:'ディナー',date:_ds,item:'幼児夕食',qty:Math.round(r.dinInfFutonAmt/_infDinUnit),price:_infDinUnit,discount:0});
+        if(r.dinInfNoFutonOn&&r.dinInfNoFutonAmt) brows.push({cat:'ディナー',date:_ds,item:'幼児夕食',qty:Math.round(r.dinInfNoFutonAmt/_infDinUnit),price:_infDinUnit,discount:0});
+        if(r.dinInfDlxOn&&r.dinInfDlxAmt) brows.push({cat:'ディナー',date:_ds,item:'幼児夕食',qty:Math.round(r.dinInfDlxAmt/_infDinUnit),price:_infDinUnit,discount:0});
         // 素泊まり・夕食付きの場合のみ朝食を別行で残す
         if(!hasBf){
           if(r.bfAdultOn&&r.bfAdultAmt) brows.push({cat:'朝食',date:_ds,item:'大人宿泊（朝食付き）',qty:e.adult,price:Math.round(r.bfAdultAmt/(e.adult||1)),discount:0});
-          if(r.bfChildOn&&r.bfChildAmt) brows.push({cat:'朝食',date:_ds,item:'朝食（小学生）',qty:e.child,price:Math.round(r.bfChildAmt/(e.child||1)),discount:0});
+          if(r.bfChildOn&&r.bfChildAmt) brows.push({cat:'朝食',date:_ds,item:'小学生朝食',qty:e.child,price:Math.round(r.bfChildAmt/(e.child||1)),discount:0});
         }
       }
       return brows;
@@ -9571,9 +9571,9 @@ async function _doSendQuoteEmail(email, guest, quoteHtml, quoteId, urlLines, cus
         if(e.infDlx&&r.infDlxRoom) d.items.push({name:'幼児宿泊料金', unit:r.infDlxUnit, qty:e.infDlx, amt:r.infDlxRoom});
       }
       if(r.bfAdultOn&&r.bfAdultAmt) d.items.push({name:'朝食（大人）', unit:Math.round(r.bfAdultAmt/e.adult), qty:e.adult, amt:r.bfAdultAmt});
-      if(r.bfChildOn&&r.bfChildAmt) d.items.push({name:'朝食（小学生）', unit:Math.round(r.bfChildAmt/e.child), qty:e.child, amt:r.bfChildAmt});
+      if(r.bfChildOn&&r.bfChildAmt) d.items.push({name:'小学生朝食', unit:Math.round(r.bfChildAmt/e.child), qty:e.child, amt:r.bfChildAmt});
       if(r.dinAdultOn&&r.dinAdultAmt) d.items.push({name:'夕食（大人）', unit:Math.round(r.dinAdultAmt/e.adult), qty:e.adult, amt:r.dinAdultAmt});
-      if(r.dinChildOn&&r.dinChildAmt) d.items.push({name:'夕食（小学生）', unit:Math.round(r.dinChildAmt/e.child), qty:e.child, amt:r.dinChildAmt});
+      if(r.dinChildOn&&r.dinChildAmt) d.items.push({name:'小学生夕食', unit:Math.round(r.dinChildAmt/e.child), qty:e.child, amt:r.dinChildAmt});
       detailLines.push(d);
     }
     var validityEl = document.getElementById('q-validity');
