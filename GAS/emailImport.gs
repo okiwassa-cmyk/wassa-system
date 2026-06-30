@@ -72,6 +72,8 @@ function processReservationEmails() {
               if (isCancelEmail(subject, body)) { processCancelEmail(subject, body); msg.markRead(); continue; }
               var src = detectSource(subject, body);
               if (src) {
+                // 予約変更メール → 既存予約を上書き（重複スキップより前に処理）
+                if (isUpdateEmail(subject, body)) { processUpdateEmail(src, body); msg.markRead(); continue; }
                 var data = parseEmail(src, body);
                 if (!data.guest_name) {
                   // ── 通知は1メッセージにつき1回のみ ──
@@ -1277,6 +1279,125 @@ function saveToSupabase(data) {
     Logger.log('Supabase保存: ' + r.getResponseCode() + ' / ' + data.guest_name + ' / 顧客ID: ' + customerId);
   } catch(e) {
     Logger.log('Supabase error: ' + e);
+  }
+}
+
+// ============================================================
+// 予約変更メールの反映（既存予約を上書き）
+// ============================================================
+// 変更メール検知：新規でもキャンセルでもない「変更」通知のみ true
+function isUpdateEmail(subject, body) {
+  var s = (subject || '') + '\n' + (body || '');
+  if (/新規予約/.test(s)) return false;
+  return /ご予約変更|予約変更の通知|予約者の手続きにより変更され|予約内容(?:が)?変更|変更されました/.test(s);
+}
+
+// 明細から人数内訳を集計（日付ごとに集計し最大の泊を実人数とする＝泊数倍を防ぐ）
+function aggregateCounts(billingData, data) {
+  var infMealBed = 0, infMealOnly = 0, infBedOnly = 0, infNone = 0, billChildren = 0;
+  var _byDate = {};
+  billingData.forEach(function(row) {
+    var dt = row.date || '_';
+    if (!_byDate[dt]) _byDate[dt] = {child:0, mb:0, mo:0, bo:0, nn:0};
+    if (row.item === '小学生宿泊料金')       _byDate[dt].child += (row.qty || 0);
+    if (row.item === '幼児（食事有・布団有）') _byDate[dt].mb    += (row.qty || 0);
+    if (row.item === '幼児（食事有・布団無）') _byDate[dt].mo    += (row.qty || 0);
+    if (row.item === '幼児（食事無・布団有）') _byDate[dt].bo    += (row.qty || 0);
+    if (row.item === '幼児（食事無・布団無）') _byDate[dt].nn    += (row.qty || 0);
+  });
+  Object.keys(_byDate).forEach(function(dt) {
+    var v = _byDate[dt];
+    if (v.child > billChildren) billChildren = v.child;
+    if (v.mb    > infMealBed)   infMealBed   = v.mb;
+    if (v.mo    > infMealOnly)  infMealOnly  = v.mo;
+    if (v.bo    > infBedOnly)   infBedOnly   = v.bo;
+    if (v.nn    > infNone)      infNone      = v.nn;
+  });
+  return {
+    infMealBed: infMealBed, infMealOnly: infMealOnly, infBedOnly: infBedOnly, infNone: infNone,
+    totalInfants: (infMealBed + infMealOnly + infBedOnly + infNone) || data.infants || 0,
+    totalChildren: billChildren || data.children || 0
+  };
+}
+
+// 変更メールを既存予約にPATCH。部屋が同じ→全自動更新、特例（手動で部屋変更済み）→人数・料金のみ更新し部屋・メモ維持
+function processUpdateEmail(src, body) {
+  try {
+    var data = parseEmail(src, body);
+    if (!data.guest_name || !data.reservation_no) { Logger.log('変更: 解析失敗 src=' + src); return; }
+
+    var getUrl = CONFIG.SUPABASE_URL + '/rest/v1/reservations?reservation_no=eq.' +
+      encodeURIComponent(data.reservation_no) +
+      '&select=id,room_type,adults,children,infants,total_amount,notes';
+    var gr = UrlFetchApp.fetch(getUrl, {headers:{'apikey':CONFIG.SUPABASE_KEY,'Authorization':'Bearer '+CONFIG.SUPABASE_KEY}});
+    var existing = JSON.parse(gr.getContentText());
+    if (!existing || existing.length === 0) {
+      Logger.log('変更: 既存予約なし → 新規取込 ' + data.reservation_no);
+      saveToSupabase(data);
+      return;
+    }
+    var cur = existing[0];
+
+    // 部屋タイプ：WASSA現在とメールが食い違う＝手動アップグレード等の特例 → 部屋・メモ維持
+    var mailIsDx = /デラックス|DX/i.test(data.room_type || '');
+    var curIsDx  = /デラックス|DX/i.test(cur.room_type || '');
+    var keepRoom = (mailIsDx !== curIsDx);
+
+    // 明細・人数を再生成（新規取込と同じビルダーを使うので整合する）
+    var billingData = buildBillingFromEmail(data);
+    var cnt = aggregateCounts(billingData, data);
+    var _normPay = data.payment || '';
+    var _billingPts = (_normPay !== '事前決済') ? (data.points_amount || 0) : 0;
+    var _billingCpn = data.coupon_amount || 0;
+    var _billingPayload = (_billingPts === 0 && _billingCpn === 0)
+      ? billingData
+      : {rows: billingData, coupon:_billingCpn, points:_billingPts, furusato:0};
+
+    var patch = {
+      adults:        data.adults,
+      children:      cnt.totalChildren,
+      infants:       String(cnt.totalInfants),
+      inf_meal_bed:  String(cnt.infMealBed),
+      inf_meal_only: String(cnt.infMealOnly),
+      inf_bed_only:  String(cnt.infBedOnly),
+      inf_none:      cnt.infNone,
+      total_amount:  data.total_amount,
+      check_in:      data.check_in,
+      check_out:     data.check_out,
+      plan_name:     data.plan_name,
+      billing:       _billingPayload
+    };
+    if (!keepRoom) {            // 部屋が同じ → 部屋・メモも更新
+      patch.room_type = data.room_type;
+      patch.notes     = data.notes || cur.notes || '';
+    }                          // 特例 → room_type / notes はpatchに含めず維持
+
+    UrlFetchApp.fetch(CONFIG.SUPABASE_URL + '/rest/v1/reservations?id=eq.' + cur.id, {
+      method:'PATCH',
+      headers:{'Content-Type':'application/json; charset=utf-8','apikey':CONFIG.SUPABASE_KEY,'Authorization':'Bearer '+CONFIG.SUPABASE_KEY,'Prefer':'return=minimal'},
+      payload: JSON.stringify(patch)
+    });
+
+    // LINE通知（差分）
+    try {
+      var diffs = [];
+      if (String(cur.adults)   !== String(data.adults))         diffs.push('大人 '   + cur.adults   + '→' + data.adults        + '名');
+      if (String(cur.children) !== String(cnt.totalChildren))   diffs.push('小学生 ' + cur.children + '→' + cnt.totalChildren  + '名');
+      if (String(cur.infants)  !== String(cnt.totalInfants))    diffs.push('幼児 '   + cur.infants  + '→' + cnt.totalInfants   + '名');
+      var curAmt = String(cur.total_amount || '').replace(/[^0-9]/g, '');
+      var newAmt = String(data.total_amount || '').replace(/[^0-9]/g, '');
+      if (curAmt !== newAmt) diffs.push('料金 ¥' + Number(curAmt||0).toLocaleString() + '→¥' + Number(newAmt||0).toLocaleString());
+      var msg = '🔁【予約変更】' + (data.source || '') + '\n' +
+        'ゲスト: ' + data.guest_name + '\n' +
+        'チェックイン: ' + data.check_in + '\n' +
+        (diffs.length ? '変更点: ' + diffs.join(' / ') : '内容変更あり') +
+        (keepRoom ? '\n※部屋は手動設定を維持（' + cur.room_type + '）。人数・料金のみ更新しました' : '');
+      sendLineGroupMessage_(msg);
+    } catch(le) { Logger.log('変更LINE通知エラー: ' + le); }
+
+    Logger.log('変更反映OK: ' + data.guest_name + ' id=' + cur.id + ' keepRoom=' + keepRoom);
+  } catch(e) {
+    Logger.log('processUpdateEmail error: ' + e);
   }
 }
 
