@@ -9298,6 +9298,8 @@ function buildQuote(){
 function _infBreakdownFromBilling(billingArr){
   var seen={}, r={inf_meal_bed:0,inf_meal_only:0,inf_bed_only:0,inf_none:0};
   (billingArr||[]).forEach(function(row){
+    // 食事行（夕食・朝食）は人数集計に含めない。「おまかせコース（幼児）」等が幼児数に二重計上されるのを防ぐ
+    if(/朝食|夕食|ディナー/i.test(row.cat||''))return;
     var it=row.item||''; var qty=parseInt(row.qty)||0;
     if(seen[it])return; seen[it]=true;
     if(!/幼児|infant/i.test(it))return;
@@ -9367,10 +9369,11 @@ async function saveQuoteToDb(){
         var _cn2=r.dinCourseName||currentDinCourseName||'ディナー';
         if(r.dinAdultOn&&r.dinAdultAmt) brows.push({cat:'ディナー',date:_ds,item:_cn2+'（大人）',qty:e.adult,price:Math.round(r.dinAdultAmt/(e.adult||1)),discount:0});
         if(r.dinChildOn&&r.dinChildAmt) brows.push({cat:'ディナー',date:_ds,item:_cn2+'（小学生）',qty:e.child,price:Math.round(r.dinChildAmt/(e.child||1)),discount:0});
-        // 幼児夕食（これまで抜けていた）
-        if(r.dinInfFutonOn&&r.dinInfFutonAmt) brows.push({cat:'ディナー',date:_ds,item:_cn2+'（幼児）',qty:e.infFuton,price:Math.round(r.dinInfFutonAmt/(e.infFuton||1)),discount:0});
-        if(r.dinInfNoFutonOn&&r.dinInfNoFutonAmt) brows.push({cat:'ディナー',date:_ds,item:_cn2+'（幼児）',qty:e.infNoFuton,price:Math.round(r.dinInfNoFutonAmt/(e.infNoFuton||1)),discount:0});
-        if(r.dinInfDlxOn&&r.dinInfDlxAmt) brows.push({cat:'ディナー',date:_ds,item:_cn2+'（幼児）',qty:e.infDlx,price:Math.round(r.dinInfDlxAmt/(e.infDlx||1)),discount:0});
+        // 幼児夕食（これまで抜けていた）。qtyは「夕食を食べる幼児数」＝amt/単価（全幼児数ではない）
+        var _infDinUnit=common.din_child_price||Math.round((r.dinCoursePrice||common.din_adult)*common.din_child_rate)||1;
+        if(r.dinInfFutonOn&&r.dinInfFutonAmt) brows.push({cat:'ディナー',date:_ds,item:_cn2+'（幼児）',qty:Math.round(r.dinInfFutonAmt/_infDinUnit),price:_infDinUnit,discount:0});
+        if(r.dinInfNoFutonOn&&r.dinInfNoFutonAmt) brows.push({cat:'ディナー',date:_ds,item:_cn2+'（幼児）',qty:Math.round(r.dinInfNoFutonAmt/_infDinUnit),price:_infDinUnit,discount:0});
+        if(r.dinInfDlxOn&&r.dinInfDlxAmt) brows.push({cat:'ディナー',date:_ds,item:_cn2+'（幼児）',qty:Math.round(r.dinInfDlxAmt/_infDinUnit),price:_infDinUnit,discount:0});
         // 素泊まり・夕食付きの場合のみ朝食を別行で残す
         if(!hasBf){
           if(r.bfAdultOn&&r.bfAdultAmt) brows.push({cat:'朝食',date:_ds,item:'大人宿泊（朝食付き）',qty:e.adult,price:Math.round(r.bfAdultAmt/(e.adult||1)),discount:0});
