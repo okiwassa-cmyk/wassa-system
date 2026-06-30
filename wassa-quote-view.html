@@ -296,8 +296,10 @@ function render(q, cancelPolicy) {
     + (planName ? '<div style="font-size:11px;color:var(--ocean2);font-weight:600;margin-bottom:8px;letter-spacing:.04em">' + escHtml(planName) + '</div>' : '')
     // 明細テーブル
     + '<table class="quote-tbl"><thead><tr><th>日付</th><th>内容</th><th>単価</th><th>数量</th><th>金額</th></tr></thead><tbody>' + rows + '</tbody></table>'
+    // 割引
+    + ((parseInt(q.discount)||0) > 0 ? '<div style="text-align:right;font-size:12px;color:var(--coral);padding:4px 16px 8px;margin-top:-8px">割引　▲' + fmtPrice(parseInt(q.discount)) + '</div>' : '')
     // 合計
-    + '<div class="quote-total"><span class="label">' + totalLabel + '</span><span class="amount">' + fmtPrice(q.total_amount) + '</span></div>'
+    + '<div class="quote-total"><span class="label">' + totalLabel + '</span><span class="amount">' + fmtPrice((parseInt(q.discount)||0) > 0 ? Math.max(0,(parseInt(q.total_amount)||0) - parseInt(q.discount)) : q.total_amount) + '</span></div>'
     // 備考
     + (q.notes && !q.notes.startsWith('貸切 buyout-') ? '<div class="quote-note"><p>' + escHtml(q.notes).replace(/\n/g,'<br>') + '</p></div>' : '')
     // ご連絡
