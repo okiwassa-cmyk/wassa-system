@@ -1788,6 +1788,7 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
     <!-- 明細編集エリア -->
     <div id="qd-billing-edit" style="display:none;margin-top:14px;border:1px solid var(--ocean3);border-radius:8px;padding:12px;background:#f0f8fa">
       <div style="font-size:12px;font-weight:700;color:var(--ocean2);margin-bottom:8px">✏️ 明細編集</div>
+      <div id="qd-billing-room-tabs" style="display:none;gap:6px;margin-bottom:10px;flex-wrap:wrap"></div>
       <div id="qd-billing-rows"></div>
       <button onclick="qdAddBillingRow()" style="margin-top:6px;background:none;border:1px dashed var(--ocean3);border-radius:6px;padding:4px 12px;font-size:12px;color:var(--ocean2);cursor:pointer">＋ 行追加</button>
       <div class="bgrp" style="margin-top:10px;border-top:1px solid var(--sand2);padding-top:10px">
@@ -10101,15 +10102,41 @@ async function saveQuoteDetail(){
 }
 // ── 見積もり明細編集 ──
 var _qdBillingRows = []; // 編集中の行
+var _qdEditRoomId = null; // 編集中の室（見積もりID）。貸切は室ごとに別レコード
 function openQdBillingEdit(){
-  var q=allQuotes.find(function(x){return x.id===currentEditId;});
-  if(!q)return;
+  _qdEditRoomId = currentEditId; // 既定は開いている代表室
+  renderQdRoomTabs();
+  _loadQdBillingForRoom(_qdEditRoomId);
+  document.getElementById('qd-billing-edit').style.display='';
+  document.getElementById('qd-preview-content').style.display='none';
+}
+function _loadQdBillingForRoom(qid){
+  var q=allQuotes.find(function(x){return x.id===qid;});
+  if(!q){_qdBillingRows=[];renderQdBillingRows();return;}
   var billing=q.billing??([]);
   if(typeof billing==='string') try{billing=JSON.parse(billing);}catch(e){billing=[];}
   _qdBillingRows=JSON.parse(JSON.stringify(Array.isArray(billing)?billing:[]));
   renderQdBillingRows();
-  document.getElementById('qd-billing-edit').style.display='';
-  document.getElementById('qd-preview-content').style.display='none';
+}
+// 貸切は室ごとに別レコード→室タブで切り替えて1室ずつ編集する
+function renderQdRoomTabs(){
+  var el=document.getElementById('qd-billing-room-tabs'); if(!el)return;
+  var allIds=_quoteGroupMap[currentEditId]||[currentEditId];
+  if(allIds.length<=1){ el.style.display='none'; el.innerHTML=''; return; }
+  el.style.display='flex';
+  el.innerHTML=allIds.map(function(qid){
+    var q=allQuotes.find(function(x){return x.id===qid;});
+    var label=shortRoom((q&&(q.room_type||q.room))||'')||'室';
+    var active=qid===_qdEditRoomId;
+    return '<button onclick="switchQdRoom('+qid+')" style="font-size:11px;font-weight:700;padding:4px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--ocean3);'+(active?'background:var(--ocean2);color:#fff':'background:#fff;color:var(--ocean2)')+'">'+label+'</button>';
+  }).join('');
+}
+function switchQdRoom(qid){
+  qid=parseInt(qid);
+  if(qid===_qdEditRoomId)return;
+  _qdEditRoomId=qid;
+  renderQdRoomTabs();
+  _loadQdBillingForRoom(qid);
 }
 function renderQdBillingRows(){
   var el=document.getElementById('qd-billing-rows'); if(!el)return;
@@ -10133,16 +10160,23 @@ function qdAddBillingRow(){
   renderQdBillingRows();
 }
 async function saveQdBilling(){
-  if(!currentEditId)return;
+  var _saveId=_qdEditRoomId||currentEditId;
+  if(!_saveId)return;
   var total=_qdBillingRows.reduce(function(s,r){return s+(parseFloat(r.price)||0)*(parseFloat(r.qty)||1)-(parseFloat(r.discount)||0);},0);
   try{
-    await sbPatch('quotes',currentEditId,{billing:_qdBillingRows,total_amount:total});
-    var idx=allQuotes.findIndex(function(x){return x.id===currentEditId;});
+    await sbPatch('quotes',_saveId,{billing:_qdBillingRows,total_amount:total});
+    var idx=allQuotes.findIndex(function(x){return x.id===_saveId;});
     if(idx>-1){allQuotes[idx].billing=_qdBillingRows;allQuotes[idx].total_amount=total;}
     document.getElementById('qd-billing-edit').style.display='none';
-    document.getElementById('qd-amount').value='¥'+fmt(total);
+    // 全室合計を再計算して金額表示を更新（貸切は全室合算）
+    var allIds=_quoteGroupMap[currentEditId]||[currentEditId];
+    var isBuyout=allIds.length>1;
+    var grand=allIds.reduce(function(s,sid){var sq=allQuotes.find(function(x){return x.id===sid;});return s+(sq?parseFloat(sq.total_amount)||0:0);},0);
+    document.getElementById('qd-amount').value=isBuyout?('¥'+fmt(grand)+' (全室合計)'):'¥'+fmt(total);
     renderQuotesList();
-    toast('✅ 明細を保存しました');
+    var _q=allQuotes.find(function(x){return x.id===_saveId;});
+    var _rl=_q?shortRoom(_q.room_type||_q.room||''):'';
+    toast('✅ 明細を保存しました'+(isBuyout&&_rl?'（'+_rl+'）':''));
   }catch(e){toast('エラー: '+e.message);}
 }
 async function copyQuoteUrlFromDetail(){
