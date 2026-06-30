@@ -10231,7 +10231,7 @@ function showRatePopup(ds,e){
   var sColor=s?{'super_high':'var(--sh)','high':'var(--hi)','regular':'var(--re)','low':'var(--lo)'}[s]:'var(--text3)';
   var sup=getRoomPrices(ds,'sup'),dlx=getRoomPrices(ds,'dlx');
   var dinP=getDinnerPrice(ds),bfP=getBreakfastPrice(ds);
-  var dinChild=Math.round(dinP*(common.din_child_rate||0.65));
+  var dinChild=common.din_child_price||Math.round(dinP*(common.din_child_rate||0.65));
   var dow=['日','月','火','水','木','金','土'][new Date(ds).getDay()];
   var html='<div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px">'+ds.slice(5).replace('-','/')+'（'+dow+'）</div>';
   html+='<div style="font-size:11px;font-weight:700;color:'+sColor+';margin-bottom:6px">'+sLabel+'</div>';
