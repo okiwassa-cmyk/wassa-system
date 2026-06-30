@@ -3428,6 +3428,8 @@ async function saveReservation(andClose, autoSave){
     await autoSaveFoodRecords(true); // silent（主保存トーストと重複しないよう）
   }
   const gname=document.getElementById('edit-guestname').value.trim();if(!gname){if(!autoSave)toast('お名前を入力してください');return;}
+  // 自動保存でチェックイン日が空のときは保存しない（古い/復元フォームが日付・人数を空で上書きする事故を防ぐ）
+  if(autoSave && !document.getElementById('edit-checkin').value){ return; }
   const room=document.getElementById('edit-room-select')?.value;
   // 部屋未選択の場合は警告（カレンダーに表示されない）
   if(!room && !autoSave){
@@ -9145,7 +9147,7 @@ function buildQuoteMulti(estimates){
       var d=new Date(dk+'T00:00:00'); var dlabel=(d.getMonth()+1)+'月'+d.getDate()+'日';
       db.subs.forEach(function(s,si){
         var isFirst=si===0;
-        rows+='<tr class="'+(isFirst?'night-row':'sub-row')+'"><td>'+(isFirst?dlabel:'')+'</td><td>'+s.label+'</td><td>'+(s.unit?fmtPrice(s.unit):'')+'</td><td>'+(s.qty>1?s.qty+'名':'')+'</td><td>'+fmtPrice(s.amt)+'</td></tr>';
+        rows+='<tr class="'+(isFirst?'night-row':'sub-row')+'"><td>'+(isFirst?dlabel:'')+'</td><td>'+s.label+'</td><td>'+(s.unit?fmtPrice(s.unit):'')+'</td><td>'+(s.qty>0?s.qty+'名':'')+'</td><td>'+fmtPrice(s.amt)+'</td></tr>';
       });
       if(!db.subs.length) rows+='<tr class="night-row"><td>'+dlabel+'</td><td></td><td></td><td></td><td>'+fmtPrice(db.total)+'</td></tr>';
       grand+=db.total;
@@ -9273,7 +9275,7 @@ function buildQuote(){
     var d=new Date(dk+'T00:00:00');var dlabel=(d.getMonth()+1)+'月'+d.getDate()+'日';
     for(var si=0;si<db.subs.length;si++){
       var s=db.subs[si];var isFirst2=si===0;
-      rows+='<tr class="'+(isFirst2?'night-row':'sub-row')+'"><td>'+(isFirst2?dlabel:'')+'</td><td>'+s.label+'</td><td>'+(s.unit?fmtPrice(s.unit):'')+'</td><td>'+(s.qty>1?s.qty+'名':'')+'</td><td>'+fmtPrice(s.amt)+'</td></tr>';
+      rows+='<tr class="'+(isFirst2?'night-row':'sub-row')+'"><td>'+(isFirst2?dlabel:'')+'</td><td>'+s.label+'</td><td>'+(s.unit?fmtPrice(s.unit):'')+'</td><td>'+(s.qty>0?s.qty+'名':'')+'</td><td>'+fmtPrice(s.amt)+'</td></tr>';
     }
   }
   // オプション料金を明細に追加
@@ -9716,7 +9718,7 @@ function buildQuoteHtmlFromData(q){
         var amt=_rp*_rq-(parseFloat(row.discount)||0);
         dayTotal+=amt;
         var _unitStr=_rp>0?' @¥'+fmt(_rp):'';
-        rows+='<tr class="'+(firstOfDay?'night-row':'sub-row')+'"><td>'+dateLabel+'</td><td>'+escHtml(row.item||row.cat||'')+'</td><td>'+(_rp>0?'¥'+fmt(_rp):'')+'</td><td>'+(_rq>1?_rq+'名':'')+'</td><td>¥'+fmt(amt)+'</td></tr>';
+        rows+='<tr class="'+(firstOfDay?'night-row':'sub-row')+'"><td>'+dateLabel+'</td><td>'+escHtml(row.item||row.cat||'')+'</td><td>'+(_rp>0?'¥'+fmt(_rp):'')+'</td><td>'+(_rq>0?_rq+'名':'')+'</td><td>¥'+fmt(amt)+'</td></tr>';
         dateLabel='';firstOfDay=false;
       });
     });
