@@ -8120,20 +8120,31 @@ function renderRoomTabs(rooms){
   }).join('');
 }
 
-function switchRoomTab(r){
-  _activeRoomTab = r;
+// 入力タブの見た目・表示を指定の部屋に合わせる（入力↔結果のタブ同期に使用）
+function _syncRoomInputDisplay(r){
   var rooms = getCheckedRooms();
-  // タブボタンのスタイル更新
   rooms.forEach(function(rm){
     var btn = document.getElementById('room-tab-btn-'+rm);
-    if(!btn) return;
-    if(rm===r){
-      btn.style.color='var(--ocean2)'; btn.style.borderBottom='2px solid var(--ocean2)'; btn.style.fontWeight='600';
-    } else {
-      btn.style.color='var(--text2)'; btn.style.borderBottom='2px solid transparent'; btn.style.fontWeight='';
+    if(btn){
+      if(rm===r){
+        btn.style.color='var(--ocean2)'; btn.style.borderBottom='2px solid var(--ocean2)'; btn.style.fontWeight='600';
+      } else {
+        btn.style.color='var(--text2)'; btn.style.borderBottom='2px solid transparent'; btn.style.fontWeight='';
+      }
     }
-    document.getElementById('room-input-'+rm).style.display = rm===r ? '' : 'none';
+    var inp = document.getElementById('room-input-'+rm);
+    if(inp) inp.style.display = rm===r ? '' : 'none';
   });
+}
+function switchRoomTab(r){
+  _activeRoomTab = r;
+  _syncRoomInputDisplay(r);
+  // 計算結果も同じ部屋に同期（入力と結果で部屋がズレないように）
+  if(lastEstimates&&lastEstimates.length){
+    var m=lastEstimates.find(function(e){return e.roomKey===r;});
+    if(m) lastEstimate=m;
+    renderResult();
+  }
 }
 
 function updateInfMealOpts(r){
@@ -8677,6 +8688,7 @@ function switchRoomResultTab(roomKey){
   if(matched){
     lastEstimate = matched;
     _activeRoomTab = roomKey;
+    _syncRoomInputDisplay(roomKey); // 入力欄も同じ部屋に同期
     renderResult();
   }
 }
