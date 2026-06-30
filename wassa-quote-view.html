@@ -230,8 +230,8 @@ function render(q, cancelPolicy) {
       var amt = price * qty - (parseInt(row.discount)||0);
       var itemLabel = escHtml(row.item || row.cat || '');
       var trClass = isNightRow ? ' class="night-row"' : (isSubRow ? ' class="sub-row"' : '');
-      var unitCell = qty > 1 ? fmtPrice(price) : '';
-      var qtyCell = qty > 1 ? qty + '名' : '';
+      var unitCell = price > 0 ? fmtPrice(price) : '';
+      var qtyCell = qty > 0 ? qty + '名' : '';
       rows += '<tr'+trClass+'><td>'+escHtml(dateCell)+'</td><td>'+itemLabel+'</td><td>'+unitCell+'</td><td>'+qtyCell+'</td><td>'+fmtPrice(amt)+'</td></tr>';
     });
   }
