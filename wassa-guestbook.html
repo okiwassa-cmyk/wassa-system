@@ -9410,6 +9410,9 @@ async function saveQuoteToDb(){
         e.rows.forEach(function(rr){tR+=rr.nightRoom;var m=getMealAmtForRow(rr);tB+=m.bf;tD+=m.din;});
         var estGrand=tR+tB+tD; e.grand=estGrand;
         var billingForRoom=_buildBillingForEst(e);
+        // オプション料金を明細・合計に反映（従来ここが抜けていて保存で消えていた）
+        var _optRows=(e.extraOptions||[]).filter(function(o){return (o.label||o.price)&&(parseInt(o.price)||0)>0;}).map(function(o){return {cat:'その他',date:'',item:o.label||'オプション',price:parseInt(o.price)||0,qty:parseInt(o.qty)||1,discount:0};});
+        if(_optRows.length){billingForRoom=billingForRoom.concat(_optRows);estGrand+=_optRows.reduce(function(s,o){return s+o.price*o.qty;},0);e.grand=estGrand;}
         var rName=e.room_type||e.roomName||'';
         var roomPayload={
           guest_name:guest||'未入力',
@@ -9437,6 +9440,9 @@ async function saveQuoteToDb(){
       e.rows.forEach(function(rr){tR+=rr.nightRoom;var m=getMealAmtForRow(rr);tB+=m.bf;tD+=m.din;});
       var estGrand=tR+tB+tD; e.grand=estGrand;
       var billingForRoom=_buildBillingForEst(e);
+      // オプション料金を明細・合計に反映（従来ここが抜けていて保存で消えていた）
+      var _optRows=(e.extraOptions||[]).filter(function(o){return (o.label||o.price)&&(parseInt(o.price)||0)>0;}).map(function(o){return {cat:'その他',date:'',item:o.label||'オプション',price:parseInt(o.price)||0,qty:parseInt(o.qty)||1,discount:0};});
+      if(_optRows.length){billingForRoom=billingForRoom.concat(_optRows);estGrand+=_optRows.reduce(function(s,o){return s+o.price*o.qty;},0);e.grand=estGrand;}
       var rName=e.room_type||e.roomName||'';
       var payload={
         guest_name:guest||'未入力',
