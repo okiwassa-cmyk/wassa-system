@@ -5990,7 +5990,7 @@ function showCalDayModal(ds, dayRes){
     item.innerHTML = '<div style="width:36px;height:36px;border-radius:50%;background:var(--ocean);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0">'+shortRoom(r.room_type)+'</div>'
       + '<div><div style="font-size:14px;font-weight:500">'+(r.guest_name||'—')+'</div>'
       + kanaHtml
-      + '<div style="font-size:11px;color:var(--text2)">'+(parseInt(r.adults)||0)+'名'+(parseInt(r.children)>0?' 小'+r.children:'')+(r.plan_name?' · '+r.plan_name:'')+' '+statusBadge(r.status)+'</div></div>';
+      + '<div style="font-size:11px;color:var(--text2)">'+(parseInt(r.adults)||0)+'名'+(parseInt(r.children)>0?' 小'+r.children:'')+(parseInt(r.infants)>0?' 幼'+r.infants:'')+(r.plan_name?' · '+r.plan_name:'')+' '+statusBadge(r.status)+'</div></div>';
     box.appendChild(item);
   });
 
