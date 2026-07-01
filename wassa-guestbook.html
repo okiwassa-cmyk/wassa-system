@@ -2087,11 +2087,14 @@ async function startApp(){
     }
     // 月は初期選択しない（任意入力のため）
   })();
+  // 予約データと料金データは独立 → 並列取得で起動を短縮
+  var _rateP = loadRateData();
   await loadAll();
-  await loadRateData();
-  renderDashboard(); renderReservations(); renderCalendar(); renderRateCal();
+  // 空室確認に必要な予約表示を先に描画（料金データを待たない）
+  renderDashboard(); renderReservations(); renderCalendar();
   renderCustomers(); renderMenus(); renderQuotesList();
-  renderRateCal();
+  // 料金カレンダーは料金データ到着後に描画
+  _rateP.then(function(){ renderRateCal(); });
   const today=new Date().toISOString().split('T')[0];
   const tmr=new Date(); tmr.setDate(tmr.getDate()+2);
   document.getElementById('e-cin').value=today;
@@ -2214,8 +2217,9 @@ async function loadAll(){
   sbGet('monthly_revenue','select=*&order=year_month.asc').then(function(d){allMonthlyRevenue=d;}).catch(function(){});
   _allResLoaded=false;
   _fillGuestNames(allReservations);
-  await loadComms();
   buildKanaIndex();
+  // 対応履歴は空室確認・予約表示に不要 → バックグラウンド読み込みで起動を待たせない
+  loadComms().then(function(){ if(document.getElementById('comms-tbody')) filterComms(); }).catch(function(){});
 }
 // 集計・CSV等で全予約が必要な時に呼ぶ（初回のみ全件取得）
 async function ensureAllReservations(){
