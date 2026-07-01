@@ -1790,7 +1790,11 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
       <div style="font-size:12px;font-weight:700;color:var(--ocean2);margin-bottom:8px">✏️ 明細編集</div>
       <div id="qd-billing-room-tabs" style="display:none;gap:6px;margin-bottom:10px;flex-wrap:wrap"></div>
       <div id="qd-billing-rows"></div>
-      <button onclick="qdAddBillingRow()" style="margin-top:6px;background:none;border:1px dashed var(--ocean3);border-radius:6px;padding:4px 12px;font-size:12px;color:var(--ocean2);cursor:pointer">＋ 行追加</button>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px">
+        <select id="qd-preset-pick" style="font-size:11px;padding:4px;border:1px solid var(--ocean3);border-radius:6px;max-width:230px"></select>
+        <button onclick="qdAddPresetRow()" style="background:var(--ocean2);color:#fff;border:none;border-radius:6px;padding:4px 12px;font-size:12px;cursor:pointer">＋ 単価自動で追加</button>
+        <button onclick="qdAddBillingRow()" style="background:none;border:1px dashed var(--ocean3);border-radius:6px;padding:4px 12px;font-size:12px;color:var(--ocean2);cursor:pointer">＋ 空行</button>
+      </div>
       <div class="bgrp" style="margin-top:10px;border-top:1px solid var(--sand2);padding-top:10px">
         <button onclick="saveQdBilling()" class="btn btn-primary btn-sm">保存</button>
         <button onclick="document.getElementById('qd-billing-edit').style.display='none'" class="btn btn-secondary btn-sm">キャンセル</button>
@@ -10130,8 +10134,57 @@ function openQdBillingEdit(){
   _qdEditRoomId = currentEditId; // 既定は開いている代表室
   renderQdRoomTabs();
   _loadQdBillingForRoom(_qdEditRoomId);
+  _buildQdPresetOptions();
   document.getElementById('qd-billing-edit').style.display='';
   document.getElementById('qd-preview-content').style.display='none';
+}
+// 「単価自動で追加」候補をマスタ（price_common/price_master/コース）から生成
+function _buildQdPresetOptions(){
+  var sel=document.getElementById('qd-preset-pick'); if(!sel) return;
+  var dc=common.din_child_price||Math.round((common.din_adult||0)*(common.din_child_rate||0));
+  var groups=[
+    ['宿泊料金',[['大人室料','room_adult'],['小学生室料','room_child'],['幼児（布団あり）','room_inf_futon'],['幼児（布団なし）','room_inf_nofuton']]],
+    ['夕食',[['大人夕食 ¥'+fmt(common.din_adult||0),'din_adult'],['小学生夕食 ¥'+fmt(dc),'din_child'],['幼児夕食 ¥'+fmt(common.din_infant||0),'din_infant']]],
+    ['朝食',[['大人朝食 ¥'+fmt(common.bf_adult||0),'bf_adult'],['小学生朝食 ¥'+fmt(common.bf_child||0),'bf_child'],['幼児朝食 ¥'+fmt(common.bf_infant||0),'bf_infant']]]
+  ];
+  if(Array.isArray(dinCoursePresets)&&dinCoursePresets.length){
+    groups.push(['コース',dinCoursePresets.map(function(c,i){return [(c.name||'コース')+' ¥'+fmt(c.price||0),'course_'+i];})]);
+  }
+  groups.push(['その他',[['アルコール','other_alcohol'],['その他（空）','other_blank']]]);
+  sel.innerHTML=groups.map(function(g){
+    return '<optgroup label="'+g[0]+'">'+g[1].map(function(o){return '<option value="'+o[1]+'">'+escHtml(o[0])+'</option>';}).join('')+'</optgroup>';
+  }).join('');
+}
+// マスタ単価を自動で入れて明細行を1行追加（編集中の室の日付・部屋・季節を参照）
+function qdAddPresetRow(){
+  var sel=document.getElementById('qd-preset-pick'); if(!sel) return;
+  var v=sel.value;
+  var q=allQuotes.find(function(x){return x.id===_qdEditRoomId;});
+  var date=(q&&q.check_in)||'';
+  var rk=(q&&(q.room==='dlx'||/デラックス|DX/i.test(q.room_type||'')))?'dlx':'sup';
+  var season=(date?getSeasonForDate(date):null);
+  var pm=(season&&prices[season]&&prices[season][rk])?prices[season][rk]:{};
+  var dc=common.din_child_price||Math.round((common.din_adult||0)*(common.din_child_rate||0));
+  var adultCnt=parseInt(q&&q.adults)||2;
+  var row={cat:'宿泊料金',item:'',price:0,qty:1,discount:0,date:date};
+  switch(v){
+    case 'room_adult': row.item='大人宿泊料金';row.price=pm[adultCnt]||pm[2]||0;row.qty=adultCnt;break;
+    case 'room_child': row.item='小学生宿泊料金';row.price=pm.child||0;row.qty=1;break;
+    case 'room_inf_futon': row.item='幼児（布団あり）';row.price=pm.infant_futon||pm.infant||0;row.qty=1;break;
+    case 'room_inf_nofuton': row.item='幼児（布団なし）';row.price=pm.infant_no_futon||0;row.qty=1;break;
+    case 'din_adult': row.cat='ディナー';row.item='おまかせコース（大人）';row.price=common.din_adult||0;row.qty=1;break;
+    case 'din_child': row.cat='ディナー';row.item='小学生夕食';row.price=dc;row.qty=1;break;
+    case 'din_infant': row.cat='ディナー';row.item='幼児夕食';row.price=common.din_infant||0;row.qty=1;break;
+    case 'bf_adult': row.cat='朝食';row.item='大人朝食';row.price=common.bf_adult||0;row.qty=1;break;
+    case 'bf_child': row.cat='朝食';row.item='小学生朝食';row.price=common.bf_child||0;row.qty=1;break;
+    case 'bf_infant': row.cat='朝食';row.item='幼児朝食';row.price=common.bf_infant||0;row.qty=1;break;
+    case 'other_alcohol': row.cat='アルコール';break;
+    case 'other_blank': row.cat='その他';break;
+    default:
+      if(v&&v.indexOf('course_')===0){var c=(dinCoursePresets||[])[parseInt(v.slice(7))]||{};row.cat='ディナー';row.item=(c.name||'コース')+'（大人）';row.price=c.price||0;row.qty=1;}
+  }
+  _qdBillingRows.push(row);
+  renderQdBillingRows();
 }
 function _loadQdBillingForRoom(qid){
   var q=allQuotes.find(function(x){return x.id===qid;});
