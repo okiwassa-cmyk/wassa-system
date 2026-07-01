@@ -4706,9 +4706,12 @@ async function applyFoodRule() {
       var rule = ruleArr[nightIdx] || {};
       var isBf = rec.category === '朝食';
       var _mn = isBf ? (rule.breakfast || null) : (rule.dinner || null);
-      // 既存のmeal_detailに内容がある場合は上書きしない
+      // コース名が変わる場合は本文もそのコースのマスタ内容に更新（タイトルと本文のズレ防止）。
+      // コース名が同じ場合のみ、手編集された本文を尊重して保持する。
       var _existDetail = (rec.meal_detail || '').trim();
-      var patch = {menu_name: _mn, meal_detail: _existDetail ? rec.meal_detail : (_mn ? _menuDetailByName(_mn, rec.category) : null)};
+      var _sameCourse = ((rec.menu_name || '').trim() === (_mn || '').trim());
+      var _newDetail = _mn ? _menuDetailByName(_mn, rec.category) : null;
+      var patch = {menu_name: _mn, meal_detail: (_sameCourse && _existDetail) ? rec.meal_detail : _newDetail};
       var r = await fetch(SB_URL+'/rest/v1/food_records?id=eq.'+rec.id, {
         method:'PATCH', headers: Object.assign({}, SB_HEADERS, {'Prefer':'return=representation'}),
         body: JSON.stringify(patch)
