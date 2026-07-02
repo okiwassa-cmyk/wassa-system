@@ -6035,8 +6035,9 @@ function openNewCustomerFromReservation(){
   if(!currentEditId){ toast('予約を開いた状態で使ってください'); return; }
   var r = allReservations.find(function(x){return x.id===currentEditId;});
   if(!r){ toast('予約情報が見つかりません'); return; }
-  if(r.customer_id){
-    if(!confirm('この予約にはすでに顧客が紐づいています。\n同姓同名の別人として新規登録しますか？')) return;
+  var _hadCustomer = !!r.customer_id;
+  if(_hadCustomer){
+    if(!confirm('この予約に別のお客様（ご友人など）を新規登録して紐付けますか？\n※現在の顧客の紐付けは新しい顧客に置き換わります。')) return;
   }
   // 予約IDを記憶（保存後に紐づける）
   _pendingLinkResId = currentEditId;
@@ -6044,7 +6045,7 @@ function openNewCustomerFromReservation(){
 
   // フォームクリア
   currentEditId = null;
-  document.getElementById('cust-modal-title').textContent = '新規顧客登録（予約から引き継ぎ）';
+  document.getElementById('cust-modal-title').textContent = _hadCustomer ? '新規顧客登録（この予約に紐付け）' : '新規顧客登録（予約から引き継ぎ）';
   document.getElementById('del-cust-btn').style.display = 'none';
   ['cust-sei','cust-mei','cust-sei-kana','cust-mei-kana','cust-mobile','cust-tel','cust-email','cust-email2','cust-zip','cust-pref','cust-city','cust-address','cust-ng-food','cust-memo'].forEach(function(id){
     var el=document.getElementById(id); if(el) el.value='';
@@ -6053,11 +6054,11 @@ function openNewCustomerFromReservation(){
   document.getElementById('cust-birth').value='';
   var _as2=document.getElementById('cust-allergy-select'); if(_as2) _as2.value='なし';
 
-  // 予約情報を引き継ぎ
-  var rawName = (document.getElementById('edit-guestname')||{}).value || r.guest_name || '';
-  var rawKana = (document.getElementById('edit-kana')||{}).value || r.guest_name_kana || '';
-  var phone   = (document.getElementById('edit-phone')||{}).value || r.phone || '';
-  var email   = (document.getElementById('edit-email')||{}).value || r.email || '';
+  // 予約情報を引き継ぎ（既に顧客が紐付く予約は「別人＝友人等」の登録なので空欄で開始）
+  var rawName = _hadCustomer ? '' : ((document.getElementById('edit-guestname')||{}).value || r.guest_name || '');
+  var rawKana = _hadCustomer ? '' : ((document.getElementById('edit-kana')||{}).value || r.guest_name_kana || '');
+  var phone   = _hadCustomer ? '' : ((document.getElementById('edit-phone')||{}).value || r.phone || '');
+  var email   = _hadCustomer ? '' : ((document.getElementById('edit-email')||{}).value || r.email || '');
 
   // 姓・名に分割（全角スペース→半角スペース→split）
   var nameParts = rawName.replace(/　/g,' ').trim().split(/\s+/);
