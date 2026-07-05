@@ -12154,6 +12154,7 @@ function printDailySlips(){
   var guestName=r.guest_name||'—';
   var adultCnt=parseInt(r.adults)||0;
   var childCnt=parseInt(r.children)||0;
+  var infCnt=parseInt(r.infants)||0;
   var cust=allCustomers?allCustomers.find(function(c){return c.id===r.customer_id;}):null;
   var ngFood=cust?(cust.ng_food||''):'';
 
@@ -12200,8 +12201,8 @@ function printDailySlips(){
     if(dxAdultTotal>0)
       summaryRows.push({item:nights.length+'泊'+(nights.length+1)+'日プログラム',qty:'× '+adultCnt+'名',amt:dxAdultTotal,
         unit:adultCnt>0?Math.round(dxAdultTotal/adultCnt):0});
-    // 子供料金（品目名で区分を明示）
-    if(childCnt>0){
+    // 子供・幼児料金（品目名で区分を明示）
+    if(childCnt>0||infCnt>0){
       var cRows=activeRows.filter(function(row){return _isChild(row);});
       if(_sum(cRows)>0) _byItem(cRows);
     }
@@ -12213,8 +12214,8 @@ function printDailySlips(){
     if(_sum(aBf)>0) _byPrice(aBf,'朝食料金');
     var aDn=activeRows.filter(function(row){return !_isChild(row)&&_isDin(row);});
     if(_sum(aDn)>0) _byPrice(aDn,'夕食料金');
-    // 子供行（品目名で区分を明示）
-    if(childCnt>0){
+    // 子供・幼児行（品目名で区分を明示）
+    if(childCnt>0||infCnt>0){
       var cRows2=activeRows.filter(function(row){return _isChild(row);});
       if(_sum(cRows2)>0) _byItem(cRows2);
     }
