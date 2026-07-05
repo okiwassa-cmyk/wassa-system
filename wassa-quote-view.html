@@ -167,6 +167,91 @@ function escHtml(s) {
   return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+// 宿泊明細を表示用に統合（素泊まり室料＋朝食 → 「大人宿泊料金(朝食付)」等）。
+// wassa-guestbook.html の同名関数と同一ロジック（JSはファイル間で共有不可のため複製）。
+function unifyLodgingRows(billingRows, roomType, mode){
+  var rows = Array.isArray(billingRows) ? billingRows
+           : (billingRows && Array.isArray(billingRows.rows) ? billingRows.rows : []);
+  var isDlx = /デラックス|dlx|DX/i.test(roomType||'');
+  var lodging=[], bf=[], dinner=[], other=[];
+  rows.forEach(function(row){
+    if(row.is_ref) return;
+    var cat=row.cat||'';
+    if(/夕食|ディナー|dinner/i.test(cat)) dinner.push(row);
+    else if(/朝食|breakfast/i.test(cat)) bf.push(row);
+    else if(cat==='宿泊料金'||cat==='night'||cat==='宿泊'||/宿泊|素泊まり|室料/.test(row.item||'')) lodging.push(row);
+    else other.push(row);
+  });
+  function coarseTier(item){
+    if(/大人|adult/i.test(item)) return 'adult';
+    if(/小学生|child/i.test(item)) return 'child';
+    if(/幼児|乳幼児|infant/i.test(item)) return 'infant';
+    return 'adult';
+  }
+  var bfUnit={};
+  bf.forEach(function(b){ bfUnit[(b.date||'')+'|'+coarseTier(b.item||'')] = parseFloat(b.price)||0; });
+  var _itemHasBf=function(item){ return /朝食付|朝夕食付/.test(item); };
+  var planHasBf = bf.length>0 || lodging.some(function(row){return _itemHasBf(row.item||'');});
+  function infSub(item){
+    var noMeal=/食事なし|食事無|食なし|食無|布団のみ|食事・寝具なし|食事布団なし/.test(item);
+    var futon;
+    if(/布団なし|布団無|寝具なし|寝具無/.test(item)) futon=false;
+    else if(/布団あり|布団有|寝具あり|寝具有|布団付|布団のみ|食事・布団付/.test(item)) futon=true;
+    else futon=true;
+    return {futon:futon, meal:!noMeal};
+  }
+  var lodgingLines=[];
+  lodging.forEach(function(row){
+    var item=row.item||'', date=row.date||'', qty=parseInt(row.qty)||1;
+    var unit=parseFloat(row.price)||0;
+    var tier=coarseTier(item);
+    var folded=_itemHasBf(item);
+    var sepBf = bfUnit[date+'|'+tier]||0;
+    var label;
+    if(tier==='adult'||tier==='child'){
+      var meal = folded || sepBf>0;
+      if(!folded) unit += sepBf;
+      var head = tier==='adult' ? '大人宿泊料金' : '小学生宿泊料金';
+      label = head + (meal ? '(朝食付)' : '(素泊まり)');
+    } else {
+      var sub=infSub(item);
+      var explicitBf = /食事有|食事あり|食事付|朝食有|朝食あり/.test(item);
+      var meal2 = sub.meal && (folded || sepBf>0 || explicitBf);
+      if(sub.meal && !folded && sepBf>0) unit += sepBf;
+      var futonYN = sub.futon ? '布団あり' : '布団なし';
+      var futonTsuki = sub.futon ? '布団付き' : '布団なし';
+      if(!planHasBf)      label='幼児宿泊料金(素泊まり・'+futonYN+')';
+      else if(meal2)      label='幼児宿泊料金(朝食付・'+futonTsuki+')';
+      else                label='幼児宿泊料金(朝食なし・'+futonTsuki+')';
+    }
+    lodgingLines.push({date:date,label:label,unit:unit,qty:qty,amt:unit*qty-(parseFloat(row.discount)||0),kind:'lodging',tier:tier});
+  });
+  var out=[];
+  if(mode==='slip' && isDlx){
+    var aLines=lodgingLines.filter(function(l){return l.tier==='adult';});
+    if(aLines.length){
+      var nn={}; var aQty=aLines[0].qty; var aAmt=0;
+      aLines.forEach(function(l){ if(l.date)nn[l.date]=1; aAmt+=l.amt; });
+      var nN=Object.keys(nn).length||aLines.length;
+      out.push({date:'',label:nN+'泊'+(nN+1)+'日プログラム（大人'+aQty+'名様）',unit:0,qty:0,amt:aAmt,kind:'lodging',tier:'adult'});
+    }
+    lodgingLines.filter(function(l){return l.tier!=='adult';}).forEach(function(l){out.push(l);});
+  } else {
+    lodgingLines.forEach(function(l){out.push(l);});
+  }
+  dinner.forEach(function(row){
+    var qty=parseInt(row.qty)||1, unit=parseFloat(row.price)||0;
+    var it=row.item||'夕食';
+    if(!/夕食|ディナー/.test(it)) it='夕食（'+it+'）';
+    out.push({date:row.date||'',label:it,unit:unit,qty:qty,amt:unit*qty-(parseFloat(row.discount)||0),kind:'dinner',tier:'meal'});
+  });
+  other.forEach(function(row){
+    var qty=parseInt(row.qty)||1, unit=parseFloat(row.price)||0;
+    out.push({date:row.date||'',label:(row.item||row.cat||''),unit:unit,qty:qty,amt:unit*qty-(parseFloat(row.discount)||0),kind:'other',tier:'other'});
+  });
+  return out;
+}
+
 function getToken() {
   var p = new URLSearchParams(location.search);
   return p.get('token') || '';
@@ -217,22 +302,17 @@ function render(q, cancelPolicy) {
   }
   var rows = '';
   if (Array.isArray(billingRows) && billingRows.length > 0) {
+    var _uni = unifyLodgingRows(billingRows, q.room_type || q.room || '', 'quote');
     var prevDate = '';
-    billingRows.forEach(function(row) {
-      if (row.is_ref) return; // 参考行は非表示
-      var d = row.date || '';
-      var isNightRow = row.cat === 'night' || row.cat === '宿泊';
-      var isSubRow = row.cat !== 'night' && row.cat !== '宿泊' && d === prevDate;
-      var dateCell = (d && d !== prevDate) ? fmtDate(d) : '';
+    _uni.forEach(function(l) {
+      var d = l.date || '';
+      var first = (d && d !== prevDate);
+      var dateCell = first ? fmtDate(d) : '';
+      var trClass = first ? ' class="night-row"' : ' class="sub-row"';
       prevDate = d || prevDate;
-      var price = parseInt(row.price)||0;
-      var qty = parseInt(row.qty)||1;
-      var amt = price * qty - (parseInt(row.discount)||0);
-      var itemLabel = escHtml(row.item || row.cat || '');
-      var trClass = isNightRow ? ' class="night-row"' : (isSubRow ? ' class="sub-row"' : '');
-      var unitCell = price > 0 ? fmtPrice(price) : '';
-      var qtyCell = qty > 0 ? qty + '名' : '';
-      rows += '<tr'+trClass+'><td>'+escHtml(dateCell)+'</td><td>'+itemLabel+'</td><td>'+unitCell+'</td><td>'+qtyCell+'</td><td>'+fmtPrice(amt)+'</td></tr>';
+      var unitCell = l.unit > 0 ? fmtPrice(l.unit) : '';
+      var qtyCell = l.qty > 0 ? l.qty + '名' : '';
+      rows += '<tr'+trClass+'><td>'+escHtml(dateCell)+'</td><td>'+escHtml(l.label)+'</td><td>'+unitCell+'</td><td>'+qtyCell+'</td><td>'+fmtPrice(l.amt)+'</td></tr>';
     });
   }
 
