@@ -1939,14 +1939,16 @@ function doLogout(){
     // 5秒以内に完了しない場合はデフォルトPINで動作継続（フェイルセーフ）
     setTimeout(function(){_pinsReady=true;},5000);
     document.addEventListener('DOMContentLoaded',function(){
-      signInToSupabase().then(function(){
-        return fetch(SB_URL+'/rest/v1/price_common?id=eq.1&select=pin_owner,pin_staff',{
-          headers:{'apikey':SB_KEY,'Authorization':SB_HEADERS['Authorization']}
-        });
+      // PINはanonキーで直接読める（RLS: anon_select_price_common）→ 認証(signInToSupabase)の完了を待たない。
+      // 認証が遅い端末で5秒フォールバックに引っかかり初期値1234/5678に化けるのを防ぐ。
+      fetch(SB_URL+'/rest/v1/price_common?id=eq.1&select=pin_owner,pin_staff',{
+        headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}
       }).then(function(r){return r.json();}).then(function(d){
         if(d&&d[0]){if(d[0].pin_owner)_pins.owner=d[0].pin_owner;if(d[0].pin_staff)_pins.staff=d[0].pin_staff;}
         _pinsReady=true;
       }).catch(function(e){console.warn('PIN load error:',e);_pinsReady=true;});
+      // 認証はバックグラウンドで先行実行（ログイン後のstartAppを速くするウォームアップ）
+      signInToSupabase();
     });
   }
 })();
