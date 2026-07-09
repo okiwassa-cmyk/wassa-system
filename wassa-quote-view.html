@@ -188,8 +188,12 @@ function unifyLodgingRows(billingRows, roomType, mode){
     if(/幼児|乳幼児|infant/i.test(item)) return 'infant';
     return 'adult';
   }
-  var bfUnit={};
-  bf.forEach(function(b){ bfUnit[(b.date||'')+'|'+coarseTier(b.item||'')] = parseFloat(b.price)||0; });
+  // 朝食は宿泊の翌朝提供で日付が1日ズレる（直予約）ことも同日付（OTA）のこともある。
+  // 日付一致でなく大区分ごとに日付順キューを作り、宿泊行の泊数ぶんを順番に対応付ける。余った朝食は独立行で必ず出す。
+  var bfQueue={adult:[], child:[], infant:[]};
+  bf.slice().sort(function(a,b){return (a.date||'').localeCompare(b.date||'');})
+    .forEach(function(b){ (bfQueue[coarseTier(b.item||'')]||bfQueue.adult).push(b); });
+  var bfPtr={adult:0, child:0, infant:0};
   var _itemHasBf=function(item){ return /朝食付|朝夕食付/.test(item); };
   var planHasBf = bf.length>0 || lodging.some(function(row){return _itemHasBf(row.item||'');});
   function infSub(item){
@@ -203,28 +207,42 @@ function unifyLodgingRows(billingRows, roomType, mode){
   var lodgingLines=[];
   lodging.forEach(function(row){
     var item=row.item||'', date=row.date||'', qty=parseInt(row.qty)||1;
-    var unit=parseFloat(row.price)||0;
+    var roomUnit=parseFloat(row.price)||0;
+    var roomAmt=roomUnit*qty-(parseFloat(row.discount)||0);
     var tier=coarseTier(item);
     var folded=_itemHasBf(item);
-    var sepBf = bfUnit[date+'|'+tier]||0;
+    var sub=(tier==='infant')?infSub(item):null;
+    var wantsBf = !folded && (tier!=='infant' || (sub && sub.meal));
+    var pairBf=null;
+    if(wantsBf && bfQueue[tier] && bfPtr[tier]<bfQueue[tier].length) pairBf=bfQueue[tier][bfPtr[tier]++];
+    var bfU = pairBf ? (parseFloat(pairBf.price)||0) : 0;
+    var bfA = pairBf ? (bfU*(parseInt(pairBf.qty)||qty)-(parseFloat(pairBf.discount)||0)) : 0;
+    var dispUnit=roomUnit, lineAmt=roomAmt;
     var label;
     if(tier==='adult'||tier==='child'){
-      var meal = folded || sepBf>0;
-      if(!folded) unit += sepBf;
+      var meal = folded || !!pairBf;
+      if(!folded && pairBf){ dispUnit=roomUnit+bfU; lineAmt=roomAmt+bfA; }
       var head = tier==='adult' ? '大人宿泊料金' : '小学生宿泊料金';
       label = head + (meal ? '(朝食付)' : '(素泊まり)');
     } else {
-      var sub=infSub(item);
       var explicitBf = /食事有|食事あり|食事付|朝食有|朝食あり/.test(item);
-      var meal2 = sub.meal && (folded || sepBf>0 || explicitBf);
-      if(sub.meal && !folded && sepBf>0) unit += sepBf;
+      var meal2 = sub.meal && (folded || !!pairBf || explicitBf);
+      if(sub.meal && !folded && pairBf){ dispUnit=roomUnit+bfU; lineAmt=roomAmt+bfA; }
       var futonYN = sub.futon ? '布団あり' : '布団なし';
       var futonTsuki = sub.futon ? '布団付き' : '布団なし';
       if(!planHasBf)      label='幼児宿泊料金(素泊まり・'+futonYN+')';
       else if(meal2)      label='幼児宿泊料金(朝食付・'+futonTsuki+')';
       else                label='幼児宿泊料金(朝食なし・'+futonTsuki+')';
     }
-    lodgingLines.push({date:date,label:label,unit:unit,qty:qty,amt:unit*qty-(parseFloat(row.discount)||0),kind:'lodging',tier:tier});
+    lodgingLines.push({date:date,label:label,unit:dispUnit,qty:qty,amt:lineAmt,kind:'lodging',tier:tier});
+  });
+  var bfLeftover=[];
+  ['adult','child','infant'].forEach(function(t){
+    var q=bfQueue[t]||[];
+    for(var i=bfPtr[t]; i<q.length; i++){
+      var b=q[i]; var bq=parseInt(b.qty)||1, bu=parseFloat(b.price)||0;
+      bfLeftover.push({date:b.date||'',label:(b.item||'朝食'),unit:bu,qty:bq,amt:bu*bq-(parseFloat(b.discount)||0),kind:'lodging',tier:t});
+    }
   });
   var out=[];
   if(mode==='slip' && isDlx){
@@ -239,6 +257,7 @@ function unifyLodgingRows(billingRows, roomType, mode){
   } else {
     lodgingLines.forEach(function(l){out.push(l);});
   }
+  bfLeftover.forEach(function(l){out.push(l);});
   dinner.forEach(function(row){
     var qty=parseInt(row.qty)||1, unit=parseFloat(row.price)||0;
     var it=row.item||'夕食';
