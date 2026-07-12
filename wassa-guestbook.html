@@ -10298,7 +10298,7 @@ function _loadQdBillingForRoom(qid){
   if(!q){_qdBillingRows=[];renderQdBillingRows();return;}
   var billing=q.billing??([]);
   if(typeof billing==='string') try{billing=JSON.parse(billing);}catch(e){billing=[];}
-  _qdBillingRows=JSON.parse(JSON.stringify(Array.isArray(billing)?billing:[]));
+  _qdBillingRows=JSON.parse(JSON.stringify(Array.isArray(billing)?billing:(billing&&Array.isArray(billing.rows)?billing.rows:[])));
   renderQdBillingRows();
 }
 // 貸切は室ごとに別レコード→室タブで切り替えて1室ずつ編集する
