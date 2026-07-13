@@ -9442,6 +9442,20 @@ function unifyLodgingRows(billingRows, roomType, mode){
 
 // 見積もり用：統一表示行を日付グループのHTML(tr)へ。dateFmtは日付整形関数。
 function _lodgingQuoteRowsHtml(lines, dateFmt){
+  // 日付ごとにまとめ、日内は 大人宿泊→大人夕食→幼児宿泊→幼児夕食 の順（公開見積書URLと統一）
+  var _tierRank=function(l){
+    if(l.tier==='adult')return 0; if(l.tier==='child')return 1; if(l.tier==='infant')return 2;
+    var lab=l.label||''; if(/幼児|乳児/.test(lab))return 2; if(/小学生|子供|こども/.test(lab))return 1;
+    if(l.kind==='dinner')return 0; return 3;
+  };
+  var _kindRank=function(l){return l.kind==='lodging'?0:(l.kind==='dinner'?1:2);};
+  lines=lines.map(function(l,i){return {l:l,i:i};}).sort(function(a,b){
+    var da=a.l.date||'\uffff', db=b.l.date||'\uffff';
+    if(da<db)return -1; if(da>db)return 1;
+    var ta=_tierRank(a.l), tb=_tierRank(b.l); if(ta!==tb)return ta-tb;
+    var ka=_kindRank(a.l), kb=_kindRank(b.l); if(ka!==kb)return ka-kb;
+    return a.i-b.i;
+  }).map(function(x){return x.l;});
   var byDate=[]; var idx={};
   lines.forEach(function(l){
     var k=l.date||'__';
