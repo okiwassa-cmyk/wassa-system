@@ -322,6 +322,11 @@ function render(q, cancelPolicy) {
   var rows = '';
   if (Array.isArray(billingRows) && billingRows.length > 0) {
     var _uni = unifyLodgingRows(billingRows, q.room_type || q.room || '', 'quote');
+    // 日付ごとにまとめる（同一日の宿泊・朝食・夕食を隣接。安定ソートで日内の順序は保持、日付なしは末尾）
+    _uni = _uni.map(function(l,i){return {l:l,i:i};}).sort(function(a,b){
+      var da=a.l.date||'\uffff', db=b.l.date||'\uffff';
+      if(da<db)return -1; if(da>db)return 1; return a.i-b.i;
+    }).map(function(x){return x.l;});
     var prevDate = '';
     _uni.forEach(function(l) {
       var d = l.date || '';
