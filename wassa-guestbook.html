@@ -3841,6 +3841,8 @@ function billUpdate(i,key,val){
   if((_cr.cat==='朝食'||_cr.cat==='夕食')&&(key==='price'||key==='qty')){
     // is_extra=true の行は参考行から引かない（追加料金扱い）
     if(_cr.is_extra){recalcBilling();return;}
+    // 現地清算は食事を編集したら当日払う額が減る（減額）→素泊まりへ付け替えない。事前決済/OTA決済のみ内訳を組み替える
+    if(/現地/.test((document.getElementById('edit-payment')||{}).value||'')){recalcBilling();return;}
     var _crDate=_cr.date||'';
     var _tier=(_cr._tier&&_cr._tier!=='')?_cr._tier:((_cr.item||'').indexOf('大人')!==-1?'大人':(_cr.item||'').indexOf('小学生')!==-1?'小学生':(_cr.item||'').indexOf('幼児')!==-1?'幼児':'');
     var _crQty=parseFloat(_cr.qty)||1;
@@ -3986,7 +3988,8 @@ function removeBillingRow(i){
   billingRows.splice(i,1);
   // 食事行削除時に同日同区分の素泊まり単価を自動再計算
   // 計算式: 素泊まり単価 = 参考行の1名単価 − 朝食単価 − 夕食単価
-  if(removed&&(removed.cat==='朝食'||removed.cat==='夕食')){
+  // 現地清算は食事キャンセル＝当日払う額が減る（減額）→素泊まりへ付け替えない。事前決済/OTA決済のみ内訳を組み替える
+  if(removed&&(removed.cat==='朝食'||removed.cat==='夕食')&&!/現地/.test((document.getElementById('edit-payment')||{}).value||'')){
     var _d=removed.date||'';
     var _removed_item=removed.item||'';
     var _tier2=(removed._tier&&removed._tier!=='')?removed._tier:(_removed_item.indexOf('大人')!==-1?'大人':_removed_item.indexOf('小学生')!==-1?'小学生':_removed_item.indexOf('幼児')!==-1?'幼児':'');
