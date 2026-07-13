@@ -4496,7 +4496,7 @@ async function genQuoteUrlForLine(){
     status:'作成済み',
     doc_type:r.status==='confirmed'?'confirmation':'estimate',
     plan_name:billingMeta.plan_name||r.plan_name||'',
-    notes:r.notes||'',
+    notes:'',
     billing:billingRows
   };
   try{
