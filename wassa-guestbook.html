@@ -3842,8 +3842,9 @@ function billUpdate(i,key,val){
   if((_cr.cat==='朝食'||_cr.cat==='夕食')&&(key==='price'||key==='qty')){
     // is_extra=true の行は参考行から引かない（追加料金扱い）
     if(_cr.is_extra){recalcBilling();return;}
-    // 現地清算は食事を編集したら当日払う額が減る（減額）→素泊まりへ付け替えない。事前決済/OTA決済のみ内訳を組み替える
-    if(/現地/.test((document.getElementById('edit-payment')||{}).value||'')){recalcBilling();return;}
+    // 予約時プラン価格（参考行is_ref）がある予約は、単価変更＝コース訂正/料金補正とみなし、
+    // 現地清算でも合計を予約時プラン価格に固定（差分は素泊まりで吸収）。参考行が無い直予約のみ合計が動く。
+    // ※食事の「キャンセル（行削除）」は removeBillingRow 側で現地清算は合計を下げる（別扱い＝キャンセル/追加）。
     var _crDate=_cr.date||'';
     var _tier=(_cr._tier&&_cr._tier!=='')?_cr._tier:((_cr.item||'').indexOf('大人')!==-1?'大人':(_cr.item||'').indexOf('小学生')!==-1?'小学生':(_cr.item||'').indexOf('幼児')!==-1?'幼児':'');
     var _crQty=parseFloat(_cr.qty)||1;
