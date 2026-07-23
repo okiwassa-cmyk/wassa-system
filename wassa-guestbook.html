@@ -1215,6 +1215,7 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
       <button class="btn btn-ghost btn-sm owner-only" onclick="addBillingRow()" style="margin-top:8px">＋ 行を追加</button>
       <button class="btn btn-ghost btn-sm owner-only" onclick="addLodgingTax()" style="margin-top:8px;margin-left:6px">🏛 宿泊税を追加</button>
       <button class="btn btn-ghost btn-sm" onclick="printDailySlips()" style="margin-top:8px;margin-left:6px">🖨 伝票印刷</button>
+      <button class="btn btn-ghost btn-sm" onclick="printCertificates()" style="margin-top:8px;margin-left:6px">🧾 証明書・領収書</button>
       <button class="btn btn-sm owner-only" onclick="genQuoteUrlForLine()" style="margin-top:8px;margin-left:6px;background:var(--green);color:#fff;border:none">🔗 LINE用見積書URLを生成</button>
       <button id="btn-reimport-billing" class="btn btn-sm owner-only" onclick="reprocessBillingFromGas()" style="margin-top:8px;margin-left:6px;background:var(--ocean2);color:#fff;border:none;display:none">📧 メールから再取り込み</button>
 
@@ -12345,6 +12346,126 @@ function printDailySlips(){
   document.body.appendChild(a); a.click();
   setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
   setTimeout(function(){w.print();},400);
+}
+
+// ━━ 宿泊証明書・領収書 印刷 ━━
+function printCertificates(){
+  var r=allReservations.find(function(x){return x.id===currentEditId;});
+  if(!r){toast('予約データが見つかりません');return;}
+  var ci=r.check_in, co=r.check_out;
+  if(!ci||!co){toast('チェックイン・チェックアウト日が不明です');return;}
+  var nights=Math.max(1, Math.round((new Date(co+'T00:00:00')-new Date(ci+'T00:00:00'))/86400000));
+  var guestName=(r.guest_name||'—').trim();
+  var roomName=r.room_type||'';
+  var _roomDisp=/DX|デラックス/i.test(roomName)?'デラックス':(/01|02|スーペリア/.test(roomName)?'スーペリアツイン':(roomName||'—'));
+  var adultCnt=parseInt(r.adults)||0, childCnt=parseInt(r.children)||0, infCnt=parseInt(r.infants)||0;
+  var paxParts=[];
+  if(adultCnt>0)paxParts.push('大人 '+adultCnt+'名');
+  if(childCnt>0)paxParts.push('小学生 '+childCnt+'名');
+  if(infCnt>0)paxParts.push('幼児 '+infCnt+'名');
+  var paxStr=paxParts.join('　')||'—';
+  var total=parseInt(r.total_amount)||0;
+  if(total<=0 && !confirm('合計金額が¥0です。このまま領収書を発行しますか？')) return;
+  var docNo = r.reservation_no ? r.reservation_no : ('WASSA-'+String(r.id).padStart(6,'0'));
+  var tax = Math.round(total/11);      // 税込10%の内消費税
+  var netExTax = total - tax;          // 税抜
+  var needStamp = netExTax>=50000;     // 収入印紙（税抜5万円以上・消費税額を明記するため税抜基準）
+
+  var INN_NAME='海と星空の小さな宿　WASSA WASSA';
+  var INN_ADDR='沖縄県国頭郡大宜味村';
+  var INN_TEL='0980-50-2500';
+  var INVOICE_NO='T8810707452816';
+  var STAMP_URL='https://okiwassa-cmyk.github.io/wassa-system/stamp.png';
+
+  var _wd=['日','月','火','水','木','金','土'];
+  function jd(ds){var d=new Date(ds+'T00:00:00');return d.getFullYear()+'年'+(d.getMonth()+1)+'月'+d.getDate()+'日（'+_wd[d.getDay()]+'）';}
+  var t=new Date();
+  var issueDate=t.getFullYear()+'年'+(t.getMonth()+1)+'月'+t.getDate()+'日';
+
+  function issuer(){
+    return '<div class="issuer">'
+      +'<div class="issuer-body">'
+      +'<div class="inn-name">'+INN_NAME+'</div>'
+      +'<div class="inn-line">'+INN_ADDR+'</div>'
+      +'<div class="inn-line">TEL '+INN_TEL+'</div>'
+      +'<div class="inn-line">登録番号　'+INVOICE_NO+'</div>'
+      +'</div>'
+      +'<img class="seal" src="'+STAMP_URL+'" alt="印">'
+      +'</div>';
+  }
+
+  // ① 宿泊証明書（宿泊の事実・金額なし）
+  var cert='<div class="doc">'
+    +'<div class="doc-head"><div class="doc-title">宿泊証明書</div>'
+    +'<div class="doc-meta">証明書番号：'+docNo+'<br>発行日：'+issueDate+'</div></div>'
+    +'<div class="lead">下記のとおりご宿泊いただきましたことを証明いたします。</div>'
+    +'<table class="cert-table">'
+    +'<tr><th>ご宿泊者氏名</th><td>'+guestName+'　様</td></tr>'
+    +'<tr><th>予約番号</th><td>'+docNo+'</td></tr>'
+    +'<tr><th>ご宿泊期間</th><td>'+jd(ci)+' 〜 '+jd(co)+'　（'+nights+'泊）</td></tr>'
+    +'<tr><th>ご利用のお部屋</th><td>'+_roomDisp+'</td></tr>'
+    +'<tr><th>ご宿泊人数</th><td>'+paxStr+'</td></tr>'
+    +'</table>'
+    +issuer()
+    +'</div>';
+
+  // ② 領収書（＝適格簡易請求書・全額）
+  var stampBox = needStamp
+    ? '<div class="stamp-box">収入印紙</div>'
+    : '<div class="stamp-box none">印紙不要</div>';
+  var receipt='<div class="doc">'
+    +'<div class="doc-head"><div class="doc-title">領収書</div>'
+    +'<div class="doc-meta">No.　'+docNo+'<br>発行日：'+issueDate+'</div></div>'
+    +'<div class="rc-to">'+guestName+'　様</div>'
+    +'<div class="rc-amt-wrap"><span class="rc-amt-label">金額</span><span class="rc-amt">¥'+fmt(total)+'　-</span></div>'
+    +'<div class="rc-note">但し　宿泊料として（'+jd(ci)+' 〜 '+jd(co)+'　'+nights+'泊 / '+_roomDisp+'）</div>'
+    +'<div class="rc-note2">上記正に領収いたしました。</div>'
+    +'<table class="tax-table"><tr><th>10%対象</th><td>¥'+fmt(total)+'</td><th>（内消費税</th><td>¥'+fmt(tax)+'）</td></tr></table>'
+    +'<div class="rc-foot">'+stampBox+issuer()+'</div>'
+    +'</div>';
+
+  var html='<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><title>証明書・領収書</title>'
+    +'<style>'
+    +'@page{size:A4 portrait;margin:18mm 16mm}'
+    +'*{box-sizing:border-box}'
+    +'body{font-family:"Hiragino Mincho ProN","Yu Mincho",serif;color:#1a1a1a;margin:0}'
+    +'.doc{padding:6mm 4mm;page-break-inside:avoid}'
+    +'.doc+.doc{page-break-before:always}'
+    +'.doc-head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1a1a1a;padding-bottom:6px;margin-bottom:22px}'
+    +'.doc-title{font-size:26pt;font-weight:700;letter-spacing:.4em}'
+    +'.doc-meta{font-size:9.5pt;text-align:right;line-height:1.7;color:#333}'
+    +'.lead{font-size:11pt;margin:10px 0 20px}'
+    +'.cert-table{width:100%;border-collapse:collapse;font-size:11.5pt;margin-bottom:30px}'
+    +'.cert-table th,.cert-table td{border:1px solid #999;padding:11px 14px;text-align:left;vertical-align:middle}'
+    +'.cert-table th{background:#f2ede3;width:34%;font-weight:600;white-space:nowrap}'
+    +'.rc-to{font-size:15pt;border-bottom:1px solid #333;padding:2px 4px 6px;margin-bottom:20px;display:inline-block;min-width:60%}'
+    +'.rc-amt-wrap{display:flex;align-items:baseline;gap:16px;border:2px solid #1a1a1a;padding:12px 18px;margin-bottom:16px;background:#faf7f0}'
+    +'.rc-amt-label{font-size:12pt;font-weight:600}'
+    +'.rc-amt{font-size:24pt;font-weight:700;letter-spacing:.05em}'
+    +'.rc-note{font-size:11pt;margin-bottom:6px}'
+    +'.rc-note2{font-size:11pt;margin-bottom:16px}'
+    +'.tax-table{border-collapse:collapse;font-size:10pt;margin-bottom:24px}'
+    +'.tax-table th,.tax-table td{border:1px solid #999;padding:5px 12px}'
+    +'.tax-table th{background:#f2ede3;font-weight:600}'
+    +'.rc-foot{display:flex;justify-content:space-between;align-items:flex-end}'
+    +'.stamp-box{width:34mm;height:22mm;border:1px dashed #999;display:flex;align-items:center;justify-content:center;font-size:9pt;color:#777}'
+    +'.stamp-box.none{border-style:dotted;color:#aaa}'
+    +'.issuer{position:relative;text-align:left;min-width:70mm}'
+    +'.issuer-body{font-size:10.5pt;line-height:1.85}'
+    +'.inn-name{font-size:12pt;font-weight:700;margin-bottom:2px}'
+    +'.inn-line{color:#222}'
+    +'.seal{position:absolute;right:-2mm;top:1mm;width:22mm;height:22mm;opacity:.92}'
+    +'@media print{.noprint{display:none}}'
+    +'</style></head><body>'
+    +'<div class="noprint" style="text-align:right;padding:10px 16px;background:#f5f5f5"><button onclick="window.print()" style="padding:9px 26px;background:#1a6b7a;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer">🖨 印刷 / PDF保存</button></div>'
+    +cert
+    +receipt
+    +'</body></html>';
+
+  var w=window.open('','_blank');
+  if(!w){toast('ポップアップがブロックされました。許可してください');return;}
+  w.document.write(html);
+  w.document.close();
 }
 
 // ━━ 宿泊台帳印刷 ━━
