@@ -9419,7 +9419,8 @@ function unifyLodgingRows(billingRows, roomType, mode){
       else if(meal2)      label='幼児宿泊料金(朝食付・'+futonTsuki+')';
       else                label='幼児宿泊料金(朝食なし・'+futonTsuki+')';
     }
-    lodgingLines.push({date:date,label:label,unit:dispUnit,qty:qty,amt:lineAmt,kind:'lodging',tier:tier});
+    if(mode==='slip' && row.is_extra) label += '（追加）';  // 予約後に追加された行は伝票で「（追加）」明示
+    lodgingLines.push({date:date,label:label,unit:dispUnit,qty:qty,amt:lineAmt,kind:'lodging',tier:tier,extra:!!row.is_extra});
   });
   // 対応付けできず余った朝食は独立行として必ず出す（合計から消さない）
   var bfLeftover=[];
@@ -9430,30 +9431,52 @@ function unifyLodgingRows(billingRows, roomType, mode){
       bfLeftover.push({date:b.date||'',label:(b.item||'朝食'),unit:bu,qty:bq,amt:bu*bq-(parseFloat(b.discount)||0),kind:'lodging',tier:t});
     }
   });
+  // 夕食行の区分（ラベルから 大人/小学生/幼児 を判定）
+  function _dinTier(item){
+    if(/幼児|乳児|乳幼児/.test(item)) return 'infant';
+    if(/小学生|子供|こども/.test(item)) return 'child';
+    return 'adult';
+  }
   var out=[];
+  var _dxFoldAdultDin=false;  // デラックス伝票で大人の夕食をプログラム行に畳み込んだか
   if(mode==='slip' && isDlx){
     // デラックス伝票：大人室料をプログラム行に置換（金額は大人室料の合計）
-    var aLines=lodgingLines.filter(function(l){return l.tier==='adult';});
+    var aLines=lodgingLines.filter(function(l){return l.tier==='adult' && !l.extra;});
     if(aLines.length){
       var nn={}; var aQty=aLines[0].qty; var aAmt=0;
       aLines.forEach(function(l){ if(l.date)nn[l.date]=1; aAmt+=l.amt; });
       var nN=Object.keys(nn).length||aLines.length;
-      out.push({date:'',label:nN+'泊'+(nN+1)+'日プログラム（大人'+aQty+'名様）',unit:0,qty:0,amt:aAmt,kind:'lodging',tier:'adult'});
+      // 予約時2食付き（大人の夕食行がある）なら大人夕食をプログラム行に含め「＋夕食（N泊分）」表記に。夕食畳込は大人のみ。
+      var _aDin=dinner.filter(function(row){return _dinTier(row.item||'')==='adult' && !row.is_extra;});
+      if(_aDin.length){
+        var _dnDates={}, _aDinAmt=0;
+        _aDin.forEach(function(row){ if(row.date)_dnDates[row.date]=1; _aDinAmt+=(parseFloat(row.price)||0)*(parseInt(row.qty)||1)-(parseFloat(row.discount)||0); });
+        var _dinN=Object.keys(_dnDates).length||_aDin.length;
+        out.push({date:'',label:nN+'泊'+(nN+1)+'日プログラム＋夕食（'+_dinN+'泊分）',unit:0,qty:0,amt:aAmt+_aDinAmt,kind:'lodging',tier:'adult'});
+        _dxFoldAdultDin=true;
+      } else {
+        out.push({date:'',label:nN+'泊'+(nN+1)+'日プログラム（大人'+aQty+'名様）',unit:0,qty:0,amt:aAmt,kind:'lodging',tier:'adult'});
+      }
     }
-    lodgingLines.filter(function(l){return l.tier!=='adult';}).forEach(function(l){out.push(l);});
+    lodgingLines.filter(function(l){return l.tier!=='adult' || l.extra;}).forEach(function(l){out.push(l);});
   } else {
     lodgingLines.forEach(function(l){out.push(l);});
   }
   bfLeftover.forEach(function(l){out.push(l);});
   dinner.forEach(function(row){
+    // デラックス伝票：大人夕食はプログラム行に畳み込み済みなら別行で出さない（大人のみ・小学生/幼児の夕食はそのまま）
+    if(_dxFoldAdultDin && _dinTier(row.item||'')==='adult' && !row.is_extra) return;
     var qty=parseInt(row.qty)||1, unit=parseFloat(row.price)||0;
     var it=row.item||'夕食';
     if(!/夕食|ディナー/.test(it)) it='夕食（'+it+'）';
+    if(mode==='slip' && row.is_extra) it += '（追加）';  // 予約後に電話等で追加した夕食は伝票で「（追加）」明示
     out.push({date:row.date||'',label:it,unit:unit,qty:qty,amt:unit*qty-(parseFloat(row.discount)||0),kind:'dinner',tier:'meal'});
   });
   other.forEach(function(row){
     var qty=parseInt(row.qty)||1, unit=parseFloat(row.price)||0;
-    out.push({date:row.date||'',label:(row.item||row.cat||''),unit:unit,qty:qty,amt:unit*qty-(parseFloat(row.discount)||0),kind:'other',tier:'other'});
+    var _ol=(row.item||row.cat||'');
+    if(mode==='slip' && row.is_extra) _ol += '（追加）';  // 予約後に追加したオプション等も伝票で「（追加）」明示
+    out.push({date:row.date||'',label:_ol,unit:unit,qty:qty,amt:unit*qty-(parseFloat(row.discount)||0),kind:'other',tier:'other'});
   });
   return out;
 }
