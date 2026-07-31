@@ -184,16 +184,22 @@ function unifyLodgingRows(billingRows, roomType, mode){
   });
   function coarseTier(item){
     if(/大人|adult/i.test(item)) return 'adult';
-    if(/小学生|child/i.test(item)) return 'child';
+    if(/小学生|子供|こども|child/i.test(item)) return 'child';
     if(/幼児|乳幼児|infant/i.test(item)) return 'infant';
     return 'adult';
   }
   // 朝食は宿泊の翌朝提供で日付が1日ズレる（直予約）ことも同日付（OTA）のこともある。
   // 日付一致でなく大区分ごとに日付順キューを作り、宿泊行の泊数ぶんを順番に対応付ける。余った朝食は独立行で必ず出す。
-  var bfQueue={adult:[], child:[], infant:[]};
+  // 朝食は「大人価格プール」と「子供価格プール」に分け1人ぶんずつ保持。直予約の朝食（こども）qtyは小学生＋幼児混在のため人数ぶんを個別配分。
+  var bfPoolAdult=[], bfPoolChild=[];
   bf.slice().sort(function(a,b){return (a.date||'').localeCompare(b.date||'');})
-    .forEach(function(b){ (bfQueue[coarseTier(b.item||'')]||bfQueue.adult).push(b); });
-  var bfPtr={adult:0, child:0, infant:0};
+    .forEach(function(b){
+      var _pool=(coarseTier(b.item||'')==='adult')?bfPoolAdult:bfPoolChild;
+      var _q=parseInt(b.qty)||1, _u=parseFloat(b.price)||0, _d=parseFloat(b.discount)||0;
+      var _pd=_q>0?_d/_q:0;
+      for(var _i=0;_i<_q;_i++) _pool.push({price:_u, amt:_u-_pd, date:b.date||'', item:(b.item||'朝食')});
+    });
+  var bfPtrA=0, bfPtrC=0;
   var _itemHasBf=function(item){ return /朝食付|朝夕食付/.test(item); };
   var planHasBf = bf.length>0 || lodging.some(function(row){return _itemHasBf(row.item||'');});
   function infSub(item){
@@ -213,21 +219,26 @@ function unifyLodgingRows(billingRows, roomType, mode){
     var folded=_itemHasBf(item);
     var sub=(tier==='infant')?infSub(item):null;
     var wantsBf = !folded && (tier!=='infant' || (sub && sub.meal));
-    var pairBf=null;
-    if(wantsBf && bfQueue[tier] && bfPtr[tier]<bfQueue[tier].length) pairBf=bfQueue[tier][bfPtr[tier]++];
-    var bfU = pairBf ? (parseFloat(pairBf.price)||0) : 0;
-    var bfA = pairBf ? (bfU*(parseInt(pairBf.qty)||qty)-(parseFloat(pairBf.discount)||0)) : 0;
+    var bfU=0, bfA=0, gotBf=0;
+    if(wantsBf){
+      if(tier==='adult'){
+        for(var _bk=0;_bk<qty && bfPtrA<bfPoolAdult.length;_bk++){ bfU=bfPoolAdult[bfPtrA].price; bfA+=bfPoolAdult[bfPtrA].amt; bfPtrA++; gotBf++; }
+      } else {
+        for(var _bk2=0;_bk2<qty && bfPtrC<bfPoolChild.length;_bk2++){ bfU=bfPoolChild[bfPtrC].price; bfA+=bfPoolChild[bfPtrC].amt; bfPtrC++; gotBf++; }
+      }
+    }
+    var hasBf = gotBf>0;
     var dispUnit=roomUnit, lineAmt=roomAmt;
     var label;
     if(tier==='adult'||tier==='child'){
-      var meal = folded || !!pairBf;
-      if(!folded && pairBf){ dispUnit=roomUnit+bfU; lineAmt=roomAmt+bfA; }
+      var meal = folded || hasBf;
+      if(!folded && hasBf){ dispUnit=roomUnit+bfU; lineAmt=roomAmt+bfA; }
       var head = tier==='adult' ? '大人宿泊料金' : '小学生宿泊料金';
       label = head + (meal ? '(朝食付)' : '(素泊まり)');
     } else {
       var explicitBf = /食事有|食事あり|食事付|朝食有|朝食あり/.test(item);
-      var meal2 = sub.meal && (folded || !!pairBf || explicitBf);
-      if(sub.meal && !folded && pairBf){ dispUnit=roomUnit+bfU; lineAmt=roomAmt+bfA; }
+      var meal2 = sub.meal && (folded || hasBf || explicitBf);
+      if(sub.meal && !folded && hasBf){ dispUnit=roomUnit+bfU; lineAmt=roomAmt+bfA; }
       var futonYN = sub.futon ? '布団あり' : '布団なし';
       var futonTsuki = sub.futon ? '布団付き' : '布団なし';
       if(!planHasBf)      label='幼児宿泊料金(素泊まり・'+futonYN+')';
@@ -237,13 +248,14 @@ function unifyLodgingRows(billingRows, roomType, mode){
     lodgingLines.push({date:date,label:label,unit:dispUnit,qty:qty,amt:lineAmt,kind:'lodging',tier:tier});
   });
   var bfLeftover=[];
-  ['adult','child','infant'].forEach(function(t){
-    var q=bfQueue[t]||[];
-    for(var i=bfPtr[t]; i<q.length; i++){
-      var b=q[i]; var bq=parseInt(b.qty)||1, bu=parseFloat(b.price)||0;
-      bfLeftover.push({date:b.date||'',label:(b.item||'朝食'),unit:bu,qty:bq,amt:bu*bq-(parseFloat(b.discount)||0),kind:'lodging',tier:t});
+  function _flushBf(pool, ptr){
+    for(var i=ptr;i<pool.length;i++){
+      var b=pool[i];
+      bfLeftover.push({date:b.date||'',label:(b.item||'朝食'),unit:b.price,qty:1,amt:b.amt,kind:'lodging',tier:'other'});
     }
-  });
+  }
+  _flushBf(bfPoolAdult, bfPtrA);
+  _flushBf(bfPoolChild, bfPtrC);
   var out=[];
   if(mode==='slip' && isDlx){
     var aLines=lodgingLines.filter(function(l){return l.tier==='adult';});
