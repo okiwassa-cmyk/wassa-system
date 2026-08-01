@@ -1062,10 +1062,19 @@ async function initMain() {
       updateEstimate();
     }
   });
+  // チェックアウト日は定休日でも選択可（その夜は泊まらないため）。
+  // ただしチェックイン〜前夜までに定休日が挟まる期間は不可（例: 火IN→木OUTは水の定休日が泊まりに入る）。
+  const _fpDisableCout = [date => {
+    const ds = date.getFullYear()+'-'+String(date.getMonth()+1).padStart(2,'0')+'-'+String(date.getDate()).padStart(2,'0');
+    const cinSel = fpCin.selectedDates[0];
+    if (!cinSel) return false;
+    const cinDs = cinSel.getFullYear()+'-'+String(cinSel.getMonth()+1).padStart(2,'0')+'-'+String(cinSel.getDate()).padStart(2,'0');
+    return _closedNightInStay(cinDs, ds) != null;
+  }];
   fpCout = flatpickr('#f-cout', {
     dateFormat: 'Y-m-d', locale: 'ja', disableMobile: true,
     defaultDate: coutInit, minDate: cinInit, maxDate: fmtD(maxBook),
-    disable: _fpDisable,
+    disable: _fpDisableCout,
     onChange: function() { updateEstimate(); }
   });
   ['f-adults','f-children','f-meal','f-room'].forEach(id => {
