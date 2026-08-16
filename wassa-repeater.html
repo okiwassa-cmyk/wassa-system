@@ -1209,6 +1209,7 @@ async function submitBooking() {
       inf_none:      parseInt(document.getElementById('f-inf-none').value)||0,
       notes:         '【リピーターページより】' + (notes ? '\n' + notes : ''),
       status:        'tentative',
+      price_sent:    false,
       source:        '直予約',
       room_type:     roomKey === 'dlx' ? 'デラックス' : 'スーペリアツイン02',
       payment:       '現地清算',
