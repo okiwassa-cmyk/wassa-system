@@ -1165,6 +1165,7 @@ async function submitBooking() {
   btn.disabled = true;
   btn.textContent = '空室確認中...';
 
+  let _supRoom = 'スーペリアツイン02';
   try {
     // 送信直前に空室を再確認
     const chkRes = await fetch(
@@ -1185,6 +1186,8 @@ async function submitBooking() {
       btn.textContent = '予約リクエストを送る';
       return;
     }
+    // 実際に空いているスーペリアを割り当てる（02優先・02が埋まっていれば01）
+    if (roomKey !== 'dlx') _supRoom = booked.some(_isS02) ? 'スーペリアツイン01' : 'スーペリアツイン02';
   } catch(e) { /* 確認失敗時はそのまま続行 */ }
 
   btn.textContent = '送信中...';
@@ -1211,7 +1214,7 @@ async function submitBooking() {
       status:        'tentative',
       price_sent:    false,
       source:        '直予約',
-      room_type:     roomKey === 'dlx' ? 'デラックス' : 'スーペリアツイン02',
+      room_type:     roomKey === 'dlx' ? 'デラックス' : _supRoom,
       payment:       '現地清算',
       plan_name:     { none:'素泊まりプラン', bf:'朝食付きプラン', din:'夕食付きプラン', both:'2食付きプラン' }[meal] || '',
     };
