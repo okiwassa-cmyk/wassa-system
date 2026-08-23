@@ -4873,6 +4873,21 @@ async function autoSetupFoodRecords(resvId, checkIn, checkOut, overrideRuleArr){
   var planKey = mealAutoRules ? _detectPlanType(resv ? resv.plan_name : '', nights) : null;
   var ruleArr = overrideRuleArr || (mealAutoRules && mealAutoRules[custKey] && mealAutoRules[custKey][planKey]) || [];
 
+  // 二重登録防止：memory(currentFoodRecords)が空でもDBには既に行があり得るため、
+  // 必ずDBを確認し、同じ(日付・区分)の行があれば新規作成せず既存を採用する。
+  var _existRows = await sbGet('food_records','select=*&reservation_id=eq.'+resvId).catch(function(){return [];});
+  var _existMap = {};
+  (_existRows||[]).forEach(function(e){
+    var _c = e.category==='ディナー'?'夕食':(e.category||'夕食');
+    var _k = (e.served_date||'')+'|'+_c;
+    // 同キーが複数あれば中身のある行（無ければ最新ID）を代表に
+    var _prev = _existMap[_k];
+    if(!_prev){ _existMap[_k]=e; return; }
+    var _eHas = !!((e.menu_name&&e.menu_name.trim())||(e.meal_detail&&e.meal_detail.trim()));
+    var _pHas = !!((_prev.menu_name&&_prev.menu_name.trim())||(_prev.meal_detail&&_prev.meal_detail.trim()));
+    if(_eHas!==_pHas ? _eHas : ((e.id||0)>(_prev.id||0))) _existMap[_k]=e;
+  });
+
   try{
     for(var i=0;i<meals.length;i++){
       var m = meals[i];
@@ -4880,6 +4895,18 @@ async function autoSetupFoodRecords(resvId, checkIn, checkOut, overrideRuleArr){
       var isBf = m.category === '朝食';
       var menuName = isBf ? (rule.breakfast || null) : (rule.dinner || null);
       var mealDetail = menuName ? _menuDetailByName(menuName, m.category) : null;
+      var _mk = m.served_date+'|'+m.category;
+      var _ex = _existMap[_mk];
+      if(_ex){
+        // 既存行あり → 新規作成しない（重複防止）。空の既存にだけルールのメニューを補充。
+        var _exHas = !!((_ex.menu_name&&_ex.menu_name.trim())||(_ex.meal_detail&&_ex.meal_detail.trim()));
+        if(!_exHas && menuName){
+          var _pr=await fetch(SB_URL+'/rest/v1/food_records?id=eq.'+_ex.id,{method:'PATCH',headers:Object.assign({},SB_HEADERS,{'Prefer':'return=representation'}),body:JSON.stringify({menu_name:menuName,meal_detail:mealDetail})});
+          if(_pr.ok){var _pu=await _pr.json(); if(_pu&&_pu[0]) _ex=Object.assign(_ex,_pu[0]);}
+        }
+        if(currentFoodRecords.findIndex(function(x){return x.id===_ex.id;})<0) currentFoodRecords.push(_ex);
+        continue;
+      }
       var res=await sbPost('food_records',{
         reservation_id:resvId,
         served_date:m.served_date,
@@ -4932,6 +4959,9 @@ function renderFoodRecords() {
   }
   // 重複除去: 同じreservation_id+served_date+category は IDが大きい（最新）もので上書き
   // ディナー→夕食に正規化してキーを作る（旧FileMakerデータとの重複防止）
+  var _foodHasContent = function(r){
+    return !!((r.menu_name&&r.menu_name.trim())||(r.meal_detail&&r.meal_detail.trim())||(r.kids_meal_detail&&r.kids_meal_detail.trim()));
+  };
   var seen = {};
   var deduped = [];
   currentFoodRecords.forEach(function(r) {
@@ -4941,10 +4971,12 @@ function renderFoodRecords() {
       seen[key] = deduped.length;
       deduped.push(r);
     } else {
-      // 既存よりIDが大きければ上書き（最新レコードを優先）
-      if ((r.id||0) > (deduped[seen[key]].id||0)) {
-        deduped[seen[key]] = r;
-      }
+      // 中身のある行を優先（旧データ由来の空・null行が正メニューを隠さないように）。
+      // 両方とも中身あり／両方とも空なら、IDが大きい方（最新）を採用。
+      var _cur = deduped[seen[key]];
+      var _rHas = _foodHasContent(r), _curHas = _foodHasContent(_cur);
+      var _take = (_rHas !== _curHas) ? _rHas : ((r.id||0) > (_cur.id||0));
+      if (_take) deduped[seen[key]] = r;
     }
   });
   // CI日の朝食・CO日の夕食を除外（CI=夕食のみ、CO=朝食のみ）
