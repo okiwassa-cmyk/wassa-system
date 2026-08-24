@@ -5077,9 +5077,20 @@ async function copyFoodToGroupRooms() {
     return x.group_id === resv.group_id && x.id !== currentEditId && x.status !== 'cancelled';
   });
   if (!siblings.length) { toast('他の部屋が見つかりません'); return; }
-  var sources = currentFoodRecords.filter(function(r){
-    return (r.menu_name||'').trim() || (r.meal_detail||'').trim() || (r.kids_meal_detail||'').trim();
+  var _hasC = function(r){ return (r.menu_name||'').trim() || (r.meal_detail||'').trim() || (r.kids_meal_detail||'').trim(); };
+  var _nc = function(c){ return c==='ディナー'?'夕食':(c||'夕食'); };
+  // コピー元を(日付・区分)で重複排除（中身のある行を優先）→ 元室の重複を他室へ広げない
+  var _srcMap = {};
+  currentFoodRecords.forEach(function(r){
+    if(!_hasC(r)) return;
+    var k = (r.served_date||'')+'|'+_nc(r.category);
+    var p = _srcMap[k];
+    if(!p) { _srcMap[k]=r; return; }
+    // 両方中身あり／両方空なら新しいID優先。片方だけ中身なら中身ある方
+    var take = (_hasC(r)?1:0)!==(_hasC(p)?1:0) ? _hasC(r) : ((r.id||0)>(p.id||0));
+    if(take) _srcMap[k]=r;
   });
+  var sources = Object.keys(_srcMap).map(function(k){ return _srcMap[k]; });
   if (!sources.length) { toast('コピーする内容がありません（内容を入力・保存してから実行してください）'); return; }
   if (!confirm('他の部屋（' + siblings.length + '室）に食事内容をコピーします。\n既存の内容は上書きされます。続けますか？')) return;
   var updated = 0;
@@ -5090,11 +5101,16 @@ async function copyFoodToGroupRooms() {
     });
     var sibFoods = await res.json();
     if (!Array.isArray(sibFoods)) continue;
+    // 相手室の既存行を(日付・区分)でマップ。同キー複数は1つを代表にし、残りは重複として削除
+    var sibMap = {}; var sibDup = [];
+    sibFoods.forEach(function(f){
+      var k=(f.served_date||'')+'|'+_nc(f.category);
+      if(!sibMap[k]) sibMap[k]=f; else sibDup.push(f);
+    });
     for (var ri = 0; ri < sources.length; ri++) {
       var src = sources[ri];
-      var match = sibFoods.find(function(f){
-        return f.served_date === src.served_date && f.category === src.category;
-      });
+      var k = (src.served_date||'')+'|'+_nc(src.category);
+      var match = sibMap[k];
       if (match) {
         await fetch(SB_URL + '/rest/v1/food_records?id=eq.' + match.id, {
           method: 'PATCH',
@@ -5102,16 +5118,23 @@ async function copyFoodToGroupRooms() {
           body: JSON.stringify({menu_name: src.menu_name||null, meal_detail: src.meal_detail||null, kids_meal_detail: src.kids_meal_detail||null})
         });
       } else {
-        await fetch(SB_URL + '/rest/v1/food_records', {
+        var pr = await fetch(SB_URL + '/rest/v1/food_records', {
           method: 'POST',
-          headers: {'Content-Type':'application/json','apikey':SB_KEY,'Authorization':SB_HEADERS['Authorization'],'Prefer':'return=minimal'},
+          headers: {'Content-Type':'application/json','apikey':SB_KEY,'Authorization':SB_HEADERS['Authorization'],'Prefer':'return=representation'},
           body: JSON.stringify({reservation_id: sib.id, served_date: src.served_date, category: src.category, menu_name: src.menu_name||null, meal_detail: src.meal_detail||null, kids_meal_detail: src.kids_meal_detail||null})
         });
+        try { var pj = await pr.json(); if(pj&&pj[0]) sibMap[k]=pj[0]; } catch(e){}
       }
       updated++;
     }
+    // 相手室に残っていた重複行を掃除（同キーの余分だけ・別の食事は消さない）
+    var delIds = sibDup.map(function(f){ return f.id; }).filter(Boolean);
+    if(delIds.length){
+      await fetch(SB_URL+'/rest/v1/food_records?id=in.('+delIds.join(',')+')',{method:'DELETE',headers:SB_HEADERS});
+    }
   }
   toast('✅ ' + updated + '件コピーしました（' + siblings.length + '室）');
+  if(currentEditId) loadFoodRecords(currentEditId);
 }
 
 function frUpdate(idx, key, val) {
