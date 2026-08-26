@@ -4715,8 +4715,8 @@ function renderFoodRuleSelect(resv) {
   }) : false;
   var defaultKey = (isRepeat ? 'repeat' : 'new') + '.' + (isSingleTrip ? 'single_agoo' : 'multi');
   var options = '';
+  // 設定済みの全ルールを表示（1泊/連泊で隠さない）。予約の泊数に合う方を初期選択にする。
   _mealRuleCategories.forEach(function(cat) {
-    if (cat.isSingle !== isSingleTrip) return;
     var parts = cat.key.split('.');
     var ruleArr = (mealAutoRules[parts[0]] && mealAutoRules[parts[0]][parts[1]]) || [];
     var hasValue = ruleArr.some(function(r){ return (r.dinner||'').trim() || (r.breakfast||'').trim(); });
