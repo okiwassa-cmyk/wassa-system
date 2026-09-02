@@ -11,8 +11,9 @@
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     :root{
-      --ocean:#1a6b7a; --ocean2:#155d6a; --ocean-lt:#e8f4f6;
-      --sand:#f0ebe3; --sand2:#faf8f5; --amber:#c08a2a; --amber-lt:#fdf4e0;
+      /* 新規予約リクエストページ＝明るいターコイズ系（リピーターの濃いティールよりビビッドに区別） */
+      --ocean:#12a5bd; --ocean2:#0d8aa0; --ocean-lt:#e4f7fb;
+      --sand:#f0ebe3; --sand2:#f5fbfc; --amber:#c08a2a; --amber-lt:#fdf4e0;
       --rose:#b85050; --rose-lt:#fdf0f0; --green:#3a8060; --green-lt:#edf7f2;
       --text:#2c2c2c; --text2:#666; --text3:#999; --border:#e8e3dc;
     }
@@ -21,7 +22,7 @@
     .wrap{max-width:560px;margin:0 auto;padding:0 16px 60px}
 
     /* Header */
-    header{background:linear-gradient(160deg,var(--ocean2) 0%,#2a8a9a 100%);color:#fff;padding:34px 20px 30px;text-align:center;position:relative}
+    header{background:linear-gradient(160deg,var(--ocean2) 0%,#4fd3e3 100%);color:#fff;padding:34px 20px 30px;text-align:center;position:relative}
     .lang-toggle{position:absolute;top:14px;right:14px;display:flex;gap:4px;background:rgba(255,255,255,.15);border-radius:20px;padding:3px}
     .lang-btn{border:none;background:none;color:rgba(255,255,255,.7);font-size:12px;font-weight:500;padding:5px 12px;border-radius:16px;cursor:pointer;font-family:inherit}
     .lang-btn.active{background:#fff;color:var(--ocean2)}
@@ -260,7 +261,7 @@ const I18N = {
     estTotal:'合計（目安）',
     estNote:'※あくまで目安です。宿泊税・繁忙期・祝前日等により最終金額は変わる場合があります。正式な料金はこちらからのご案内メールでご確認ください。',
     inquireMsg:'この日程・ご人数は、繁忙期または幼児を含むため、料金を個別にご案内いたします。下のフォームからそのままリクエストをお送りください。折り返しお見積もりをお送りします。',
-    okTitle:'リクエストを受け付けました', okBody:'ありがとうございます。内容を確認のうえ、担当より2〜3日以内にご連絡いたします。しばらくお待ちくださいませ。',
+    okTitle:'リクエストを受け付けました', okBody:'ありがとうございます。当宿は3室だけの小さな宿です。ご希望のお部屋を大切にお取り置きし、担当より2〜3日以内にお見積もりとご案内をお送りします。ご返信でご確定いただいてはじめて予約成立となりますので、どうぞお気軽にお待ちくださいませ。',
     errName:'お名前を入力してください。', errEmail:'メールアドレスを入力してください。',
     errDate:'チェックアウトはチェックイン以降の日付をお選びください。',
     errClosed:'は定休日のためご宿泊いただけません。別の日程をお選びください。',
@@ -289,7 +290,7 @@ const I18N = {
     estTotal:'Estimated total',
     estNote:'This is an estimate only. The final amount may vary with accommodation tax, peak season and eve-of-holiday rates. We will confirm the exact price in our reply.',
     inquireMsg:'For these dates or party (peak season, or including infants) we will quote the price individually. Please send your request below and we will reply with a quote.',
-    okTitle:'Request received', okBody:'Thank you. We will review your request and reply within 2–3 days. We look forward to welcoming you.',
+    okTitle:'Request received', okBody:'Thank you. We are a small inn of just three rooms, and we will hold your room specially for you while we prepare a quote. We’ll reply within 2–3 days — your reservation is confirmed only once you reply to accept, so there’s no rush. We look forward to welcoming you.',
     errName:'Please enter your name.', errEmail:'Please enter your email address.',
     errDate:'Check-out must be after check-in.',
     errClosed:' is a closed day. Please choose other dates.',

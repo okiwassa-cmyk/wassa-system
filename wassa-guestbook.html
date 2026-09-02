@@ -2062,7 +2062,9 @@ var _repeaterPass='WASSA2025'; // リピーターページパスワード（pric
 var _replyTemplates={
   instagram:'ありがとうございます！\n詳しいご相談はLINE公式アカウントで\n対応しております😊\n\n▼ WASSA WASSA 公式LINE\n（友達追加URLをここに入力）\n\nお気軽にご連絡ください。',
   repeater:'いつもありがとうございます！\nリピーター様専用ページはこちらです。\n\n▼ ご予約・料金確認\nhttps://okiwassa-cmyk.github.io/wassa-system/wassa-repeater.html\n\nパスワード：'+_repeaterPass+'\n\nご不明な点はそのままLINEでお知らせください。',
-  email_sig:'---\n今後のご連絡はLINE公式アカウントでも\nお気軽にどうぞ。\n\n▼ WASSA WASSA 公式LINE\n（友達追加URLをここに入力）\n\n海と星空の小さな宿 WASSA WASSA　溝川 祐次・理佐\nTEL: 0980-50-2500  wassa@wassa-okinawa.com'
+  email_sig:'---\n今後のご連絡はLINE公式アカウントでも\nお気軽にどうぞ。\n\n▼ WASSA WASSA 公式LINE\n（友達追加URLをここに入力）\n\n海と星空の小さな宿 WASSA WASSA　溝川 祐次・理佐\nTEL: 0980-50-2500  wassa@wassa-okinawa.com',
+  confirm_en:'Subject: Your reservation at WASSA WASSA — [dates]\n\nDear [Name],\n\nThank you so much for choosing us for your stay — we would be delighted to welcome you.\n\nWe are a small inn of just three rooms, so we look after every guest personally, and we are holding your room specially for you.\n\nHere are the details:\n- Room: [room]\n- Dates: [check-in] – [check-out] ([n] nights)\n- Meals: [plan]\n- Guests: [guests]\n- Total: JPY [amount]\n\nTo confirm, simply reply to this email to let us know the details are correct — your room is reserved for you as soon as we hear back. And if your plans ever change, just send us a quick message; that is all we ask.\n\nWe look forward to welcoming you to Yambaru.\n\nWarm regards,\nYuji & Risa Mizokawa\nWASSA WASSA — a small seaside inn under the stars\n97 Nerome, Ogimi, Kunigami, Okinawa 905-1303, Japan\nTEL +81-980-50-2500 / wassa@wassa-okinawa.com\nhttps://wassa-okinawa.com',
+  confirm_jp:'件名：ご予約のご案内 — WASSA WASSA（[日程]）\n\n[お名前] 様\n\nこの度は当宿をお選びいただき、ありがとうございます。ぜひお迎えしたく存じます。\n\n当宿は3室だけの小さな宿ですので、お一人おひとりを大切に、ご希望のお部屋を[お名前]様のためにお取り置きしております。\n\nご予約内容:\n- お部屋：[部屋]\n- 日程：[チェックイン] 〜 [チェックアウト]（[n]泊）\n- お食事：[プラン]\n- 人数：[人数]\n- 合計：¥[金額]\n\nご確定は、このメールにご返信いただくだけで結構です。お返事をいただいた時点で、お部屋を確保いたします。もしご予定が変わった際は、ひと言お知らせいただければ大丈夫です。\n\nやんばるでお会いできますのを、心よりお待ちしております。\n\n海と星空の小さな宿　WASSA WASSA\n溝川　祐次　理佐\n〒905-1307 沖縄県国頭郡大宜味村根路銘97\nTEL 0980-50-2500\n▼お問い合わせはLINEが便利です https://lin.ee/9LwzzT7\n公式HP https://wassa-okinawa.com'
 };
 var _pinsReady=false; // true になるまで checkPin() は待機する
 let prices={}, ranges={super_high:[],high:[],regular:[],low:[]};
@@ -11099,6 +11101,8 @@ function renderMgr(){
 
   // ━━ 返信テンプレート ━━
   var rtDefs=[
+    {key:'confirm_en',label:'予約確定案内（英語・新規リクエスト用）'},
+    {key:'confirm_jp',label:'予約確定案内（日本語・新規リクエスト用）'},
     {key:'repeater',label:'リピーター案内（LINE送信用）'},
     {key:'instagram',label:'インスタDM返信用'},
     {key:'email_sig', label:'メール署名'}
@@ -11324,8 +11328,8 @@ var _defaultEmailTemplates={
   thankyou:{subject:'【WASSA WASSA】ご宿泊ありがとうございました！',body:'{{guest}} 様\n\nこんにちは。WASSA WASSAの溝川です。先日はご利用いただき誠にありがとうございました。\n\nお時間がございましたら、Googleレビューをいただけると嬉しいです。\nhttps://g.page/r/CVP0Hn007oC0EBE/review\n\nまたのお越しをお待ちしております。\n\n---\n海と星空の小さな宿 WASSA WASSA　溝川 祐次・理佐\nTEL: 0980-50-2500  wassa@wassa-okinawa.com'}
 };
 async function saveReplyTemplates(){
-  var tpls={};
-  ['repeater','instagram','email_sig'].forEach(function(k){
+  var tpls=Object.assign({},_replyTemplates);
+  ['confirm_en','confirm_jp','repeater','instagram','email_sig'].forEach(function(k){
     var el=document.getElementById('rt-'+k);
     if(el) tpls[k]=el.value;
   });
