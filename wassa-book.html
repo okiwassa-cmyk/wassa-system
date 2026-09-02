@@ -205,10 +205,16 @@ function isPeak(ds){
          (md>='08-08'&&md<='08-16') ||   // お盆
          (md>='12-25'&&md<='12-31') || (md>='01-01'&&md<='01-04'); // 年末年始
 }
-// Day type for a normal date: Fri/Sat = B, else A  (B = 休前日; official definition)
+// 公式日タイプカレンダー（管理画面で登録）。未登録日は基本パターン（日〜木=B, 金土=C）で補完
+let officialDaytypes = {};
 function dayType(ds){
-  const d = new Date(ds+'T00:00:00'); const wd = d.getDay();
-  return (wd===5||wd===6) ? 'B' : 'A';
+  if(officialDaytypes && officialDaytypes[ds]) return officialDaytypes[ds];
+  const wd = new Date(ds+'T00:00:00').getDay();
+  return (wd===5||wd===6) ? 'C' : 'B'; // 基本パターン
+}
+// 繁忙期(C/D/E相当)で、まだカレンダー未登録＝加算額が確定しない日を含むか（手動見積もりにする）
+function peakNeedsManual(cin,cout){
+  return nightsList(cin,cout).some(function(ds){ return isPeak(ds) && !(officialDaytypes && officialDaytypes[ds]); });
 }
 
 let closedWd = [3]; // 水曜=宿の定休（後でDBから取得）
@@ -456,7 +462,7 @@ async function submitBooking(){
   }catch(e){}
 
   btn.textContent=t('sending');
-  const manualQuote = peakInStay(cin,cout); // 繁忙期のみ手動（自動料金なし）
+  const manualQuote = peakNeedsManual(cin,cout); // 繁忙期でカレンダー未登録の日を含む＝手動
   const provisional = beyondHorizon(cin,cout); // 料金確定期限より先＝暫定（現行料金で下書き作成、改定時に要更新）
   const planName={none:'素泊まりプラン',bf:'朝食付きプラン',agu:'あぐー豚グリルコース（1泊2食）',both:'海の幸コース（1泊2食）',stay2:'連泊2食付きプラン（2泊以上）'}[meal]||'';
   try{
@@ -535,8 +541,8 @@ async function submitBooking(){
 /* ══════════ Init ══════════ */
 async function init(){
   try{
-    const r=await fetch(`${SB_URL}/rest/v1/price_common?id=eq.1&select=closed_weekdays,price_valid_until,official_pricing`,{headers:SB_H});
-    const d=await r.json(); if(d&&d[0]){ if(d[0].closed_weekdays) closedWd=d[0].closed_weekdays; if(d[0].price_valid_until) priceValidUntil=d[0].price_valid_until; applyOfficialPricing(d[0].official_pricing); }
+    const r=await fetch(`${SB_URL}/rest/v1/price_common?id=eq.1&select=closed_weekdays,price_valid_until,official_pricing,official_daytypes`,{headers:SB_H});
+    const d=await r.json(); if(d&&d[0]){ if(d[0].closed_weekdays) closedWd=d[0].closed_weekdays; if(d[0].price_valid_until) priceValidUntil=d[0].price_valid_until; applyOfficialPricing(d[0].official_pricing); if(d[0].official_daytypes) officialDaytypes=d[0].official_daytypes; }
   }catch(e){}
   const today=new Date();
   const cinDef=new Date(today); cinDef.setDate(cinDef.getDate()+7);

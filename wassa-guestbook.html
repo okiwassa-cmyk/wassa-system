@@ -2054,6 +2054,8 @@ let common={bf_adult:2200,bf_child:2200,bf_infant:2200,din_adult:7700,din_child_
 // 公式料金（新規予約リクエスト用）。price_common.official_pricing から読み込み・管理画面で編集
 var _officialPricing=null;
 var _officialDefault={accom:{sup:{1:20000,2:10000,3:9000,4:8500},dlx:{1:42000,2:21000,3:17000,4:14000}},daySurcharge:{A:0,B:2000,C:3000,D:4000,E:6000},bfAdult:2000,dinAdult:{agu:6000,seafood:8000,stay2:7000},stay2Disc:1000,child:{accom:{sup:6600,dlx:9900},bf:2200,din:3300},infant:{futon:{sup:4400,dlx:6600},noFuton:{sup:2200,dlx:2200},bf:{sup:2200,dlx:3300},din:3300}};
+// 公式日タイプ カレンダー（price_common.official_daytypes）。{日付:'A'..'E'}
+var _officialDayMap={};
 var _pins={owner:'1234',staff:'5678'}; // Supabaseから起動時に読み込む
 var _cancelPolicy=''; // キャンセルポリシー（price_commonから読み込む）
 var _repeaterPass='WASSA2025'; // リピーターページパスワード（price_commonから読み込む）
@@ -2263,6 +2265,7 @@ async function loadRateData(){
       const c=cm[0];
       common={bf_adult:c.bf_adult,bf_child:c.bf_child,bf_infant:c.bf_infant,din_adult:c.din_adult,din_child_rate:parseFloat(c.din_child_rate),din_child_price:c.din_child_price||null,din_infant:c.din_infant,price_valid_until:c.price_valid_until||null};
       _officialPricing=c.official_pricing||null;
+      _officialDayMap=c.official_daytypes||{};
       // PINをSupabaseから読み込み
       if(c.pin_owner) _pins.owner=c.pin_owner;
       if(c.pin_staff) _pins.staff=c.pin_staff;
@@ -11117,6 +11120,7 @@ function renderMgr(){
 
   el.innerHTML=html;
   renderSpecialPeriods();
+  renderOfficialCal();
 }
 async function saveCommon(){
   const cpVal=document.getElementById('c-din-child-price').value;
@@ -11173,8 +11177,54 @@ function officialEditorHtml(){
   h+='<label style="font-size:12px">夕食 '+ni('op-inf-din',p.infant.din)+'</label>';
   h+='</div>';
   h+='<button class="save-btn" onclick="saveOfficialPricing()" style="margin-top:14px">保存</button><span class="saved-msg" id="msg-official-price">保存しました ✓</span>';
+  // ── 公式日タイプ カレンダー（A〜E）──
+  h+='<div style="border-top:1px solid var(--border);margin:18px 0 12px"></div>';
+  h+='<div style="font-weight:600;font-size:13px;margin-bottom:6px">公式日タイプ カレンダー（A〜E）</div>';
+  h+='<div style="font-size:12px;color:var(--text3);margin-bottom:10px;line-height:1.7">日付をタップして日タイプを塗ります。基本は<strong>日〜木=B・金土=C</strong>。まず「基本パターンを1年分適用」を押し、<strong>繁忙期（GW・お盆・年末年始）だけ D/E に塗り替えて保存</strong>してください。新規予約リクエストの料金計算に使われます（未登録日は基本パターンで補完）。</div>';
+  h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">';
+  ['A','B','C','D','E'].forEach(function(tp){ h+='<button id="odt-p-'+tp+'" onclick="selectDaytype(\''+tp+'\')" style="width:38px;padding:6px 0;border-radius:8px;border:1px solid var(--border);background:'+_ODT_COLORS[tp]+';font-size:13px;font-weight:700;cursor:pointer">'+tp+'</button>'; });
+  h+='<button id="odt-p-none" onclick="selectDaytype(null)" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:#fff;font-size:12px;cursor:pointer">消す</button>';
+  h+='</div>';
+  h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center">';
+  h+='<button onclick="applyBasePattern()" style="padding:6px 14px;border-radius:10px;border:1px solid var(--ocean);background:transparent;color:var(--ocean);font-size:12px;cursor:pointer">基本パターンを1年分適用（日〜木B・金土C）</button>';
+  h+='<button class="save-btn" onclick="saveOfficialDaytypes()" style="margin:0">保存</button><span class="saved-msg" id="msg-odt">保存しました ✓</span>';
+  h+='</div>';
+  h+='<div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:8px"><button onclick="odtMonth(-1)" style="border:none;background:var(--sand);border-radius:8px;padding:4px 12px;cursor:pointer">‹</button><span id="odt-title" style="font-weight:600;font-size:14px"></span><button onclick="odtMonth(1)" style="border:none;background:var(--sand);border-radius:8px;padding:4px 12px;cursor:pointer">›</button></div>';
+  h+='<div id="odt-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px"></div>';
   h+='</div>';
   return h;
+}
+var _ODT_COLORS={A:'#ffffff',B:'#c9c9ff',C:'#a6ebb0',D:'#ff9ed4',E:'#8fe6f2'};
+var _odtYear=null,_odtMonth=null,_selectedDaytype='B',_odtPaint={};
+function selectDaytype(tp){_selectedDaytype=tp;['A','B','C','D','E','none'].forEach(function(k){var el=document.getElementById('odt-p-'+k);if(!el)return;var on=(k==='none')?(tp===null):(k===tp);el.style.outline=on?'3px solid var(--ocean)':'none';el.style.outlineOffset=on?'1px':'0';});}
+function _odtGet(ds){return _odtPaint.hasOwnProperty(ds)?_odtPaint[ds]:(_officialDayMap[ds]||null);}
+function _odtDs(y,m,day){return y+'-'+String(m+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');}
+function renderOfficialCal(){
+  var grid=document.getElementById('odt-grid');if(!grid)return;
+  if(_odtYear==null){var t=new Date();_odtYear=t.getFullYear();_odtMonth=t.getMonth();}
+  var tt=document.getElementById('odt-title');if(tt)tt.textContent=_odtYear+'年'+(_odtMonth+1)+'月';
+  var html='';['日','月','火','水','木','金','土'].forEach(function(w){html+='<div style="text-align:center;font-size:11px;color:var(--text3);padding:2px">'+w+'</div>';});
+  var first=new Date(_odtYear,_odtMonth,1).getDay(),last=new Date(_odtYear,_odtMonth+1,0).getDate();
+  for(var i=0;i<first;i++)html+='<div></div>';
+  for(var day=1;day<=last;day++){
+    var ds=_odtDs(_odtYear,_odtMonth,day);var tp=_odtGet(ds);var bg=tp?_ODT_COLORS[tp]:'#fafafa';
+    html+='<div onclick="odtPaint(\''+ds+'\')" style="cursor:pointer;border:1px solid var(--border);border-radius:6px;padding:3px 0;text-align:center;background:'+bg+'"><div style="font-size:12px;color:#333">'+day+'</div><div style="font-size:10px;font-weight:700;color:#222;height:12px;line-height:12px">'+(tp||'')+'</div></div>';
+  }
+  grid.innerHTML=html;
+  selectDaytype(_selectedDaytype);
+}
+function odtMonth(d){_odtMonth+=d;if(_odtMonth>11){_odtMonth=0;_odtYear++;}if(_odtMonth<0){_odtMonth=11;_odtYear--;}renderOfficialCal();}
+function odtPaint(ds){_odtPaint[ds]=_selectedDaytype;renderOfficialCal();}
+function applyBasePattern(){
+  var y=_odtYear;var d=new Date(y+'-01-01T00:00:00');var end=new Date(y+'-12-31T00:00:00');
+  while(d<=end){var ds=_odtDs(y,d.getMonth(),d.getDate());var wd=d.getDay();_odtPaint[ds]=(wd===5||wd===6)?'C':'B';d.setDate(d.getDate()+1);}
+  renderOfficialCal();
+  toast(y+'年に基本パターンを適用しました。繁忙期をD/Eに塗り替えて「保存」を押してください');
+}
+async function saveOfficialDaytypes(){
+  Object.keys(_odtPaint).forEach(function(k){var v=_odtPaint[k];if(v==null)delete _officialDayMap[k];else _officialDayMap[k]=v;});
+  _odtPaint={};
+  try{await supa('price_common?id=eq.1','PATCH',{official_daytypes:_officialDayMap,updated_at:new Date().toISOString()});showMsg('msg-odt');renderOfficialCal();}catch(e){alert('保存に失敗しました: '+e.message);}
 }
 async function saveOfficialPricing(){
   var gv=function(id){var v=document.getElementById(id).value; return v===''?0:parseInt(v)||0;};
@@ -11192,7 +11242,7 @@ async function saveOfficialPricing(){
   try{await supa('price_common?id=eq.1','PATCH',{official_pricing:p,updated_at:new Date().toISOString()});showMsg('msg-official-price');}catch(e){alert('保存に失敗しました: '+e.message);}
 }
 // ── 公式料金の計算（wassa-bookと同一ロジック。暫定見積もりの再計算に使用）──
-function _opDayType(ds){var wd=new Date(ds+'T00:00:00').getDay();return (wd===5||wd===6)?'B':'A';}
+function _opDayType(ds){if(_officialDayMap&&_officialDayMap[ds])return _officialDayMap[ds];var wd=new Date(ds+'T00:00:00').getDay();return (wd===5||wd===6)?'C':'B';}
 function _opNights(cin,cout){var a=[];var d=new Date(cin+'T00:00:00');var e=new Date(cout+'T00:00:00');while(d<e){a.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));d.setDate(d.getDate()+1);}return a;}
 function _opMealFromPlan(r){var pn=r.plan_name||'';if(pn.indexOf('連泊')!==-1)return 'stay2';if(pn.indexOf('海の幸')!==-1)return 'both';if(pn.indexOf('あぐー')!==-1)return 'agu';if(pn.indexOf('朝食')!==-1)return 'bf';if(pn.indexOf('2食')!==-1||pn.indexOf('二食')!==-1)return 'both';return 'none';}
 function buildOfficialBilling(r){
