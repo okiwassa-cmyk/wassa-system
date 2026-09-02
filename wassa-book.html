@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Book / ご予約リクエスト | WASSA WASSA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --ocean:#1a6b7a; --ocean2:#155d6a; --ocean-lt:#e8f4f6;
+      --sand:#f0ebe3; --sand2:#faf8f5; --amber:#c08a2a; --amber-lt:#fdf4e0;
+      --rose:#b85050; --rose-lt:#fdf0f0; --green:#3a8060; --green-lt:#edf7f2;
+      --text:#2c2c2c; --text2:#666; --text3:#999; --border:#e8e3dc;
+    }
+    html{scroll-behavior:smooth}
+    body{font-family:'Noto Sans JP',sans-serif;background:var(--sand2);color:var(--text);line-height:1.7;-webkit-font-smoothing:antialiased}
+    .wrap{max-width:560px;margin:0 auto;padding:0 16px 60px}
+
+    /* Header */
+    header{background:linear-gradient(160deg,var(--ocean2) 0%,#2a8a9a 100%);color:#fff;padding:34px 20px 30px;text-align:center;position:relative}
+    .lang-toggle{position:absolute;top:14px;right:14px;display:flex;gap:4px;background:rgba(255,255,255,.15);border-radius:20px;padding:3px}
+    .lang-btn{border:none;background:none;color:rgba(255,255,255,.7);font-size:12px;font-weight:500;padding:5px 12px;border-radius:16px;cursor:pointer;font-family:inherit}
+    .lang-btn.active{background:#fff;color:var(--ocean2)}
+    .brand{font-family:'Cormorant Garamond',serif;font-size:30px;letter-spacing:.22em;font-weight:500;margin-bottom:4px}
+    .brand-sub{font-size:11px;letter-spacing:.18em;text-transform:uppercase;opacity:.85}
+    .head-title{font-size:15px;margin-top:16px;font-weight:400;opacity:.95}
+
+    /* Card */
+    .card{background:#fff;border-radius:18px;box-shadow:0 8px 30px rgba(0,0,0,.06);padding:26px 22px;margin-top:22px}
+    .intro{font-size:13px;color:var(--text2);margin-bottom:22px;line-height:1.8}
+
+    label.fld{display:block;margin-bottom:16px}
+    .fld-label{display:block;font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;letter-spacing:.03em}
+    .req{color:var(--rose);font-size:11px;margin-left:3px}
+    input,select,textarea{width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:16px;font-family:inherit;color:var(--text);background:#fff;outline:none;transition:border-color .2s}
+    input:focus,select:focus,textarea:focus{border-color:var(--ocean)}
+    textarea{resize:vertical;min-height:72px}
+    .row2{display:flex;gap:12px}
+    .row2>*{flex:1}
+    .hint{font-size:11px;color:var(--text3);margin-top:5px;line-height:1.6}
+    #inf-rows{display:flex;flex-direction:column;gap:8px}
+    .inf-row{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;color:var(--text2)}
+    .inf-row select{width:82px;padding:8px 10px;flex:none}
+
+    .est{margin-top:8px;background:var(--ocean-lt);border-radius:14px;padding:18px 16px;display:none}
+    .est-title{font-size:14px;font-weight:500;color:var(--ocean2);margin-bottom:12px;line-height:1.5}
+    .night-block{background:#fff;border-radius:10px;padding:10px 12px;margin-bottom:8px}
+    .night-header{display:flex;justify-content:space-between;font-size:13px;font-weight:500;margin-bottom:4px}
+    .est-badge{font-size:10px;font-weight:500;padding:1px 7px;border-radius:10px;margin-left:7px;vertical-align:middle}
+    .est-badge.b{background:var(--amber-lt);color:var(--amber)}
+    .est-detail{display:flex;justify-content:space-between;font-size:12px;color:var(--text2);padding:2px 0}
+    .est-total{display:flex;justify-content:space-between;align-items:baseline;border-top:2px solid var(--ocean);margin-top:10px;padding-top:12px}
+    .est-total .lbl{font-size:13px;font-weight:500;color:var(--ocean2)}
+    .est-total .amt{font-size:24px;font-weight:600;color:var(--ocean2)}
+    .est-note{font-size:11px;color:var(--text3);margin-top:10px;line-height:1.7}
+
+    .inquire{margin-top:8px;background:var(--amber-lt);border-radius:14px;padding:16px;font-size:13px;color:var(--amber);display:none;line-height:1.7}
+
+    .err{color:var(--rose);font-size:13px;margin-top:6px;min-height:18px;line-height:1.6}
+    .submit-btn{width:100%;padding:15px;background:var(--ocean);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:500;font-family:inherit;cursor:pointer;letter-spacing:.05em;margin-top:6px;transition:background .2s}
+    .submit-btn:hover{background:var(--ocean2)}
+    .submit-btn:disabled{background:#c8ccce;cursor:not-allowed}
+
+    .success{display:none;background:#fff;border-radius:18px;box-shadow:0 8px 30px rgba(0,0,0,.06);padding:36px 24px;margin-top:22px;text-align:center}
+    .success .ico{font-size:40px;margin-bottom:12px}
+    .success h2{font-size:19px;color:var(--ocean2);font-weight:500;margin-bottom:12px}
+    .success p{font-size:14px;color:var(--text2);line-height:1.9}
+
+    footer{text-align:center;font-size:11px;color:var(--text3);margin-top:30px;line-height:1.9}
+    footer a{color:var(--ocean);text-decoration:none}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="lang-toggle">
+      <button class="lang-btn" id="lang-ja" onclick="setLang('ja')">日本語</button>
+      <button class="lang-btn" id="lang-en" onclick="setLang('en')">English</button>
+    </div>
+    <div class="brand">WASSA WASSA</div>
+    <div class="brand-sub">A small seaside inn under the stars</div>
+    <div class="head-title" data-i18n="headTitle"></div>
+  </header>
+
+  <div class="wrap">
+    <div class="card" id="form-wrap">
+      <p class="intro" data-i18n="intro"></p>
+
+      <div class="row2">
+        <label class="fld"><span class="fld-label" data-i18n="lCin"></span><input type="text" id="f-cin" readonly></label>
+        <label class="fld"><span class="fld-label" data-i18n="lCout"></span><input type="text" id="f-cout" readonly></label>
+      </div>
+
+      <label class="fld"><span class="fld-label" data-i18n="lRoom"></span>
+        <select id="f-room">
+          <option value="sup" data-i18n="oRoomSup"></option>
+          <option value="dlx" data-i18n="oRoomDlx"></option>
+        </select>
+      </label>
+
+      <label class="fld"><span class="fld-label" data-i18n="lPlan"></span>
+        <select id="f-meal">
+          <option value="both" data-i18n="oPlanSeafood" data-course="seafood">selected below</option>
+          <option value="agu" data-i18n="oPlanAgu"></option>
+          <option value="stay2" data-i18n="oPlanStay2"></option>
+          <option value="bf" data-i18n="oPlanBf"></option>
+          <option value="none" data-i18n="oPlanNone"></option>
+        </select>
+      </label>
+
+      <div class="row2">
+        <label class="fld"><span class="fld-label" data-i18n="lAdults"></span>
+          <select id="f-adults"><option>1</option><option selected>2</option><option>3</option><option>4</option></select>
+        </label>
+        <label class="fld"><span class="fld-label" data-i18n="lChildren"></span>
+          <select id="f-children"><option selected>0</option><option>1</option><option>2</option><option>3</option></select>
+          <span class="hint" data-i18n="hChildren"></span>
+        </label>
+      </div>
+
+      <div class="fld">
+        <span class="fld-label" data-i18n="lInfants"></span>
+        <div id="inf-rows">
+          <div class="inf-row" data-inf="mealbed"><span data-i18n="infMealBed"></span>
+            <select id="f-inf-meal-bed"><option selected>0</option><option>1</option><option>2</option><option>3</option></select></div>
+          <div class="inf-row" data-inf="mealonly"><span data-i18n="infMealOnly"></span>
+            <select id="f-inf-meal-only"><option selected>0</option><option>1</option><option>2</option><option>3</option></select></div>
+          <div class="inf-row" data-inf="bedonly"><span data-i18n="infBedOnly"></span>
+            <select id="f-inf-bed-only"><option selected>0</option><option>1</option><option>2</option><option>3</option></select></div>
+          <div class="inf-row" data-inf="none"><span data-i18n="infNone"></span>
+            <select id="f-inf-none"><option selected>0</option><option>1</option><option>2</option><option>3</option></select></div>
+        </div>
+        <span class="hint" data-i18n="hInfants"></span>
+      </div>
+
+      <div class="inquire" id="dayinfo"></div>
+
+      <hr style="border:none;border-top:1px solid var(--border);margin:22px 0">
+
+      <label class="fld"><span class="fld-label"><span data-i18n="lName"></span><span class="req">*</span></span><input type="text" id="f-name" autocomplete="name"></label>
+      <label class="fld"><span class="fld-label"><span data-i18n="lEmail"></span><span class="req">*</span></span><input type="email" id="f-email" autocomplete="email" inputmode="email"></label>
+      <label class="fld"><span class="fld-label" data-i18n="lPhone"></span><input type="tel" id="f-phone" autocomplete="tel" inputmode="tel"></label>
+      <label class="fld"><span class="fld-label" data-i18n="lNotes"></span><textarea id="f-notes"></textarea>
+        <span class="hint" data-i18n="hNotes"></span></label>
+
+      <div class="err" id="err"></div>
+      <button class="submit-btn" id="submit-btn" onclick="submitBooking()" data-i18n="btnSubmit"></button>
+    </div>
+
+    <div class="success" id="success">
+      <div class="ico">🌿</div>
+      <h2 data-i18n="okTitle"></h2>
+      <p data-i18n="okBody"></p>
+    </div>
+
+    <footer>
+      WASSA WASSA　海と星空の小さな宿<br>
+      〒905-1307 沖縄県国頭郡大宜味村根路銘97 ・ TEL 0980-50-2500<br>
+      <a href="https://wassa-okinawa.com">wassa-okinawa.com</a>
+    </footer>
+  </div>
+
+<script>
+const SB_URL = 'https://mtsdhheqddrckksiqlim.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10c2RoaGVxZGRyY2trc2lxbGltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1OTc5NDgsImV4cCI6MjA4ODE3Mzk0OH0.c18ExSxNHBOani7CN4QAqaerhvpr5ZCYA0GGkUg0mlc';
+const SB_H  = { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' };
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzr846aUMNHRidDGzactMHwIgpVjYeDkjmq0DrUM5S4DFLKzL5Z-s2h1MM8YLs6By1Lfg/exec';
+
+/* ══════════ Official (Liberty) pricing model ══════════
+   accom base = 素泊まり per-pax (A column); day surcharge added per pax.
+   breakfast +2000/pax, dinner Agu +6000/pax, Seafood +8000/pax (official plan deltas).
+   連泊(stay2): dinner +7000/pax, minus 連泊割引 1000/pax/night (2泊以上). = accom + 8000/pax net.
+   Children (小学生) decompose: accom flat + bf 2200 + dinner 3300.  */
+// ↓ 既定値。init時に price_common.official_pricing（DB）があれば上書き（＝管理画面から編集可能）
+let ACCOM_A = { sup:{1:20000,2:10000,3:9000,4:8500}, dlx:{1:42000,2:21000,3:17000,4:14000} };
+let DAY_SUR = { A:0, B:2000, C:3000, D:4000, E:6000 };
+let BF_ADULT = 2000, DIN_ADULT = { agu:6000, seafood:8000, stay2:7000 };
+let STAY2_DISC = 1000; // 連泊割引（大人1名1泊あたり）
+let CHILD_ACCOM = { sup:6600, dlx:9900 };
+let CHILD_BF = 2200, CHILD_DIN = 3300;
+// 幼児（お子様料金表を分解）※スーペリア布団のみ朝食¥2,200は誤植とみなし布団=¥4,400で統一
+let INF_FUTON   = { sup:4400, dlx:6600 }; // 布団あり（宿泊分）
+let INF_NOFUTON = { sup:2200, dlx:2200 }; // 布団なし（宿泊分）※DXは布団なし区分なし
+let INF_BF      = { sup:2200, dlx:3300 }; // 幼児 朝食
+let INF_DIN     = 3300;                   // 幼児 夕食（共通）
+// DBの official_pricing で上書き
+function applyOfficialPricing(p){
+  if(!p) return;
+  if(p.accom) ACCOM_A=p.accom;
+  if(p.daySurcharge) DAY_SUR=p.daySurcharge;
+  if(typeof p.bfAdult==='number') BF_ADULT=p.bfAdult;
+  if(p.dinAdult) DIN_ADULT=p.dinAdult;
+  if(typeof p.stay2Disc==='number') STAY2_DISC=p.stay2Disc;
+  if(p.child){ if(p.child.accom) CHILD_ACCOM=p.child.accom; if(typeof p.child.bf==='number') CHILD_BF=p.child.bf; if(typeof p.child.din==='number') CHILD_DIN=p.child.din; }
+  if(p.infant){ if(p.infant.futon) INF_FUTON=p.infant.futon; if(p.infant.noFuton) INF_NOFUTON=p.infant.noFuton; if(p.infant.bf) INF_BF=p.infant.bf; if(typeof p.infant.din==='number') INF_DIN=p.infant.din; }
+}
+
+// Peak windows (month-day) → price by inquiry (C/D/E seasons not auto-priced)
+function isPeak(ds){
+  const md = ds.slice(5); // MM-DD
+  return (md>='04-27'&&md<='05-06') ||   // Golden Week 前後
+         (md>='08-08'&&md<='08-16') ||   // お盆
+         (md>='12-25'&&md<='12-31') || (md>='01-01'&&md<='01-04'); // 年末年始
+}
+// Day type for a normal date: Fri/Sat = B, else A  (B = 休前日; official definition)
+function dayType(ds){
+  const d = new Date(ds+'T00:00:00'); const wd = d.getDay();
+  return (wd===5||wd===6) ? 'B' : 'A';
+}
+
+let closedWd = [3]; // 水曜=宿の定休（後でDBから取得）
+let priceValidUntil = null; // 料金確定期限（この先は自動見積もりを作らない）。price_commonから取得
+// いずれかの宿泊日が料金確定期限より先か
+function beyondHorizon(cin,cout){
+  if(!priceValidUntil) return false;
+  return nightsList(cin,cout).some(function(ds){ return ds>priceValidUntil; });
+}
+function isClosedDay(ds){ const d=new Date(ds+'T00:00:00'); return closedWd.indexOf(d.getDay())!==-1; }
+function closedNightInStay(cin,cout){
+  let d=new Date(cin+'T00:00:00'); const end=new Date(cout+'T00:00:00');
+  while(d<end){ const ds=fmtD(d); if(isClosedDay(ds)) return ds; d.setDate(d.getDate()+1); }
+  return null;
+}
+function peakInStay(cin,cout){
+  let d=new Date(cin+'T00:00:00'); const end=new Date(cout+'T00:00:00');
+  while(d<end){ const ds=fmtD(d); if(isPeak(ds)) return true; d.setDate(d.getDate()+1); }
+  return false;
+}
+
+const fmtD = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const fmt  = n => Number(n).toLocaleString('ja-JP');
+
+/* ══════════ i18n ══════════ */
+const I18N = {
+  ja:{
+    headTitle:'ご予約リクエスト',
+    intro:'ご希望の日程・お部屋・お食事プラン・ご人数をお選びのうえ、お客様情報をご入力ください。空室を確認し、こちらから正式なお見積もりとご案内をメールでお送りします（この時点ではまだ予約は確定しません）。',
+    lCin:'チェックイン', lCout:'チェックアウト', lRoom:'お部屋', lPlan:'お食事プラン',
+    oRoomSup:'スーペリアツイン', oRoomDlx:'デラックス（一棟貸切）',
+    oPlanSeafood:'海の幸コース（1泊2食）', oPlanAgu:'あぐー豚グリルコース（1泊2食）', oPlanStay2:'連泊2食付きプラン（2泊〜）', oPlanBf:'朝食付き', oPlanNone:'素泊まり',
+    stay2Min:'連泊2食付きプランは2泊以上でのご利用となります。日程をご確認ください。',
+    horizonNote:'この先の日程は料金改定の可能性があるため、確定しだい改めてご案内いたします。このままリクエストをお送りいただけます。',
+    lAdults:'大人', lChildren:'小学生', hChildren:'小学生のお子様',
+    lInfants:'幼児（未就学）', hInfants:'幼児のお料金は、お食事・お布団の内容に応じて個別にご案内します',
+    infMealBed:'食事・お布団あり', infMealOnly:'食事あり・お布団なし', infBedOnly:'お布団のみ（食事なし）', infNone:'食事・お布団なし',
+    lName:'お名前', lEmail:'メールアドレス', lPhone:'電話番号',
+    lNotes:'ご要望・ご質問', hNotes:'アレルギー・苦手な食材は、ご準備の都合上こちらにご記入ください',
+    btnSubmit:'予約リクエストを送る',
+    perNight:'泊', pax:'名', roomSup:'スーペリアツイン', roomDlx:'デラックス',
+    dAccom:'ご宿泊料金', dBf:'朝食', dDin:'夕食', adult:'大人', child:'小学生',
+    estTotal:'合計（目安）',
+    estNote:'※あくまで目安です。宿泊税・繁忙期・祝前日等により最終金額は変わる場合があります。正式な料金はこちらからのご案内メールでご確認ください。',
+    inquireMsg:'この日程・ご人数は、繁忙期または幼児を含むため、料金を個別にご案内いたします。下のフォームからそのままリクエストをお送りください。折り返しお見積もりをお送りします。',
+    okTitle:'リクエストを受け付けました', okBody:'ありがとうございます。内容を確認のうえ、担当より2〜3日以内にご連絡いたします。しばらくお待ちくださいませ。',
+    errName:'お名前を入力してください。', errEmail:'メールアドレスを入力してください。',
+    errDate:'チェックアウトはチェックイン以降の日付をお選びください。',
+    errClosed:'は定休日のためご宿泊いただけません。別の日程をお選びください。',
+    errFullSup:'スーペリアツインはこの日程で満室です。日程またはお部屋をご変更ください。',
+    errFullDlx:'デラックスはこの日程で満室です。日程またはお部屋をご変更ください。',
+    errCap:'寝具のご利用は4名までです。ご人数をご確認ください。',
+    errSend:'送信に失敗しました。お手数ですがお電話またはメールでご連絡ください。',
+    sending:'送信中...', checking:'空室確認中...'
+  },
+  en:{
+    headTitle:'Reservation Request',
+    intro:'Choose your dates, room, meal plan and party, then enter your details. We will check availability and send you a full quote and confirmation by email — your booking is not final until we reply.',
+    lCin:'Check-in', lCout:'Check-out', lRoom:'Room', lPlan:'Meal plan',
+    oRoomSup:'Superior Twin', oRoomDlx:'Deluxe Villa (private cottage)',
+    oPlanSeafood:'Seafood Course (dinner & breakfast)', oPlanAgu:'Agu Pork Grill Course (dinner & breakfast)', oPlanStay2:'Multi-night dinner & breakfast (2+ nights)', oPlanBf:'Breakfast included', oPlanNone:'Room only',
+    stay2Min:'The multi-night dinner & breakfast plan requires a stay of 2 nights or more. Please check your dates.',
+    horizonNote:'Prices for these dates are not yet finalized and may be revised. We will confirm the price in our reply — you can still send your request.',
+    lAdults:'Adults', lChildren:'Children (elementary)', hChildren:'Elementary-school age',
+    lInfants:'Infants (pre-school)', hInfants:'Infant charges depend on meal / futon and will be confirmed in our reply',
+    infMealBed:'With meal & futon', infMealOnly:'With meal, no futon', infBedOnly:'Futon only, no meal', infNone:'No meal or futon',
+    lName:'Name', lEmail:'Email', lPhone:'Phone',
+    lNotes:'Requests / questions', hNotes:'Please note any allergies or foods to avoid here, so we can prepare in advance',
+    btnSubmit:'Send reservation request',
+    perNight:'night(s)', pax:'', roomSup:'Superior Twin', roomDlx:'Deluxe Villa',
+    dAccom:'Accommodation', dBf:'Breakfast', dDin:'Dinner', adult:'Adult', child:'Child',
+    estTotal:'Estimated total',
+    estNote:'This is an estimate only. The final amount may vary with accommodation tax, peak season and eve-of-holiday rates. We will confirm the exact price in our reply.',
+    inquireMsg:'For these dates or party (peak season, or including infants) we will quote the price individually. Please send your request below and we will reply with a quote.',
+    okTitle:'Request received', okBody:'Thank you. We will review your request and reply within 2–3 days. We look forward to welcoming you.',
+    errName:'Please enter your name.', errEmail:'Please enter your email address.',
+    errDate:'Check-out must be after check-in.',
+    errClosed:' is a closed day. Please choose other dates.',
+    errFullSup:'The Superior Twin is fully booked for these dates. Please change dates or room.',
+    errFullDlx:'The Deluxe Villa is fully booked for these dates. Please change dates or room.',
+    errCap:'Up to 4 guests can be accommodated with bedding. Please check your party size.',
+    errSend:'Sending failed. Please contact us by phone or email.',
+    sending:'Sending...', checking:'Checking availability...'
+  }
+};
+let LANG = (navigator.language||'en').toLowerCase().indexOf('ja')===0 ? 'ja' : 'en';
+function t(k){ return (I18N[LANG] && I18N[LANG][k]) || k; }
+function setLang(l){
+  LANG=l; document.documentElement.lang=l;
+  document.getElementById('lang-ja').classList.toggle('active',l==='ja');
+  document.getElementById('lang-en').classList.toggle('active',l==='en');
+  document.querySelectorAll('[data-i18n]').forEach(el=>{ el.textContent=t(el.getAttribute('data-i18n')); });
+  updateEstimate();
+}
+
+/* ══════════ Estimate ══════════ */
+function planFlags(meal){
+  const twoMeal = meal==='both'||meal==='agu'||meal==='stay2';
+  return { hasBf: meal==='bf'||twoMeal,
+           hasDin: twoMeal,
+           course: meal==='agu'?'agu':(meal==='both'?'seafood':(meal==='stay2'?'stay2':null)),
+           stay2: meal==='stay2' };
+}
+// meal select values: none / bf / agu(2食) / both(=seafood 2食) / stay2(連泊2食)
+function currentMeal(){ return document.getElementById('f-meal').value; }
+
+// 幼児区分 → DB列(inf_meal_bed / inf_meal_only / inf_bed_only / inf_none)
+function getInfants(){
+  const g = id => parseInt(document.getElementById(id).value)||0;
+  const mealBed=g('f-inf-meal-bed'), mealOnly=g('f-inf-meal-only'), bedOnly=g('f-inf-bed-only'), none=g('f-inf-none');
+  return { mealBed, mealOnly, bedOnly, none, total:mealBed+mealOnly+bedOnly+none, bed:mealBed+bedOnly };
+}
+// デラックスは2区分（食事あり=mealBed / 食事なし=bedOnly）。mealOnly・none行は隠す＋0に。
+function adaptInfantRows(){
+  const dlx = document.getElementById('f-room').value==='dlx';
+  document.querySelectorAll('#inf-rows .inf-row').forEach(r=>{
+    const k=r.getAttribute('data-inf');
+    const hide = dlx && (k==='mealonly'||k==='none');
+    r.style.display = hide ? 'none' : 'flex';
+    if(hide){ const sel=r.querySelector('select'); if(sel) sel.value='0'; }
+  });
+}
+
+function nightsList(cin,cout){
+  const arr=[]; let d=new Date(cin+'T00:00:00'); const end=new Date(cout+'T00:00:00');
+  while(d<end){ arr.push(fmtD(d)); d.setDate(d.getDate()+1); } return arr;
+}
+
+// 料金はお客様に表示しない（送信後にRisaが正式見積もりをメール返信）。
+// ここでは日程バリデーション＋定休日ブロック＋空室チェックのみ行う。
+function updateEstimate(){
+  const cin=document.getElementById('f-cin').value, cout=document.getElementById('f-cout').value;
+  const errEl=document.getElementById('err'), btn=document.getElementById('submit-btn');
+  const info=document.getElementById('dayinfo');
+  errEl.textContent=''; btn.disabled=false; info.style.display='none';
+
+  // 寝具利用は4名まで（大人＋小学生＋布団利用の幼児）
+  const adults=parseInt(document.getElementById('f-adults').value)||0;
+  const children=parseInt(document.getElementById('f-children').value)||0;
+  const inf=getInfants();
+  if(adults+children+inf.bed>4){ errEl.textContent=t('errCap'); btn.disabled=true; return; }
+
+  if(!cin||!cout||cin>=cout) return;
+
+  // 定休日（水曜）を含む場合はブロック（＝定休日は選べない）。flatpickrでも選択不可だが二重の安全策。
+  const cn=closedNightInStay(cin,cout);
+  if(cn){ errEl.textContent=cn.slice(5).replace('-','/')+t('errClosed'); btn.disabled=true; return; }
+
+  // 連泊2食付きプランは2泊以上
+  if(currentMeal()==='stay2' && nightsList(cin,cout).length<2){
+    info.textContent=t('stay2Min'); info.style.display='block'; btn.disabled=true; return;
+  }
+
+  // 料金確定期限より先＝改定の可能性があるため確定後にご案内（リクエストは可）
+  if(beyondHorizon(cin,cout)){ info.textContent=t('horizonNote'); info.style.display='block'; }
+
+  checkAvail();
+}
+
+/* ══════════ Availability ══════════ */
+let _availTimer=null;
+function checkAvail(){ clearTimeout(_availTimer); _availTimer=setTimeout(_checkAvail,400); }
+async function _checkAvail(){
+  const cin=document.getElementById('f-cin').value, cout=document.getElementById('f-cout').value;
+  const roomKey=document.getElementById('f-room').value;
+  const errEl=document.getElementById('err'), btn=document.getElementById('submit-btn');
+  if(!cin||!cout||cin>=cout) return;
+  try{
+    const r=await fetch(`${SB_URL}/rest/v1/reservations?status=neq.cancelled&check_in=lt.${cout}&check_out=gt.${cin}&select=room_type`,{headers:SB_H});
+    const rsvs=await r.json();
+    const isS01=rt=>rt&&rt.indexOf('01')!==-1&&rt.indexOf('デラックス')===-1&&rt!=='DX';
+    const isS02=rt=>rt&&rt.indexOf('02')!==-1&&rt.indexOf('デラックス')===-1&&rt!=='DX';
+    const isDlx=rt=>rt&&(rt.indexOf('デラックス')!==-1||rt==='DX');
+    let full=false;
+    if(roomKey==='dlx') full=rsvs.some(v=>isDlx(v.room_type));
+    else full=rsvs.some(v=>isS01(v.room_type))&&rsvs.some(v=>isS02(v.room_type));
+    if(full){ errEl.textContent=roomKey==='dlx'?t('errFullDlx'):t('errFullSup'); btn.disabled=true; }
+    else if(errEl.textContent===t('errFullDlx')||errEl.textContent===t('errFullSup')){ errEl.textContent=''; btn.disabled=false; }
+  }catch(e){}
+}
+
+/* ══════════ Billing rows (official) ══════════ */
+function buildBillingRows(cin,cout,adults,children,meal,room,inf){
+  inf = inf || {mealBed:0,mealOnly:0,bedOnly:0,none:0};
+  const pay='現地清算'; const {hasBf,hasDin,course,stay2}=planFlags(meal);
+  const tier=Math.min(Math.max(adults,1),4); const rows=[];
+  const dinItem = course==='agu'?'あぐー':(course==='seafood'?'海の幸':'二食付き');
+  const futonInf=inf.mealBed+inf.bedOnly, noFutonInf=inf.mealOnly+inf.none, mealInf=inf.mealBed+inf.mealOnly;
+  for(const ds of nightsList(cin,cout)){
+    const dt=dayType(ds);
+    // 連泊割引は宿泊料金（大人）に反映（宿泊が一人1000円お得）
+    const accomAdult=(ACCOM_A[room][tier]||0)+DAY_SUR[dt]-(stay2?STAY2_DISC:0);
+    rows.push({cat:'宿泊料金',date:ds,item:stay2?'大人宿泊料金（連泊割引）':'大人宿泊料金',qty:adults,discount:0,price:accomAdult,payment:pay});
+    if(children>0) rows.push({cat:'宿泊料金',date:ds,item:'小学生宿泊料金',qty:children,discount:0,price:CHILD_ACCOM[room],payment:pay});
+    // 幼児（宿泊分）
+    if(futonInf>0)   rows.push({cat:'宿泊料金',date:ds,item:'幼児・布団あり',qty:futonInf,discount:0,price:INF_FUTON[room],payment:pay});
+    if(noFutonInf>0) rows.push({cat:'宿泊料金',date:ds,item:'幼児・布団なし',qty:noFutonInf,discount:0,price:INF_NOFUTON[room],payment:pay});
+    if(hasBf){
+      rows.push({cat:'朝食',date:ds,item:'朝食（大人）',qty:adults,discount:0,price:BF_ADULT,payment:pay});
+      if(children>0) rows.push({cat:'朝食',date:ds,item:'朝食（小学生）',qty:children,discount:0,price:CHILD_BF,payment:pay});
+      if(mealInf>0)  rows.push({cat:'朝食',date:ds,item:'朝食（幼児）',qty:mealInf,discount:0,price:INF_BF[room],payment:pay});
+    }
+    if(hasDin){
+      rows.push({cat:'夕食',date:ds,item:'夕食（大人・'+dinItem+'）',qty:adults,discount:0,price:DIN_ADULT[course],payment:pay});
+      if(children>0) rows.push({cat:'夕食',date:ds,item:'夕食（小学生）',qty:children,discount:0,price:CHILD_DIN,payment:pay});
+      if(mealInf>0)  rows.push({cat:'夕食',date:ds,item:'夕食（幼児）',qty:mealInf,discount:0,price:INF_DIN,payment:pay});
+    }
+  }
+  return rows;
+}
+
+/* ══════════ Submit ══════════ */
+async function submitBooking(){
+  const name=document.getElementById('f-name').value.trim();
+  const email=document.getElementById('f-email').value.trim();
+  const phone=document.getElementById('f-phone').value.trim();
+  const cin=document.getElementById('f-cin').value, cout=document.getElementById('f-cout').value;
+  const adults=parseInt(document.getElementById('f-adults').value)||2;
+  const children=parseInt(document.getElementById('f-children').value)||0;
+  const inf=getInfants(); const infants=inf.total;
+  const meal=currentMeal(); const roomKey=document.getElementById('f-room').value;
+  const notes=document.getElementById('f-notes').value.trim();
+  const errEl=document.getElementById('err'); errEl.textContent='';
+
+  if(adults+children+inf.bed>4){ errEl.textContent=t('errCap'); return; }
+  if(!name){ errEl.textContent=t('errName'); return; }
+  if(!email||email.indexOf('@')===-1){ errEl.textContent=t('errEmail'); return; }
+  if(!cin||!cout||cin>=cout){ errEl.textContent=t('errDate'); return; }
+  const cn=closedNightInStay(cin,cout);
+  if(cn){ errEl.textContent=cn.slice(5).replace('-','/')+t('errClosed'); return; }
+  if(meal==='stay2' && nightsList(cin,cout).length<2){ errEl.textContent=t('stay2Min'); return; }
+
+  const btn=document.getElementById('submit-btn'); btn.disabled=true; btn.textContent=t('checking');
+
+  let supRoom='スーペリアツイン02';
+  try{
+    const chk=await fetch(`${SB_URL}/rest/v1/reservations?status=neq.cancelled&check_in=lt.${cout}&check_out=gt.${cin}&select=room_type`,{headers:SB_H});
+    const booked=await chk.json();
+    const isS01=rt=>rt&&rt.indexOf('01')!==-1&&rt.indexOf('デラックス')===-1&&rt!=='DX';
+    const isS02=rt=>rt&&rt.indexOf('02')!==-1&&rt.indexOf('デラックス')===-1&&rt!=='DX';
+    const isDlx=rt=>rt&&(rt.indexOf('デラックス')!==-1||rt==='DX');
+    const full=roomKey==='dlx'?booked.some(r=>isDlx(r.room_type)):(booked.some(r=>isS01(r.room_type))&&booked.some(r=>isS02(r.room_type)));
+    if(full){ errEl.textContent=roomKey==='dlx'?t('errFullDlx'):t('errFullSup'); btn.disabled=false; btn.textContent=t('btnSubmit'); return; }
+    if(roomKey!=='dlx') supRoom=booked.some(isS02)?'スーペリアツイン01':'スーペリアツイン02';
+  }catch(e){}
+
+  btn.textContent=t('sending');
+  const manualQuote = peakInStay(cin,cout); // 繁忙期のみ手動（自動料金なし）
+  const provisional = beyondHorizon(cin,cout); // 料金確定期限より先＝暫定（現行料金で下書き作成、改定時に要更新）
+  const planName={none:'素泊まりプラン',bf:'朝食付きプラン',agu:'あぐー豚グリルコース（1泊2食）',both:'海の幸コース（1泊2食）',stay2:'連泊2食付きプラン（2泊以上）'}[meal]||'';
+  try{
+    const body={
+      guest_name:name, email:email, phone:phone||null,
+      check_in:cin, check_out:cout, adults:adults, children:children, infants:infants,
+      inf_meal_bed:inf.mealBed, inf_meal_only:inf.mealOnly, inf_bed_only:inf.bedOnly, inf_none:inf.none,
+      notes:'【公式予約リクエストページより】' + (LANG==='en'?'（英語）':'') + (manualQuote?'\n※繁忙期のため料金を個別確定してください':'') + (provisional?'\n【料金改定前・暫定見積もり】確定期限（'+priceValidUntil+'）より先のため、現行料金で暫定作成。料金改定後に見積もりを更新してください':'') + (notes?'\n'+notes:''),
+      status:'tentative', price_sent:false, source:'直予約',
+      room_type: roomKey==='dlx'?'デラックス':supRoom,
+      payment:'現地清算', plan_name:planName
+    };
+    const r=await fetch(`${SB_URL}/rest/v1/reservations`,{method:'POST',headers:{...SB_H,Prefer:'return=representation'},body:JSON.stringify(body)});
+    if(!r.ok){ throw new Error('HTTP '+r.status+' '+await r.text().catch(()=> '')); }
+    const nr=await r.json().catch(()=>null); const rid=nr&&nr[0]&&nr[0].id;
+
+    // billing + 見積もり自動生成（繁忙期のみskip。期限より先=provisionalも現行料金で作成＝改定時に更新）
+    let billingRows=[], quoteUrl=null, estTotal='—';
+    if(rid && !manualQuote){
+      billingRows=buildBillingRows(cin,cout,adults,children,meal,roomKey,inf);
+      const totalAmt=billingRows.reduce((s,x)=>s+(x.price||0)*(x.qty||1),0); estTotal='¥'+fmt(totalAmt)+(provisional?'（暫定）':'');
+      const quoteNotes=(provisional?'【料金改定前・暫定】確定期限（'+priceValidUntil+'）より先。料金改定後に要更新。\n':'')+(notes||'');
+      try{
+        await fetch(`${SB_URL}/rest/v1/reservations?id=eq.${rid}`,{method:'PATCH',headers:{...SB_H,Prefer:'return=minimal'},
+          body:JSON.stringify({billing:{rows:billingRows,plan_name:planName,coupon:0,points:0,provisional:provisional}})});
+      }catch(e){}
+      try{
+        const token=crypto.randomUUID();
+        const vu=new Date(); vu.setDate(vu.getDate()+14);
+        const q=await fetch(`${SB_URL}/rest/v1/quotes`,{method:'POST',headers:{...SB_H,Prefer:'return=minimal'},
+          body:JSON.stringify({token,guest_name:name,email,phone:phone||null,check_in:cin,check_out:cout,
+            room_type:body.room_type,room:roomKey,adults:String(adults),children,infants,meal,plan_name:planName,
+            total_amount:String(totalAmt),valid_until:vu.toISOString().slice(0,10),status:'sent',
+            billing:{rows:billingRows,plan_name:planName,coupon:0,points:0,provisional:provisional},notes:quoteNotes,doc_type:'estimate'})});
+        if(q.ok) quoteUrl=`https://okiwassa-cmyk.github.io/wassa-system/wassa-quote-view.html?token=${token}`;
+      }catch(e){}
+    }
+
+    document.getElementById('form-wrap').style.display='none';
+    document.getElementById('success').style.display='block';
+    document.getElementById('success').scrollIntoView({behavior:'smooth',block:'center'});
+
+    // staff notification
+    const roomLabel=roomKey==='dlx'?'デラックス':'スーペリアツイン';
+    const nb=[
+      '【公式予約リクエストページより届きました】'+(LANG==='en'?'（英語ゲスト）':''),
+      manualQuote?'※繁忙期のため料金を個別確定してください':'',
+      provisional?'※料金確定期限（'+priceValidUntil+'）より先＝暫定見積もり（現行料金）。料金改定後に更新してください':'',
+      '',
+      'お名前　: '+name,
+      'メール　: '+email,
+      phone?'電話　　: '+phone:'',
+      'チェックイン　: '+cin,
+      'チェックアウト: '+cout,
+      '大人　　: '+adults+'名',
+      children>0?'小学生　: '+children+'名':'',
+      inf.mealBed>0?'幼児(食事・布団あり): '+inf.mealBed+'名':'',
+      inf.mealOnly>0?'幼児(食事あり・布団なし): '+inf.mealOnly+'名':'',
+      inf.bedOnly>0?'幼児(布団のみ・食事なし): '+inf.bedOnly+'名':'',
+      inf.none>0?'幼児(食事・布団なし): '+inf.none+'名':'',
+      '食事　　: '+planName,
+      'お部屋　: '+roomLabel,
+      '料金目安: '+estTotal,
+      notes?'\nご要望:\n'+notes:'',
+      '',
+      quoteUrl?'▼ 見積書URL\n'+quoteUrl:'※ 見積書は未生成（個別に作成してください）',
+      '',
+      '管理画面で確認し、お客様へご連絡ください。'
+    ].filter(l=>l!=='').join('\n');
+    fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify({action:'sendMail',to:'wassa@wassa-okinawa.com',
+        subject:'【予約リクエスト'+(LANG==='en'?'/EN':'')+'】'+name+'様 '+cin+'〜'+cout,body:nb})}).catch(()=>{});
+  }catch(e){ errEl.textContent=t('errSend'); btn.disabled=false; btn.textContent=t('btnSubmit'); }
+}
+
+/* ══════════ Init ══════════ */
+async function init(){
+  try{
+    const r=await fetch(`${SB_URL}/rest/v1/price_common?id=eq.1&select=closed_weekdays,price_valid_until,official_pricing`,{headers:SB_H});
+    const d=await r.json(); if(d&&d[0]){ if(d[0].closed_weekdays) closedWd=d[0].closed_weekdays; if(d[0].price_valid_until) priceValidUntil=d[0].price_valid_until; applyOfficialPricing(d[0].official_pricing); }
+  }catch(e){}
+  const today=new Date();
+  const cinDef=new Date(today); cinDef.setDate(cinDef.getDate()+7);
+  const coutDef=new Date(cinDef); coutDef.setDate(coutDef.getDate()+1);
+  const minB=new Date(today); minB.setDate(minB.getDate()+2);
+  const maxB=new Date(today); maxB.setMonth(maxB.getMonth()+15);
+  const disable=[date=>isClosedDay(fmtD(date))];
+  let fpCout;
+  const fpCin=flatpickr('#f-cin',{dateFormat:'Y-m-d',disableMobile:true,defaultDate:fmtD(cinDef),minDate:fmtD(minB),maxDate:fmtD(maxB),disable,
+    onChange:function(sel,ds){ if(sel[0]){ const nc=new Date(sel[0]); nc.setDate(nc.getDate()+1);
+      fpCout.set('minDate',ds); if(!fpCout.selectedDates[0]||fpCout.selectedDates[0]<=sel[0]) fpCout.setDate(fmtD(nc),false); } updateEstimate(); }});
+  fpCout=flatpickr('#f-cout',{dateFormat:'Y-m-d',disableMobile:true,defaultDate:fmtD(coutDef),minDate:fmtD(cinDef),maxDate:fmtD(maxB),
+    disable:[date=>{ const cs=fpCin.selectedDates[0]; if(!cs) return false; return closedNightInStay(fmtD(cs),fmtD(date))!=null; }],
+    onChange:function(){ updateEstimate(); }});
+  document.getElementById('f-room').addEventListener('change',()=>{ adaptInfantRows(); updateEstimate(); });
+  ['f-meal','f-adults','f-children','f-inf-meal-bed','f-inf-meal-only','f-inf-bed-only','f-inf-none']
+    .forEach(id=>document.getElementById(id).addEventListener('change',updateEstimate));
+  adaptInfantRows();
+  setLang(LANG);
+}
+init();
+</script>
+</body>
+</html>

@@ -2051,6 +2051,9 @@ var _mealRuleCategories = [
 function saveDinCoursePresets(){/* Supabase保存に移行 - saveDinCourses()を使用 */}
 let currentEditId=null, editType=null;
 let common={bf_adult:2200,bf_child:2200,bf_infant:2200,din_adult:7700,din_child_rate:0.65,din_child_price:null,din_infant:3300};
+// 公式料金（新規予約リクエスト用）。price_common.official_pricing から読み込み・管理画面で編集
+var _officialPricing=null;
+var _officialDefault={accom:{sup:{1:20000,2:10000,3:9000,4:8500},dlx:{1:42000,2:21000,3:17000,4:14000}},daySurcharge:{A:0,B:2000,C:3000,D:4000,E:6000},bfAdult:2000,dinAdult:{agu:6000,seafood:8000,stay2:7000},stay2Disc:1000,child:{accom:{sup:6600,dlx:9900},bf:2200,din:3300},infant:{futon:{sup:4400,dlx:6600},noFuton:{sup:2200,dlx:2200},bf:{sup:2200,dlx:3300},din:3300}};
 var _pins={owner:'1234',staff:'5678'}; // Supabaseから起動時に読み込む
 var _cancelPolicy=''; // キャンセルポリシー（price_commonから読み込む）
 var _repeaterPass='WASSA2025'; // リピーターページパスワード（price_commonから読み込む）
@@ -2258,7 +2261,8 @@ async function loadRateData(){
     ]);
     if(cm.length){
       const c=cm[0];
-      common={bf_adult:c.bf_adult,bf_child:c.bf_child,bf_infant:c.bf_infant,din_adult:c.din_adult,din_child_rate:parseFloat(c.din_child_rate),din_child_price:c.din_child_price||null,din_infant:c.din_infant};
+      common={bf_adult:c.bf_adult,bf_child:c.bf_child,bf_infant:c.bf_infant,din_adult:c.din_adult,din_child_rate:parseFloat(c.din_child_rate),din_child_price:c.din_child_price||null,din_infant:c.din_infant,price_valid_until:c.price_valid_until||null};
+      _officialPricing=c.official_pricing||null;
       // PINをSupabaseから読み込み
       if(c.pin_owner) _pins.owner=c.pin_owner;
       if(c.pin_staff) _pins.staff=c.pin_staff;
@@ -2417,11 +2421,16 @@ function renderDashboard(){
       pending.forEach(function(r){
         var roomBadge='<span class="ci-room '+roomClass(r.room_type)+'" style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;font-size:10px;font-weight:700;margin-right:6px">'+shortRoom(r.room_type)+'</span>';
         psHtml+='<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--sand2)">';
-        psHtml+='<div style="cursor:pointer" onclick="openReservation('+r.id+')">'+roomBadge+'<span style="font-size:13px;font-weight:600">'+escHtml(r.guest_name||'—')+'</span><span style="font-size:11px;color:var(--text3);margin-left:8px">'+(r.check_in||'')+'</span></div>';
-        psHtml+='<button onclick="markPriceSent('+r.id+')" style="padding:5px 14px;border-radius:14px;border:none;background:#2D6A6A;color:#fff;font-size:12px;cursor:pointer;font-family:inherit">✅料金送付済み</button>';
+        var _isProv=((r.billing&&r.billing.provisional)||(r.notes||'').indexOf('料金改定前')!==-1);
+        var _isOfficial=(r.notes||'').indexOf('公式予約リクエスト')!==-1;
+        psHtml+='<div style="cursor:pointer" onclick="openReservation('+r.id+')">'+roomBadge+'<span style="font-size:13px;font-weight:600">'+escHtml(r.guest_name||'—')+'</span>'+reqBadge(r)+provBadge(r)+'<span style="font-size:11px;color:var(--text3);margin-left:8px">'+(r.check_in||'')+'</span></div>';
+        psHtml+='<div style="display:flex;gap:6px;align-items:center">';
+        if(_isProv&&_isOfficial) psHtml+='<button onclick="event.stopPropagation();recomputeOfficialBilling('+r.id+')" title="現行の公式料金で見積もりを再計算" style="padding:5px 12px;border-radius:14px;border:1px solid #ffb74d;background:#fff8e1;color:#b26a00;font-size:12px;cursor:pointer;font-family:inherit">🔄 公式料金で再計算</button>';
+        psHtml+='<button onclick="event.stopPropagation();markPriceSent('+r.id+')" style="padding:5px 14px;border-radius:14px;border:none;background:#2D6A6A;color:#fff;font-size:12px;cursor:pointer;font-family:inherit">✅料金送付済み</button>';
+        psHtml+='</div>';
         psHtml+='</div>';
       });
-      psHtml+='<div style="font-size:11px;color:var(--text3);margin-top:8px">※ リピーターページからの予約リクエストは料金未確定のため未送付になっています。見積もりを送ったら「料金送付済み」を押してください</div>';
+      psHtml+='<div style="font-size:11px;color:var(--text3);margin-top:8px">※ 予約リクエスト（🆕新規＝公式ページ／🔁リピーター＝リピーターページ）は料金未確定のため未送付です。見積もりを確認してお送りしたら「料金送付済み」を押してください</div>';
       psHtml+='</div>';
       psSec.innerHTML=psHtml;
       psSec.style.display='';
@@ -2585,7 +2594,7 @@ function filterReservations(){
     var _warns=validateReservation(r);
     var warnBadge=_warns.length?'<span style="display:inline-block;background:#FBE9E7;color:#C0392B;border:1px solid #E6A99E;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:5px;vertical-align:middle;cursor:help" title="'+escHtml(_warns.join(' / '))+'">⚠️ 要確認</span>':'';
     var priceBadge=(r.price_sent===false&&r.status!=='cancelled')?'<span style="display:inline-block;background:#FFF3E0;color:#e65100;border:1px solid #FFB74D;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:5px;vertical-align:middle">📩 料金未送付</span>':'';
-    return `<tr onclick="openReservation(${r.id})" ${r.check_in===today?'id="res-row-today"':''} style="${rowStyle}"><td>${r.check_in||'—'}</td><td><strong>${r.guest_name||'—'}</strong>${buyoutBadge}${warnBadge}${priceBadge}</td><td>${shortRoom(r.room_type)}</td><td>${parseInt(r.adults)||0}名${parseInt(r.children)>0?'／小'+parseInt(r.children):''}${parseInt(r.infants)>0?'／幼'+parseInt(r.infants):''}</td><td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.plan_name||'—'}</td><td>${r.source||'—'}</td><td>${statusBadge(r.status)}</td></tr>`;
+    return `<tr onclick="openReservation(${r.id})" ${r.check_in===today?'id="res-row-today"':''} style="${rowStyle}"><td>${r.check_in||'—'}</td><td><strong>${r.guest_name||'—'}</strong>${buyoutBadge}${warnBadge}${priceBadge}${reqBadge(r)}${provBadge(r)}</td><td>${shortRoom(r.room_type)}</td><td>${parseInt(r.adults)||0}名${parseInt(r.children)>0?'／小'+parseInt(r.children):''}${parseInt(r.infants)>0?'／幼'+parseInt(r.infants):''}</td><td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.plan_name||'—'}</td><td>${r.source||'—'}</td><td>${statusBadge(r.status)}</td></tr>`;
   }).join('');
   // 今日の行があればスクロールしてフォーカス
   var todayRow=document.getElementById('res-row-today');
@@ -2623,6 +2632,20 @@ function updateTentativeBanner(){
   banner.style.display=sel.value==='tentative'?'flex':'none';
 }
 function statusBadge(s){const m={confirmed:'確定',tentative:'仮予約',checkin:'CI済',checkout:'CO済',cancelled:'キャンセル',waitlist:'キャンセル待ち'};const c={confirmed:'confirmed',tentative:'tentative',checkin:'checkin',checkout:'checkout',cancelled:'cancelled',waitlist:'waitlist'};return`<span class="badge badge-${c[s]||'confirmed'}">${m[s]||s||'確定'}</span>`;}
+// 予約リクエストの経路バッジ（notesの記入元で判定：公式ページ=新規／リピーターページ=リピーター）
+function reqBadge(r){
+  var n=(r&&r.notes)||'';
+  if(n.indexOf('公式予約リクエスト')!==-1) return '<span style="font-size:10px;background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:5px;vertical-align:middle">🆕 新規リクエスト</span>';
+  if(n.indexOf('リピーターページ')!==-1) return '<span style="font-size:10px;background:#e8f4fd;color:#1976d2;border:1px solid #90caf9;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:5px;vertical-align:middle">🔁 リピーターリクエスト</span>';
+  return '';
+}
+// 料金確定期限より先＝暫定見積もり（現行料金で作成済み・改定後に更新が必要）
+function provBadge(r){
+  var n=(r&&r.notes)||'';
+  var prov=(r&&r.billing&&r.billing.provisional)||n.indexOf('料金改定前')!==-1;
+  if(prov) return '<span style="font-size:10px;background:#fff8e1;color:#b26a00;border:1px solid #ffcc80;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:5px;vertical-align:middle" title="料金確定期限より先のため現行料金で暫定作成。料金改定後に見積もりを更新してください">⏳ 料金改定前（暫定）</span>';
+  return '';
+}
 
 // ━━ RESERVATION MODAL ━━
 function openNewReservation(){
@@ -10908,6 +10931,13 @@ function renderMgr(){
     }
   }
   html+='</div>';
+  // 料金有効期限（予約リクエストページ）
+  html+='<div class="section-card"><div class="section-title">料金の有効期限（予約リクエストページ）</div>';
+  html+='<div style="font-size:12px;color:var(--text3);margin-bottom:10px;line-height:1.7">この日付までのご宿泊は、予約リクエストページで料金を自動表示・自動見積もりします。<br>この日付より先は「料金は改定の可能性があるため確定後にご案内」となり、自動見積もりを作りません（＝来年の値上げ等に備え、確定分だけ出す）。<strong>料金を新しく決めたら、この日付を更新してください。</strong></div>';
+  html+='<div class="opt-row"><label>この日付まで料金確定</label><input type="date" id="c-price-valid-until" value="'+(common.price_valid_until||'')+'" style="width:180px"></div>';
+  html+='<button class="save-btn" onclick="savePriceValidUntil()">保存</button><span class="saved-msg" id="msg-price-valid">保存しました ✓</span></div>';
+  // 公式料金（新規予約リクエスト用）
+  html+=officialEditorHtml();
   html+='<div class="section-card"><div class="section-title">シーズン別室料・期間設定</div>';
   // 年タブ + 前年コピーボタン
   {const cy=new Date().getFullYear();
@@ -11092,6 +11122,128 @@ async function saveCommon(){
   const cpVal=document.getElementById('c-din-child-price').value;
   common.bf_adult=parseInt(document.getElementById('c-bf-adult').value)||0;common.bf_child=parseInt(document.getElementById('c-bf-child').value)||0;common.bf_infant=parseInt(document.getElementById('c-bf-infant').value)||0;common.din_adult=parseInt(document.getElementById('c-din-adult').value)||0;common.din_child_rate=(parseInt(document.getElementById('c-din-rate').value)||0)/100;common.din_child_price=cpVal?parseInt(cpVal):null;common.din_infant=parseInt(document.getElementById('c-din-infant').value)||0;
   try{await supa('price_common?id=eq.1','PATCH',{bf_adult:common.bf_adult,bf_child:common.bf_child,bf_infant:common.bf_infant,din_adult:common.din_adult,din_child_rate:common.din_child_rate,din_child_price:common.din_child_price,din_infant:common.din_infant,updated_at:new Date().toISOString()});showMsg('msg-common');renderMgr();}catch(e){alert('保存に失敗しました: '+e.message);}
+}
+async function savePriceValidUntil(){
+  const v=document.getElementById('c-price-valid-until').value||null;
+  common.price_valid_until=v;
+  try{await supa('price_common?id=eq.1','PATCH',{price_valid_until:v,updated_at:new Date().toISOString()});showMsg('msg-price-valid');}catch(e){alert('保存に失敗しました: '+e.message);}
+}
+// 公式料金（新規予約リクエスト用）エディタ
+function officialEditorHtml(){
+  var p=_officialPricing||_officialDefault;
+  var ni=function(id,val){return '<input type="number" id="'+id+'" value="'+(val==null?'':val)+'" style="width:90px">';};
+  var h='<div class="section-card"><div class="section-title">公式料金（新規予約リクエスト用）</div>';
+  h+='<div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.7">新規のお客様向け予約リクエストページ（wassa-book）の料金です。リバティー公式料金と合わせてください。<br>物価改定などで料金を変えたら、ここを更新して保存すると<strong>新しいリクエストから自動で反映</strong>されます（既存の暫定見積もりは⏳バッジから再計算）。</div>';
+  // 宿泊（素泊まり）1名単価
+  h+='<div style="font-weight:600;font-size:13px;margin:8px 0 6px">宿泊（素泊まり）1名あたり単価</div>';
+  h+='<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:12px"><tr><th style="padding:4px 8px;text-align:left">人数</th><th style="padding:4px 8px">スーペリア</th><th style="padding:4px 8px">デラックス</th></tr>';
+  [1,2,3,4].forEach(function(n){ h+='<tr><td style="padding:4px 8px">'+n+'名</td><td style="padding:4px 8px">'+ni('op-accom-sup-'+n,p.accom.sup[n])+'</td><td style="padding:4px 8px">'+ni('op-accom-dlx-'+n,p.accom.dlx[n])+'</td></tr>'; });
+  h+='</table></div>';
+  // 日タイプ加算
+  h+='<div style="font-weight:600;font-size:13px;margin:14px 0 6px">日タイプ加算（1名あたり）</div>';
+  h+='<div style="display:flex;gap:10px;flex-wrap:wrap">';
+  [['A','A 平日'],['B','B 休前日'],['C','C 準特別日A'],['D','D 準特別日B'],['E','E 特別日']].forEach(function(x){ h+='<label style="font-size:12px">'+x[1]+' '+ni('op-sur-'+x[0],p.daySurcharge[x[0]])+'</label>'; });
+  h+='</div>';
+  // 大人食事
+  h+='<div style="font-weight:600;font-size:13px;margin:14px 0 6px">大人 食事・連泊</div>';
+  h+='<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">';
+  h+='<label style="font-size:12px">朝食 '+ni('op-bf-adult',p.bfAdult)+'</label>';
+  h+='<label style="font-size:12px">夕食 あぐー '+ni('op-din-agu',p.dinAdult.agu)+'</label>';
+  h+='<label style="font-size:12px">夕食 海の幸 '+ni('op-din-seafood',p.dinAdult.seafood)+'</label>';
+  h+='<label style="font-size:12px">夕食 連泊 '+ni('op-din-stay2',p.dinAdult.stay2)+'</label>';
+  h+='<label style="font-size:12px">連泊割引(1泊) '+ni('op-stay2disc',p.stay2Disc)+'</label>';
+  h+='</div>';
+  // 小学生
+  h+='<div style="font-weight:600;font-size:13px;margin:14px 0 6px">小学生</div>';
+  h+='<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">';
+  h+='<label style="font-size:12px">宿泊 スーペリア '+ni('op-child-accom-sup',p.child.accom.sup)+'</label>';
+  h+='<label style="font-size:12px">宿泊 デラックス '+ni('op-child-accom-dlx',p.child.accom.dlx)+'</label>';
+  h+='<label style="font-size:12px">朝食 '+ni('op-child-bf',p.child.bf)+'</label>';
+  h+='<label style="font-size:12px">夕食 '+ni('op-child-din',p.child.din)+'</label>';
+  h+='</div>';
+  // 幼児
+  h+='<div style="font-weight:600;font-size:13px;margin:14px 0 6px">幼児（宿泊分＝布団あり/なし・食事）</div>';
+  h+='<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">';
+  h+='<label style="font-size:12px">布団あり スーペリア '+ni('op-inf-futon-sup',p.infant.futon.sup)+'</label>';
+  h+='<label style="font-size:12px">布団あり デラックス '+ni('op-inf-futon-dlx',p.infant.futon.dlx)+'</label>';
+  h+='<label style="font-size:12px">布団なし スーペリア '+ni('op-inf-nofuton-sup',p.infant.noFuton.sup)+'</label>';
+  h+='<label style="font-size:12px">布団なし デラックス '+ni('op-inf-nofuton-dlx',p.infant.noFuton.dlx)+'</label>';
+  h+='<label style="font-size:12px">朝食 スーペリア '+ni('op-inf-bf-sup',p.infant.bf.sup)+'</label>';
+  h+='<label style="font-size:12px">朝食 デラックス '+ni('op-inf-bf-dlx',p.infant.bf.dlx)+'</label>';
+  h+='<label style="font-size:12px">夕食 '+ni('op-inf-din',p.infant.din)+'</label>';
+  h+='</div>';
+  h+='<button class="save-btn" onclick="saveOfficialPricing()" style="margin-top:14px">保存</button><span class="saved-msg" id="msg-official-price">保存しました ✓</span>';
+  h+='</div>';
+  return h;
+}
+async function saveOfficialPricing(){
+  var gv=function(id){var v=document.getElementById(id).value; return v===''?0:parseInt(v)||0;};
+  var p={
+    accom:{ sup:{1:gv('op-accom-sup-1'),2:gv('op-accom-sup-2'),3:gv('op-accom-sup-3'),4:gv('op-accom-sup-4')},
+            dlx:{1:gv('op-accom-dlx-1'),2:gv('op-accom-dlx-2'),3:gv('op-accom-dlx-3'),4:gv('op-accom-dlx-4')} },
+    daySurcharge:{A:gv('op-sur-A'),B:gv('op-sur-B'),C:gv('op-sur-C'),D:gv('op-sur-D'),E:gv('op-sur-E')},
+    bfAdult:gv('op-bf-adult'),
+    dinAdult:{agu:gv('op-din-agu'),seafood:gv('op-din-seafood'),stay2:gv('op-din-stay2')},
+    stay2Disc:gv('op-stay2disc'),
+    child:{accom:{sup:gv('op-child-accom-sup'),dlx:gv('op-child-accom-dlx')},bf:gv('op-child-bf'),din:gv('op-child-din')},
+    infant:{futon:{sup:gv('op-inf-futon-sup'),dlx:gv('op-inf-futon-dlx')},noFuton:{sup:gv('op-inf-nofuton-sup'),dlx:gv('op-inf-nofuton-dlx')},bf:{sup:gv('op-inf-bf-sup'),dlx:gv('op-inf-bf-dlx')},din:gv('op-inf-din')}
+  };
+  _officialPricing=p;
+  try{await supa('price_common?id=eq.1','PATCH',{official_pricing:p,updated_at:new Date().toISOString()});showMsg('msg-official-price');}catch(e){alert('保存に失敗しました: '+e.message);}
+}
+// ── 公式料金の計算（wassa-bookと同一ロジック。暫定見積もりの再計算に使用）──
+function _opDayType(ds){var wd=new Date(ds+'T00:00:00').getDay();return (wd===5||wd===6)?'B':'A';}
+function _opNights(cin,cout){var a=[];var d=new Date(cin+'T00:00:00');var e=new Date(cout+'T00:00:00');while(d<e){a.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));d.setDate(d.getDate()+1);}return a;}
+function _opMealFromPlan(r){var pn=r.plan_name||'';if(pn.indexOf('連泊')!==-1)return 'stay2';if(pn.indexOf('海の幸')!==-1)return 'both';if(pn.indexOf('あぐー')!==-1)return 'agu';if(pn.indexOf('朝食')!==-1)return 'bf';if(pn.indexOf('2食')!==-1||pn.indexOf('二食')!==-1)return 'both';return 'none';}
+function buildOfficialBilling(r){
+  var p=_officialPricing||_officialDefault; var pay='現地清算';
+  var room=(/DX|デラックス/i.test(r.room_type||'')||r.room_type==='DX')?'dlx':'sup';
+  var meal=_opMealFromPlan(r);
+  var two=meal==='both'||meal==='agu'||meal==='stay2';
+  var hasBf=meal==='bf'||two, hasDin=two;
+  var course=meal==='agu'?'agu':(meal==='both'?'seafood':(meal==='stay2'?'stay2':null));
+  var stay2=meal==='stay2';
+  var adults=parseInt(r.adults)||0, children=parseInt(r.children)||0;
+  var infMealBed=parseInt(r.inf_meal_bed)||0, infMealOnly=parseInt(r.inf_meal_only)||0, infBedOnly=parseInt(r.inf_bed_only)||0, infNone=parseInt(r.inf_none)||0;
+  var tier=Math.min(Math.max(adults,1),4);
+  var futonInf=infMealBed+infBedOnly, noFutonInf=infMealOnly+infNone, mealInf=infMealBed+infMealOnly;
+  var dinItem=course==='agu'?'あぐー':(course==='seafood'?'海の幸':'二食付き');
+  var rows=[];
+  _opNights(r.check_in,r.check_out).forEach(function(ds){
+    var dt=_opDayType(ds);
+    var accomAdult=((p.accom[room]&&p.accom[room][tier])||0)+(p.daySurcharge[dt]||0)-(stay2?(p.stay2Disc||0):0);
+    rows.push({cat:'宿泊料金',date:ds,item:stay2?'大人宿泊料金（連泊割引）':'大人宿泊料金',qty:adults,discount:0,price:accomAdult,payment:pay});
+    if(children>0) rows.push({cat:'宿泊料金',date:ds,item:'小学生宿泊料金',qty:children,discount:0,price:p.child.accom[room],payment:pay});
+    if(futonInf>0) rows.push({cat:'宿泊料金',date:ds,item:'幼児・布団あり',qty:futonInf,discount:0,price:p.infant.futon[room],payment:pay});
+    if(noFutonInf>0) rows.push({cat:'宿泊料金',date:ds,item:'幼児・布団なし',qty:noFutonInf,discount:0,price:p.infant.noFuton[room],payment:pay});
+    if(hasBf){
+      rows.push({cat:'朝食',date:ds,item:'朝食（大人）',qty:adults,discount:0,price:p.bfAdult,payment:pay});
+      if(children>0) rows.push({cat:'朝食',date:ds,item:'朝食（小学生）',qty:children,discount:0,price:p.child.bf,payment:pay});
+      if(mealInf>0) rows.push({cat:'朝食',date:ds,item:'朝食（幼児）',qty:mealInf,discount:0,price:p.infant.bf[room],payment:pay});
+    }
+    if(hasDin){
+      rows.push({cat:'夕食',date:ds,item:'夕食（大人・'+dinItem+'）',qty:adults,discount:0,price:p.dinAdult[course],payment:pay});
+      if(children>0) rows.push({cat:'夕食',date:ds,item:'夕食（小学生）',qty:children,discount:0,price:p.child.din,payment:pay});
+      if(mealInf>0) rows.push({cat:'夕食',date:ds,item:'夕食（幼児）',qty:mealInf,discount:0,price:p.infant.din,payment:pay});
+    }
+  });
+  return rows;
+}
+async function recomputeOfficialBilling(resId){
+  var r=allReservations.find(function(x){return x.id===resId;});
+  if(!r){toast('予約が見つかりません');return;}
+  if((r.notes||'').indexOf('公式予約リクエスト')===-1 && !confirm('この予約は公式リクエスト由来ではないようです。公式料金で再計算しますか？')) return;
+  var rows=buildOfficialBilling(r);
+  var planName=r.plan_name||'';
+  var billing={rows:rows,plan_name:planName,coupon:0,points:0,provisional:false};
+  try{
+    await sbPatch('reservations',resId,{billing:billing});
+    var idx=allReservations.findIndex(function(x){return x.id===resId;});
+    if(idx>-1) allReservations[idx].billing=billing;
+    var total=rows.reduce(function(s,x){return s+(x.price||0)*(x.qty||1);},0);
+    toast('公式料金で再計算しました（合計 ¥'+fmt(total)+'）');
+    renderDashboard();renderReservations();
+  }catch(e){alert('再計算に失敗しました: '+e.message);}
 }
 async function saveSeason(s){
   try{

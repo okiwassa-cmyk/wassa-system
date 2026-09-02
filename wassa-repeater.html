@@ -663,7 +663,7 @@ async function loadPriceData() {
     const [mRes, sRes, cRes] = await Promise.all([
       fetch(`${SB_URL}/rest/v1/price_master?select=season,room,pax,pax_type,price`, { headers: SB_H }),
       fetch(`${SB_URL}/rest/v1/season_ranges?select=from_date,to_date,season&order=from_date.asc`, { headers: SB_H }),
-      fetch(`${SB_URL}/rest/v1/price_common?id=eq.1&select=bf_adult,din_adult,bf_infant,din_infant,closed_weekdays,open_exceptions,closed_exceptions,special_periods`, { headers: SB_H })
+      fetch(`${SB_URL}/rest/v1/price_common?id=eq.1&select=bf_adult,din_adult,bf_infant,din_infant,closed_weekdays,open_exceptions,closed_exceptions,special_periods,price_valid_until`, { headers: SB_H })
     ]);
     const master  = await mRes.json();
     const seasons = await sRes.json();
@@ -678,7 +678,8 @@ async function loadPriceData() {
       closedWd:  (common && common[0] && common[0].closed_weekdays)  || [3],
       openEx:    (common && common[0] && common[0].open_exceptions)  || [],
       closedEx:  (common && common[0] && common[0].closed_exceptions)|| [],
-      specialPeriods: (common && common[0] && common[0].special_periods) || []
+      specialPeriods: (common && common[0] && common[0].special_periods) || [],
+      priceValidUntil: (common && common[0] && common[0].price_valid_until) || null
     };
   } catch(e) {
     // フォールバック: デフォルト値で動作継続
@@ -725,6 +726,18 @@ function getSeasonForDate(ds) {
   if (!_priceData) return 'regular';
   const range = _priceData.seasons.find(r => r.from_date <= ds && r.to_date >= ds);
   return range ? range.season : 'regular';
+}
+
+// いずれかの宿泊日が料金確定期限より先か（料金表示・確定を止める）
+function _beyondHorizonR(cin, cout) {
+  const h = _priceData && _priceData.priceValidUntil; if (!h) return false;
+  let d = new Date(cin + 'T00:00:00'); const end = new Date(cout + 'T00:00:00');
+  while (d < end) {
+    const ds = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    if (ds > h) return true;
+    d.setDate(d.getDate() + 1);
+  }
+  return false;
 }
 
 function getRoomRate(season, room, adults) {
@@ -835,6 +848,17 @@ function updateEstimate() {
     document.getElementById('estimate-wrap').style.display = 'none';
     const _e = document.getElementById('form-error');
     if (_e && _e.dataset.source === 'avail') { _e.textContent = ''; delete _e.dataset.source; }
+    return;
+  }
+
+  // 料金確定期限より先＝料金を表示せず「確定後にご案内」（リクエストは可）
+  if (_beyondHorizonR(cin, cout)) {
+    document.getElementById('estimate-rows').innerHTML = '<div style="padding:10px 4px;font-size:13px;color:#b26a00;line-height:1.8">この先の日程は料金改定の可能性があるため、料金は確定後に改めてご案内いたします。<br>このままリクエストをお送りいただけます（内容を確認してご連絡します）。</div>';
+    document.getElementById('estimate-total').textContent = '—';
+    document.getElementById('estimate-wrap').style.display = 'block';
+    const _e2 = document.getElementById('form-error');
+    if (_e2 && _e2.dataset.source === 'avail') { _e2.textContent = ''; delete _e2.dataset.source; }
+    clearTimeout(_availTimer); _availTimer = setTimeout(_checkAvail, 500);
     return;
   }
 
@@ -1210,7 +1234,7 @@ async function submitBooking() {
       inf_meal_only: infMealOnly,
       inf_bed_only:  parseInt(document.getElementById('f-inf-bed-only').value)||0,
       inf_none:      parseInt(document.getElementById('f-inf-none').value)||0,
-      notes:         '【リピーターページより】' + (notes ? '\n' + notes : ''),
+      notes:         '【リピーターページより】' + (_beyondHorizonR(cin,cout) ? '\n【料金改定前・暫定見積もり】確定期限（'+((_priceData&&_priceData.priceValidUntil)||'')+'）より先のため現行料金で暫定作成。料金改定後に見積もりを更新してください' : '') + (notes ? '\n' + notes : ''),
       status:        'tentative',
       price_sent:    false,
       source:        '直予約',
@@ -1242,7 +1266,7 @@ async function submitBooking() {
           await fetch(`${SB_URL}/rest/v1/reservations?id=eq.${newRsvId}`, {
             method: 'PATCH',
             headers: { ...SB_H, Prefer: 'return=minimal' },
-            body: JSON.stringify({ billing: { rows: billingRows, plan_name: body.plan_name, coupon: 0, points: 0 } })
+            body: JSON.stringify({ billing: { rows: billingRows, plan_name: body.plan_name, coupon: 0, points: 0, provisional: _beyondHorizonR(cin,cout) } })
           });
         }
       } catch(e) { /* billing保存失敗は無視 */ }
@@ -1274,7 +1298,7 @@ async function submitBooking() {
             total_amount: String(totalAmt),
             valid_until: validUntil.toISOString().slice(0,10),
             status: 'sent',
-            billing: { rows: billingRows, plan_name: body.plan_name, coupon: 0, points: 0 },
+            billing: { rows: billingRows, plan_name: body.plan_name, coupon: 0, points: 0, provisional: _beyondHorizonR(cin,cout) },
             notes: notes,
             doc_type: 'estimate',
           })
