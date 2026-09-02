@@ -43,6 +43,7 @@
     .row2{display:flex;gap:12px}
     .row2>*{flex:1}
     .hint{font-size:11px;color:var(--text3);margin-top:5px;line-height:1.6}
+    .disclaimer{font-size:11.5px;color:#8a6d3b;background:var(--amber-lt);border:1px solid #efdcae;border-radius:8px;padding:10px 12px;margin-bottom:12px;line-height:1.75}
     #inf-rows{display:flex;flex-direction:column;gap:8px}
     .inf-row{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;color:var(--text2)}
     .inf-row select{width:82px;padding:8px 10px;flex:none}
@@ -147,6 +148,7 @@
       <label class="fld"><span class="fld-label" data-i18n="lNotes"></span><textarea id="f-notes"></textarea>
         <span class="hint" data-i18n="hNotes"></span></label>
 
+      <p class="disclaimer" data-i18n="disclaimer"></p>
       <div class="err" id="err"></div>
       <button class="submit-btn" id="submit-btn" onclick="submitBooking()" data-i18n="btnSubmit"></button>
     </div>
@@ -255,6 +257,7 @@ const I18N = {
     infMealBed:'食事・お布団あり', infMealOnly:'食事あり・お布団なし', infBedOnly:'お布団のみ（食事なし）', infNone:'食事・お布団なし',
     lName:'お名前', lEmail:'メールアドレス', lPhone:'電話番号',
     lNotes:'ご要望・ご質問', hNotes:'アレルギー・苦手な食材は、ご準備の都合上こちらにご記入ください',
+    disclaimer:'※ 予約リクエストの送信だけでは、お部屋の確約はできません。ご案内をお送りする前に、他の予約サイト等からご予約が入った場合は先着順となりますので、あらかじめご了承くださいませ。',
     btnSubmit:'予約リクエストを送る',
     perNight:'泊', pax:'名', roomSup:'スーペリアツイン', roomDlx:'デラックス',
     dAccom:'ご宿泊料金', dBf:'朝食', dDin:'夕食', adult:'大人', child:'小学生',
@@ -284,6 +287,7 @@ const I18N = {
     infMealBed:'With meal & futon', infMealOnly:'With meal, no futon', infBedOnly:'Futon only, no meal', infNone:'No meal or futon',
     lName:'Name', lEmail:'Email', lPhone:'Phone',
     lNotes:'Requests / questions', hNotes:'Please note any allergies or foods to avoid here, so we can prepare in advance',
+    disclaimer:'Please note: submitting a request does not guarantee your room. If a booking comes in through another channel (such as an online travel site) before we confirm, reservations are taken on a first-come, first-served basis.',
     btnSubmit:'Send reservation request',
     perNight:'night(s)', pax:'', roomSup:'Superior Twin', roomDlx:'Deluxe Villa',
     dAccom:'Accommodation', dBf:'Breakfast', dDin:'Dinner', adult:'Adult', child:'Child',
