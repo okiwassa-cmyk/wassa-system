@@ -2642,6 +2642,7 @@ function reqBadge(r){
   var n=(r&&r.notes)||'';
   if(n.indexOf('公式予約リクエスト')!==-1) return '<span style="font-size:10px;background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:5px;vertical-align:middle">🆕 新規リクエスト</span>';
   if(n.indexOf('リピーターページ')!==-1) return '<span style="font-size:10px;background:#e8f4fd;color:#1976d2;border:1px solid #90caf9;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:5px;vertical-align:middle">🔁 リピーターリクエスト</span>';
+  if(n.indexOf('新規')!==-1) return '<span style="font-size:10px;background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:5px;vertical-align:middle">🆕 新規</span>';
   return '';
 }
 // 料金確定期限より先＝暫定見積もり（現行料金で作成済み・改定後に更新が必要）
