@@ -4724,13 +4724,8 @@ async function loadFoodRecords(resvId) {
   currentFoodRecords = rows || [];
   var _resv2 = allReservations.find(function(x){return x.id===resvId;});
   renderFoodRuleSelect(_resv2 || null);
-  // 食事データゼロなら日程に合わせて自動セット
-  if(currentFoodRecords.length===0){
-    if(_resv2&&_resv2.check_in&&_resv2.check_out){
-      await autoSetupFoodRecords(resvId,_resv2.check_in,_resv2.check_out);
-      return; // autoSetupFoodRecords内でrenderFoodRecordsを呼ぶ
-    }
-  }
+  // 食事データは自動生成しない（Risa指示 2026/09）。理佐が手動でセットするまで空のままにする。
+  // ※食事ルール適用ボタン(applyFoodRule)や「全食事を自動生成」ボタンから手動でセット可能
   renderFoodRecords();
 }
 
