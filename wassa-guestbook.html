@@ -3264,6 +3264,10 @@ function openCheckinSheet(lang){
     });
   }
   var _baseUrl = location.href.replace(/\/[^\/]*$/, '/wassa-checkin.html');
+  // notesはゲスト向けチェックインフォームに含めない
+  // ①URI Too Long対策（notesが数千文字になる予約もある）
+  // ②プライバシー保護（内部メモをゲストに丸見えさせない）
+  delete p.notes;
   window.open(_baseUrl+'?'+new URLSearchParams(p).toString(),'_blank');closeModal('res-modal');
 }
 
