@@ -3674,17 +3674,20 @@ async function saveReservation(andClose, autoSave){
     }
     _resDirty=false;_setDirtyIndicator('res-modal',false);renderDashboard();renderReservations();renderCalendar();
     localStorage.removeItem('wassa_res_draft'); // 保存成功時は下書きを削除
+    // RemoteLOCK: 過去（チェックアウト日が今日より前）の予約ではPIN発行しない（過去データ登録対応）
+    var _rlToday = dateStr(new Date());
+    var _rlIsPast = (payload.check_out||'') && (payload.check_out < _rlToday);
     // RemoteLOCK: confirmed に変更したとき自動設定
-    if(payload.status==='confirmed' && _editOrigStatus!=='confirmed' && savedResId){
+    if(payload.status==='confirmed' && _editOrigStatus!=='confirmed' && savedResId && !_rlIsPast){
       _callRemoteLock(savedResId);
     }
-    // RemoteLOCK: cancelled に変更したとき無効化
+    // RemoteLOCK: cancelled に変更したとき無効化（既存booking_idがあれば過去でも無効化）
     if(payload.status==='cancelled' && _editOrigStatus!=='cancelled' && savedResId){
       var _rlBkId=(_existing&&_existing.rl_booking_id)||null;
       if(_rlBkId) _cancelRemoteLock(_rlBkId);
     }
-    // RemoteLOCK: confirmed のまま部屋変更 → 旧booking無効化 → 新部屋でPIN再発行
-    if(payload.status==='confirmed' && _editOrigStatus==='confirmed' && savedResId){
+    // RemoteLOCK: confirmed のまま部屋変更 → 旧booking無効化 → 新部屋でPIN再発行（過去はスキップ）
+    if(payload.status==='confirmed' && _editOrigStatus==='confirmed' && savedResId && !_rlIsPast){
       var _isDLX=function(rt){return !rt||rt.indexOf('デラックス')!==-1||rt==='DX';};
       var _newRm=payload.room_type||''; var _oldRm=_editOrigRoom||'';
       if(_newRm!==_oldRm){
