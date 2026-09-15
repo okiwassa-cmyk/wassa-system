@@ -1370,6 +1370,7 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
       <button class="btn btn-sm" id="quick-checkin-btn" onclick="quickCheckin(currentEditId)" style="background:var(--ocean3);color:#fff;display:none">✅ CI済にする</button>
       <button class="btn btn-sm" id="lodger-print-btn" onclick="printLodgerCard(currentEditId)" style="background:var(--sand2);color:var(--text);display:none">🖨 宿泊台帳</button>
       <button class="btn btn-sm owner-only" id="gmail-search-btn" onclick="openGmailSearch()" style="background:#fff;border:1px solid var(--border);color:var(--text2)">📧 メール検索</button>
+      <button class="btn btn-sm owner-only" id="send-confirm-mail-btn" onclick="openConfirmMailModal(currentEditId)" style="background:#fff;border:1px solid var(--ocean3);color:var(--ocean3)">✉️ 予約確定メール送信</button>
       <button class="btn btn-danger btn-sm" id="del-res-btn" onclick="deleteReservation()" style="margin-left:auto">削除</button>
     </div>
 
@@ -9283,6 +9284,59 @@ function sendConfirmationEmail(guestName, email, checkIn){
   });
 }
 
+// ━━ 予約確定メール：編集・送信モーダル ━━
+// 予約詳細画面の「✉️ 予約確定メール送信」ボタンから起動
+function openConfirmMailModal(resvId){
+  var r = allReservations.find(function(x){return x.id===resvId;});
+  if(!r){ toast('予約が見つかりません'); return; }
+  var cust = r.customer_id ? allCustomers.find(function(c){return c.id===r.customer_id;}) : null;
+  var email = r.email || (cust && (cust.email||cust.email2)) || '';
+  if(!email){ toast('メールアドレスが登録されていません'); return; }
+  var guestName = r.guest_name || (cust ? ((cust.sei||'')+(cust.mei?'　'+cust.mei:'')) : '');
+  // チェックイン月で夏冬判定（4〜10月=夏、11〜3月=冬）
+  var month = r.check_in ? parseInt((r.check_in+'').slice(5,7)) : new Date().getMonth()+1;
+  var season = (month >= 4 && month <= 10) ? 'summer' : 'winter';
+  var tpl = getEmailTemplate('confirmation_' + season);
+  if(!tpl.subject || !tpl.body){ toast('確定メールテンプレートが未設定です（管理設定でご登録ください）'); return; }
+  var body = tpl.body.replace(/\{\{guest\}\}/g, guestName)
+                     .replace(/\{\{check_in\}\}/g, r.check_in||'');
+  document.getElementById('cm-guest').textContent = guestName + ' 様（' + (r.check_in||'') + ' チェックイン）';
+  document.getElementById('cm-email').value = email;
+  document.getElementById('cm-subject').value = tpl.subject;
+  document.getElementById('cm-body').value = body;
+  openModal('confirm-mail-modal');
+}
+function sendConfirmMailFromModal(){
+  var email = (document.getElementById('cm-email').value||'').trim();
+  var subject = (document.getElementById('cm-subject').value||'').trim();
+  var body = document.getElementById('cm-body').value||'';
+  if(!email){ toast('宛先メールアドレスを入力してください'); return; }
+  if(!_validEmail(email)){ toast('メールアドレスの形式が正しくありません'); return; }
+  var _w=_emailWarning(email); if(_w&&!confirm(_w)) return;
+  if(!subject){ toast('件名を入力してください'); return; }
+  if(!body.trim()){ toast('本文を入力してください'); return; }
+  if(!confirm('このメールを送信しますか？\n宛先: '+email)) return;
+  var btn = document.querySelector('#confirm-mail-modal .btn-primary');
+  if(btn){ btn.disabled=true; btn.textContent='送信中…'; }
+  fetch(GAS_URL, {
+    method: 'POST',
+    headers: {'Content-Type': 'text/plain'},
+    body: JSON.stringify({action:'sendMail', to:email, subject:subject, body:body})
+  }).then(function(r){
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return r.json().catch(function(){return null;});
+  }).then(function(d){
+    if(!d||!d.ok) throw new Error((d&&d.error)||'GASエラー');
+    toast('✅ メールを送信しました');
+    closeModal('confirm-mail-modal');
+  }).catch(function(err){
+    console.error('メール送信エラー:', err);
+    toast('⚠️ 送信エラー: '+err.message);
+  }).finally(function(){
+    if(btn){ btn.disabled=false; btn.textContent='送信'; }
+  });
+}
+
 // 見積もりタブをデフォルト状態にリセット
 function resetEstimateForm(){
   lastEstimate = null;
@@ -13097,6 +13151,35 @@ function escHtml(s){
       <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px">見積書URL（本文の {{url}} に挿入されます）</div>
       <div id="mp-urls" style="margin-bottom:16px"></div>
       <button id="mp-send-btn" class="btn btn-primary" style="width:100%;padding:12px;font-size:14px">送付する</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ 予約確定メール 編集・送信モーダル ═══ -->
+<div class="modal-overlay" id="confirm-mail-modal" style="z-index:1100">
+  <div class="modal-sheet" style="max-width:560px;max-height:92vh;overflow-y:auto">
+    <div class="modal-header">
+      <div class="modal-title">✉️ 予約確定メール送信</div>
+      <button class="modal-close" onclick="closeModal('confirm-mail-modal')">✕</button>
+    </div>
+    <div style="padding:4px 4px 12px">
+      <div style="font-size:14px;font-weight:600;color:var(--ocean);margin-bottom:14px" id="cm-guest"></div>
+      <div style="margin-bottom:10px">
+        <label style="font-size:11px;color:var(--text2);letter-spacing:.08em">送付先メールアドレス</label>
+        <input type="email" id="cm-email" style="width:100%;font-size:13px;margin-top:4px" placeholder="guest@example.com">
+      </div>
+      <div style="margin-bottom:10px">
+        <label style="font-size:11px;color:var(--text2);letter-spacing:.08em">件名</label>
+        <input type="text" id="cm-subject" style="width:100%;font-size:13px;margin-top:4px">
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="font-size:11px;color:var(--text2);letter-spacing:.08em">本文（そのまま送信されます・編集可）</label>
+        <textarea id="cm-body" rows="16" style="width:100%;font-size:12px;font-family:inherit;line-height:1.7;margin-top:4px;resize:vertical"></textarea>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" style="flex:1;padding:12px;font-size:14px" onclick="sendConfirmMailFromModal()">送信</button>
+        <button class="btn btn-secondary" style="padding:12px 18px;font-size:14px" onclick="closeModal('confirm-mail-modal')">キャンセル</button>
+      </div>
     </div>
   </div>
 </div>
