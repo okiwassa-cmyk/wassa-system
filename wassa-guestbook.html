@@ -1154,6 +1154,7 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
             <option value="01">S1（スーペリア01）</option>
             <option value="02">S2（スーペリア02）</option>
             <option value="DX">DX（デラックス）</option>
+            <option value="Suite">Suite（自宅・2022年〜2024年3月の期間のみ）</option>
           </select>
         </div>
         <div class="fg"><label>貸切</label>
@@ -1699,7 +1700,7 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
           <option value="振込済み">振込済み</option>
         </select>
       </div>
-      <div class="fg full" id="dr-room-row" style="display:none"><label>部屋番号</label><select id="dr-room-select"><option value="スーペリアツイン02">S2（スーペリア02）</option><option value="スーペリアツイン01">S1（スーペリア01）</option><option value="デラックスツイン">DX（デラックス）</option></select></div>
+      <div class="fg full" id="dr-room-row" style="display:none"><label>部屋番号</label><select id="dr-room-select"><option value="スーペリアツイン02">S2（スーペリア02）</option><option value="スーペリアツイン01">S1（スーペリア01）</option><option value="デラックスツイン">DX（デラックス）</option><option value="Suite">Suite（自宅・2022年〜2024年3月の期間のみ）</option></select></div>
       <div class="fg full"><label>備考</label><textarea id="dr-notes" rows="2" placeholder="特記事項など"></textarea></div>
     </div>
 
@@ -2605,7 +2606,7 @@ function filterReservations(){
   var todayRow=document.getElementById('res-row-today');
   if(todayRow) setTimeout(function(){todayRow.scrollIntoView({behavior:'smooth',block:'center'});},50);
 }
-function shortRoom(room){if(!room||room==='—')return'—';if(room.includes('デラックス')||room==='DX')return'DX';if(room.includes('01')||room==='01')return'01';if(room.includes('02')||room==='02')return'02';if(room.includes('スーペリア'))return'S';return room.slice(0,4);}
+function shortRoom(room){if(!room||room==='—')return'—';if(room.includes('Suite')||room.toLowerCase().includes('suite'))return'Suite';if(room.includes('デラックス')||room==='DX')return'DX';if(room.includes('01')||room==='01')return'01';if(room.includes('02')||room==='02')return'02';if(room.includes('スーペリア'))return'S';return room.slice(0,4);}
 function roomClass(room){if(!room)return'';if(room.includes('デラックス')||room==='DX')return'dx';return'';}
 function updateLockPin(phone){
   var digits=(phone||'').replace(/\D/g,'');
@@ -3400,7 +3401,7 @@ function fillResForm(r){
   var prepaidEl = document.getElementById('bill-prepaid'); if(prepaidEl) prepaidEl.value = r.prepaid_amount||0;
   var prepaidRow = document.getElementById('bill-prepaid-row');
   // 前払い済み額は常時表示のため制御不要
-  var _rt=r.room_type||'';var roomVal=_rt.indexOf('02')!==-1?'02':_rt.indexOf('デラックス')!==-1||_rt==='DX'?'DX':'01';var _rs=document.getElementById('edit-room-select');if(_rs)_rs.value=roomVal;
+  var _rt=r.room_type||'';var roomVal=_rt.indexOf('Suite')!==-1||_rt.toLowerCase().indexOf('suite')!==-1?'Suite':_rt.indexOf('02')!==-1?'02':_rt.indexOf('デラックス')!==-1||_rt==='DX'?'DX':'01';var _rs=document.getElementById('edit-room-select');if(_rs)_rs.value=roomVal;
   // billing読み込み
   var _b=r.billing?(typeof r.billing==='string'?JSON.parse(r.billing):r.billing):[];
   billingRows=Array.isArray(_b)?_b:(_b.rows&&Array.isArray(_b.rows)?_b.rows:[]);
