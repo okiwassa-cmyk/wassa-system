@@ -9204,9 +9204,13 @@ async function saveDirectReservation(){
       // 過去（チェックアウトが今日より前）は確定メール送信ダイアログを出さない（過去データ登録対応）
       var _confTodayB = dateStr(new Date());
       var _isPastResB = (ests[0].cout||'') && (ests[0].cout < _confTodayB);
-      if(!_isPastResB && document.getElementById('dr-email').value&&confirm('予約確定メールを送信しますか？\n宛先: '+document.getElementById('dr-email').value))
-        sendConfirmationEmail(name, document.getElementById('dr-email').value, ests[0].cin);
-      if(createdIds.length>0) setTimeout(function(){openReservation(createdIds[0]);},400);
+      var _emailB = document.getElementById('dr-email').value;
+      var _wantMailB = !_isPastResB && _emailB && createdIds.length>0
+        && confirm('予約確定メールを送信しますか？\n宛先: '+_emailB+'\n（次の画面で本文を編集できます）');
+      if(createdIds.length>0) setTimeout(function(){
+        openReservation(createdIds[0]);
+        if(_wantMailB) setTimeout(function(){ openConfirmMailModal(createdIds[0]); }, 300);
+      },400);
     }catch(err){toast('エラー: '+err.message);}
     return;
   }
@@ -9231,10 +9235,13 @@ async function saveDirectReservation(){
       // 過去（チェックアウトが今日より前）は確定メール送信ダイアログを出さない（過去データ登録対応）
       var _confTodayN = dateStr(new Date());
       var _isPastResN = (payload.check_out||e.cout||'') && ((payload.check_out||e.cout) < _confTodayN);
-      if(!_isPastResN && payload.email&&confirm('予約確定メールを送信しますか？\n宛先: '+payload.email))
-        sendConfirmationEmail(name, payload.email, e.cin);
       var newResId = res[0].id;
-      setTimeout(function(){ openReservation(newResId); }, 400);
+      var _wantMailN = !_isPastResN && payload.email
+        && confirm('予約確定メールを送信しますか？\n宛先: '+payload.email+'\n（次の画面で本文を編集できます）');
+      setTimeout(function(){
+        openReservation(newResId);
+        if(_wantMailN) setTimeout(function(){ openConfirmMailModal(newResId); }, 300);
+      }, 400);
     }
   } catch(err){toast('エラー: '+err.message);}
 }
