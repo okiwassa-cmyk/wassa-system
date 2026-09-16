@@ -1236,7 +1236,7 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
       <div id="billing-rows"></div>
       <button class="btn btn-ghost btn-sm owner-only" onclick="addBillingRow()" style="margin-top:8px">＋ 行を追加</button>
       <button class="btn btn-ghost btn-sm owner-only" onclick="addLodgingTax()" style="margin-top:8px;margin-left:6px">🏛 宿泊税を追加</button>
-      <button class="btn btn-ghost btn-sm" onclick="printDailySlips()" style="margin-top:8px;margin-left:6px">🖨 伝票印刷</button>
+      <button id="slip-print-btn" class="btn btn-ghost btn-sm" onclick="printDailySlips()" style="margin-top:8px;margin-left:6px">🖨 伝票印刷</button>
       <button class="btn btn-ghost btn-sm" onclick="printCertificates()" style="margin-top:8px;margin-left:6px">🧾 証明書・領収書</button>
       <button class="btn btn-sm owner-only" onclick="genQuoteUrlForLine()" style="margin-top:8px;margin-left:6px;background:var(--green);color:#fff;border:none">🔗 LINE用見積書URLを生成</button>
       <button id="btn-reimport-billing" class="btn btn-sm owner-only" onclick="reprocessBillingFromGas()" style="margin-top:8px;margin-left:6px;background:var(--ocean2);color:#fff;border:none;display:none">📧 メールから再取り込み</button>
@@ -12819,6 +12819,17 @@ function closeSlipPrint(){
   if(o){ o.style.display = 'none'; o.innerHTML = ''; }
   document.body.classList.remove('printing-slip');
 }
+
+// 伝票印刷ボタンに保険で touchend も登録（一部iOS Safariで onclick が反応しない環境向け）
+document.addEventListener('DOMContentLoaded', function(){
+  var _slipBtn = document.getElementById('slip-print-btn');
+  if(_slipBtn){
+    _slipBtn.addEventListener('touchend', function(e){
+      e.preventDefault();
+      try{ printDailySlips(); }catch(err){ console.error('slip-print err', err); toast('伝票印刷エラー: '+err.message); }
+    }, {passive:false});
+  }
+});
 
 // ━━ 宿泊証明書・領収書 印刷 ━━
 function printCertificates(){
