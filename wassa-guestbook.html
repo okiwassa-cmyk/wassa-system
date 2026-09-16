@@ -439,6 +439,8 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
 .slip-close-btn{display:flex;justify-content:flex-end;gap:8px;margin-bottom:16px;max-width:560px;margin-left:auto;margin-right:auto}
 @media print{
   body.printing-slip>*{display:none!important}
+  body.printing-slip{background:#fff!important}
+  html:has(body.printing-slip){background:#fff!important}
   body.printing-slip #slip-print-overlay{display:block!important;position:static!important;width:100%!important;height:auto!important;overflow:visible!important;background:#fff!important;padding:0!important}
   body.printing-slip .slip-close-btn{display:none!important}
 }
