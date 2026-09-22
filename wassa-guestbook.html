@@ -1914,7 +1914,7 @@ function checkPin(){
     if(ld) ld.classList.add('show');
     applyRole(role);
     signInToSupabase().then(function(ok){
-      if(!ok) console.warn('Supabase sign-in failed');
+      _warnIfNotSignedIn(ok);
       startApp();
     });
 } else {
@@ -1958,7 +1958,7 @@ function doLogout(){
       if(ld) ld.classList.add('show');
       applyRole(role);
       signInToSupabase().then(function(ok){
-        if(!ok) console.warn('Supabase sign-in failed');
+        _warnIfNotSignedIn(ok);
         startApp();
       });
     });
@@ -1988,6 +1988,16 @@ const SB_HEADERS = {'Content-Type':'application/json','apikey':SB_KEY,'Authoriza
 // ━━ システムアカウント（Supabase Auth）━━
 const WASSA_AUTH_EMAIL = 'oki.wassa@gmail.com';
 const WASSA_AUTH_PASS  = 'wassards2022system';
+// サインイン済み判定：Authorizationがanonキーのままなら未サインイン（削除・保存の権限なし）
+function _isSupabaseSignedIn(){ return SB_HEADERS['Authorization']!=='Bearer '+SB_KEY; }
+// サインイン失敗を画面で気づけるようにする（以前はconsole.warnだけで無言だった）
+function _warnIfNotSignedIn(ok){
+  if(ok) return;
+  console.warn('Supabase sign-in failed');
+  setTimeout(function(){
+    if(typeof toast==='function') toast('⚠️ 認証に失敗しました。削除・保存が効かない可能性があります。APPを閉じて開き直してください');
+  },1500);
+}
 async function signInToSupabase(){
   try{
     const r=await fetch(SB_URL+'/auth/v1/token?grant_type=password',{
@@ -2221,6 +2231,14 @@ async function sbDelete(table,id){
   return _sbWithRefresh(async function(){
     const r=await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`,{method:'DELETE',headers:SB_HEADERS});
     if(!r.ok)throw new Error(await r.text());
+    // 権限(RLS)で弾かれるとエラーにならず「0件削除」で返る → 画面だけ消えて再読込で戻る不具合になる。
+    // サインイン未完了(anonキーのまま)で0件だった時は、成功扱いにせずエラーにする。
+    const txt=await r.text();
+    let deleted=null;
+    try{deleted=txt?JSON.parse(txt):[];}catch(e){deleted=null;}
+    if(Array.isArray(deleted)&&deleted.length===0&&!_isSupabaseSignedIn()){
+      throw new Error('削除できませんでした（サインインが切れています）。APPを一度閉じて開き直し、PINを入れ直してください。');
+    }
   });
 }
 async function supa(path,method='GET',body=null){
