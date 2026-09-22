@@ -1987,7 +1987,7 @@ const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const SB_HEADERS = {'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=representation'};
 // ━━ システムアカウント（Supabase Auth）━━
 const WASSA_AUTH_EMAIL = 'oki.wassa@gmail.com';
-const WASSA_AUTH_PASS  = 'wassards2022system';
+const WASSA_AUTH_PASS  = 'wassa-5bi6AaSUcMJsSTtt6zm7'; // 2026-09-22 更新（旧PWが9/13に何者かに変更され削除不可になったため）
 // サインイン済み判定：Authorizationがanonキーのままなら未サインイン（削除・保存の権限なし）
 function _isSupabaseSignedIn(){ return SB_HEADERS['Authorization']!=='Bearer '+SB_KEY; }
 // サインイン失敗を画面で気づけるようにする（以前はconsole.warnだけで無言だった）
