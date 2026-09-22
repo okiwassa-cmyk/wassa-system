@@ -69,11 +69,21 @@ function processReservationEmails() {
                 msg.markRead(); continue;
               }
               var body = msg.getPlainBody();
-              if (isCancelEmail(subject, body)) { processCancelEmail(subject, body); msg.markRead(); continue; }
+              if (isCancelEmail(subject, body)) {
+                var _xProps = PropertiesService.getScriptProperties();
+                var _xKey = 'cxl_' + msg.getId();
+                if (!_xProps.getProperty(_xKey)) { processCancelEmail(subject, body); _xProps.setProperty(_xKey, '1'); }
+                msg.markRead(); continue;
+              }
               var src = detectSource(subject, body);
               if (src) {
                 // 予約変更メール → 既存予約を上書き（重複スキップより前に処理）
-                if (isUpdateEmail(subject, body)) { processUpdateEmail(src, body); msg.markRead(); continue; }
+                if (isUpdateEmail(subject, body)) {
+                  var _uProps = PropertiesService.getScriptProperties();
+                  var _uKey = 'upd_' + msg.getId();
+                  if (!_uProps.getProperty(_uKey)) { processUpdateEmail(src, body); _uProps.setProperty(_uKey, '1'); }
+                  msg.markRead(); continue;
+                }
                 var data = parseEmail(src, body);
                 if (!data.guest_name) {
                   // ── 通知は1メッセージにつき1回のみ ──
@@ -91,15 +101,23 @@ function processReservationEmails() {
                   msg.markRead();
                   continue;
                 }
-                if (isDuplicate(data.reservation_no, data.check_in, data.guest_name)) { msg.markRead(); continue; }
+                var _dup = isDuplicate(data.reservation_no, data.check_in, data.guest_name);
+                if (_dup === null) { Logger.log('重複確認失敗のため今回は保留（次回リトライ）: ' + data.guest_name); continue; } // 既読にせず次回再取込
+                if (_dup) { msg.markRead(); continue; }
+                // 公式HPで部屋数>=2 → 室ごとに分割保存（貸切）。処理できたら通常保存はスキップ
+                var _handledMulti = false;
                 if (data.check_in && data.check_out) {
-                  if (data.room_type && data.room_type.indexOf('デラックス') !== -1) {
-                    data.room_type = 'デラックスツイン';
-                  } else {
-                    var _calId = getAvailableCalId(data.check_in, data.check_out);
-                    data.room_type = (_calId === CONFIG.CAL1) ? 'スーペリアツイン01' : 'スーペリアツイン02';
+                  _handledMulti = importBuyoutRooms(data);
+                  if (!_handledMulti) {
+                    if (data.room_type && data.room_type.indexOf('デラックス') !== -1) {
+                      data.room_type = 'デラックスツイン';
+                    } else {
+                      var _calId = getAvailableCalId(data.check_in, data.check_out);
+                      data.room_type = (_calId === CONFIG.CAL1) ? 'スーペリアツイン01' : 'スーペリアツイン02';
+                    }
                   }
                 }
+                if (_handledMulti) { msg.markRead(); continue; }
                 saveToSupabase(data);
                 // addToCalendar(data); // カレンダー連携を停止
                 try {
@@ -138,7 +156,9 @@ function processReservationEmails() {
               if (_cFrom.indexOf('wassa-okinawa.com') !== -1 || _cSubj.indexOf('【要確認】') !== -1) {
                 cMsgs[j2].markRead(); continue;
               }
-              processCancelEmail(_cSubj, cMsgs[j2].getPlainBody());
+              var _xProps2 = PropertiesService.getScriptProperties();
+              var _xKey2 = 'cxl_' + cMsgs[j2].getId();
+              if (!_xProps2.getProperty(_xKey2)) { processCancelEmail(_cSubj, cMsgs[j2].getPlainBody()); _xProps2.setProperty(_xKey2, '1'); }
               cMsgs[j2].markRead();
             } catch(e) { Logger.log('キャンセルメッセージエラー [' + cancelQueries[q2] + ']: ' + e); }
           }
@@ -173,17 +193,23 @@ function importPastEmails() {
         if (!data.check_in) { noDate++; continue; }
         var ciDate = new Date(data.check_in); ciDate.setHours(0,0,0,0);
         if (ciDate < today || ciDate > yearEnd) { skipped++; continue; }
-        if (isDuplicate(data.reservation_no, data.check_in, data.guest_name)) { skipped++; continue; }
+        var _dupP = isDuplicate(data.reservation_no, data.check_in, data.guest_name);
+        if (_dupP === null) { skipped++; Logger.log('重複確認失敗のためスキップ: ' + data.guest_name); continue; }
+        if (_dupP) { skipped++; continue; }
         Logger.log('IMPORT: ' + data.guest_name + ' CI:' + data.check_in);
+        var _handledMulti2 = false;
         if (data.check_in && data.check_out) {
-          if (data.room_type && data.room_type.indexOf('デラックス') !== -1) {
-            data.room_type = 'デラックスツイン';
-          } else {
-            var _calId2 = getAvailableCalId(data.check_in, data.check_out);
-            data.room_type = (_calId2 === CONFIG.CAL1) ? 'スーペリアツイン01' : 'スーペリアツイン02';
+          _handledMulti2 = importBuyoutRooms(data);
+          if (!_handledMulti2) {
+            if (data.room_type && data.room_type.indexOf('デラックス') !== -1) {
+              data.room_type = 'デラックスツイン';
+            } else {
+              var _calId2 = getAvailableCalId(data.check_in, data.check_out);
+              data.room_type = (_calId2 === CONFIG.CAL1) ? 'スーペリアツイン01' : 'スーペリアツイン02';
+            }
           }
         }
-        saveToSupabase(data);
+        if (!_handledMulti2) saveToSupabase(data);
         // addToCalendar(data); // カレンダー連携を停止
         imported++;
         Utilities.sleep(500);
@@ -205,9 +231,9 @@ function isDuplicate(reservationNo, checkIn, guestName) {
           : null);
     if (!url) return false;
     var r = UrlFetchApp.fetch(url, {headers:{'apikey':CONFIG.SUPABASE_KEY,'Authorization':'Bearer '+CONFIG.SUPABASE_KEY}, muteHttpExceptions:true});
-    if (r.getResponseCode() !== 200) return false;
+    if (r.getResponseCode() !== 200) return null; // 確認失敗＝判定不能（false=重複なしにすると二重登録になる）
     return JSON.parse(r.getContentText()).length > 0;
-  } catch(e) { return false; }
+  } catch(e) { return null; } // 通信失敗＝判定不能
 }
 
 // ============================================================
@@ -231,11 +257,24 @@ function processCancelEmail(subject, body) {
   if (!reservationNo) { Logger.log('cancel: 予約番号を抽出できませんでした subject=' + subject); return; }
   Logger.log('キャンセル処理: ' + reservationNo);
   try {
+    var _selHdr = {'apikey':CONFIG.SUPABASE_KEY,'Authorization':'Bearer '+CONFIG.SUPABASE_KEY};
+    var _patchHdr = {'Content-Type':'application/json','apikey':CONFIG.SUPABASE_KEY,'Authorization':'Bearer '+CONFIG.SUPABASE_KEY,'Prefer':'return=minimal'};
+    // 貸切（複数室）予約なら同じgroup_idの兄弟室も一緒にキャンセルするため、先にgroup_idを取得
+    var _gid = null;
+    try {
+      var _gr = UrlFetchApp.fetch(CONFIG.SUPABASE_URL + '/rest/v1/reservations?reservation_no=eq.' + encodeURIComponent(reservationNo) + '&select=group_id', {headers:_selHdr, muteHttpExceptions:true});
+      var _grows = JSON.parse(_gr.getContentText());
+      if (_grows.length && _grows[0].group_id) _gid = _grows[0].group_id;
+    } catch(ge) {}
     UrlFetchApp.fetch(CONFIG.SUPABASE_URL + '/rest/v1/reservations?reservation_no=eq.' + encodeURIComponent(reservationNo), {
-      method:'PATCH',
-      headers:{'Content-Type':'application/json','apikey':CONFIG.SUPABASE_KEY,'Authorization':'Bearer '+CONFIG.SUPABASE_KEY,'Prefer':'return=minimal'},
-      payload: JSON.stringify({status:'cancelled'})
+      method:'PATCH', headers:_patchHdr, payload: JSON.stringify({status:'cancelled'})
     });
+    if (_gid) {
+      UrlFetchApp.fetch(CONFIG.SUPABASE_URL + '/rest/v1/reservations?group_id=eq.' + encodeURIComponent(_gid), {
+        method:'PATCH', headers:_patchHdr, payload: JSON.stringify({status:'cancelled'})
+      });
+      Logger.log('貸切連動キャンセル: group_id=' + _gid);
+    }
     Logger.log('キャンセル完了: ' + reservationNo);
   } catch(e) { Logger.log('cancel error: ' + e + ' / ' + reservationNo); }
   try { deleteCalendarEvent(reservationNo); } catch(e) { Logger.log('calendar delete error: ' + e); }
@@ -693,7 +732,8 @@ function fetchMealPrices() {
 function buildBillingFromEmail(data) {
   var pay  = data.payment || '';
   var rows = [];
-  var days = parseDailyDetail(data.source, data._body || '');
+  // 貸切分割時は室ごとの日別明細(_roomDays)を優先（本文全体を再パースしない）
+  var days = data._roomDays ? data._roomDays : parseDailyDetail(data.source, data._body || '');
   // data.meal が直接パースされている場合（489ban等）はそちらを優先
   var meal;
   if (data.meal && data.meal !== '') {
@@ -828,7 +868,9 @@ function parseEmail(src, body) {
     else if (/夕/.test(_ikMeal)) d.meal = 'din';
     else if (/朝/.test(_ikMeal)) d.meal = 'bf';
     else d.meal = 'none';
-    d.payment        = '事前決済';
+    // 支払方法はメールの「支払方法：」行で判別（現地決済/事前決済。決め打ち禁止）
+    var _ikPay = ex(body, '支払方法[\\s\\u3000]*[：:][\\s\\u3000]*([^\\n]+)') || '';
+    d.payment        = /現地/.test(_ikPay) ? '現地清算' : '事前決済';
     d.email          = '';
     d.address        = ex(body, '宿泊代表者都道府県[\\s\\u3000]*[：:][\\s\\u3000]*([^\\n]+)');
     // ■質問・回答■ セクションを解析（複数行にまたがる回答も結合）
@@ -1119,6 +1161,9 @@ function parseEmail(src, body) {
     d.total_amount   = ex(body, '合計：([0-9,]+)円')
                     || ex(body, '宿泊者への請求額[\\s\\u3000]*[：:][\\s\\u3000]*([0-9,]+)円');
     d.points_amount  = toInt(ex(body, 'ポイント利用[\\s\\u3000]*[：:]?[\\s\\u3000]*([0-9,]+)')) || 0;
+    // じゃらんクーポン（例:「■クーポン利用　　　　　　：5000（じゃらんクーポン）」）
+    // ［：］を必須にして「■ポイント・クーポン利用後：39,600円」の誤検出を防ぐ
+    d.coupon_amount  = toInt(ex(body, 'クーポン利用[\\s\\u3000]*[：:][\\s\\u3000]*([0-9,]+)')) || 0;
     d.payment        = ex(body, '決済情報[\\s\\u3000]*[：:][\\s\\u3000]*([^\\n━￣：:]+)')
                     || ex(body, '決済情報[\\s\\u3000]*\n[\\s\\u3000━￣]*\n([^\\n━￣]+)')
                     || '現地精算';
@@ -1221,10 +1266,10 @@ function saveToSupabase(data) {
       var dt = row.date || '_';
       if (!_byDate[dt]) _byDate[dt] = {child:0, mb:0, mo:0, bo:0, nn:0};
       if (row.item === '小学生宿泊料金')       _byDate[dt].child += (row.qty || 0);
-      if (row.item === '幼児（食事有・布団有）') _byDate[dt].mb    += (row.qty || 0);
-      if (row.item === '幼児（食事有・布団無）') _byDate[dt].mo    += (row.qty || 0);
-      if (row.item === '幼児（食事無・布団有）') _byDate[dt].bo    += (row.qty || 0);
-      if (row.item === '幼児（食事無・布団無）') _byDate[dt].nn    += (row.qty || 0);
+      if (row.item === '幼児（食事有・布団有）' && !row.is_ref) _byDate[dt].mb    += (row.qty || 0);
+      if (row.item === '幼児（食事有・布団無）' && !row.is_ref) _byDate[dt].mo    += (row.qty || 0);
+      if (row.item === '幼児（食事無・布団有）' && !row.is_ref) _byDate[dt].bo    += (row.qty || 0);
+      if (row.item === '幼児（食事無・布団無）' && !row.is_ref) _byDate[dt].nn    += (row.qty || 0);
     });
     Object.keys(_byDate).forEach(function(dt) {
       var v = _byDate[dt];
@@ -1265,6 +1310,9 @@ function saveToSupabase(data) {
       customer_id:    customerId,
       notes:          data.notes || ''
     };
+    // 貸切（複数室）分割保存：group_id・貸切フラグを付与
+    if (data.group_id) payload.group_id = data.group_id;
+    if (data.is_full_buyout) payload.is_full_buyout = true;
 
     var r = UrlFetchApp.fetch(CONFIG.SUPABASE_URL + '/rest/v1/reservations', {
       method: 'POST',
@@ -1300,10 +1348,10 @@ function aggregateCounts(billingData, data) {
     var dt = row.date || '_';
     if (!_byDate[dt]) _byDate[dt] = {child:0, mb:0, mo:0, bo:0, nn:0};
     if (row.item === '小学生宿泊料金')       _byDate[dt].child += (row.qty || 0);
-    if (row.item === '幼児（食事有・布団有）') _byDate[dt].mb    += (row.qty || 0);
-    if (row.item === '幼児（食事有・布団無）') _byDate[dt].mo    += (row.qty || 0);
-    if (row.item === '幼児（食事無・布団有）') _byDate[dt].bo    += (row.qty || 0);
-    if (row.item === '幼児（食事無・布団無）') _byDate[dt].nn    += (row.qty || 0);
+    if (row.item === '幼児（食事有・布団有）' && !row.is_ref) _byDate[dt].mb    += (row.qty || 0);
+    if (row.item === '幼児（食事有・布団無）' && !row.is_ref) _byDate[dt].mo    += (row.qty || 0);
+    if (row.item === '幼児（食事無・布団有）' && !row.is_ref) _byDate[dt].bo    += (row.qty || 0);
+    if (row.item === '幼児（食事無・布団無）' && !row.is_ref) _byDate[dt].nn    += (row.qty || 0);
   });
   Object.keys(_byDate).forEach(function(dt) {
     var v = _byDate[dt];
@@ -1480,14 +1528,28 @@ function addToCalendar(data) {
   } catch(e) { Logger.log('Calendar error: ' + e); }
 }
 
+// 部屋名のゆれ（「02」「スーペリアツイン02」「デラックス」「DX」等）を S01/S02/DX スロットへ正規化。
+// 番号の無い曖昧な「スーペリア」は安全側で S01/S02 両方を占有扱いにする。
+function _roomSlots_(rt) {
+  var s = String(rt || '');
+  if (/デラックス|ＤＸ|DX/i.test(s)) return ['DX'];
+  if (/01|０１/.test(s)) return ['S01'];
+  if (/02|０２/.test(s)) return ['S02'];
+  if (/スーペリア|superior/i.test(s)) return ['S01', 'S02'];
+  return [];
+}
+
 function getAvailableCalId(checkIn, checkOut) {
   try {
     var h = {'apikey':CONFIG.SUPABASE_KEY,'Authorization':'Bearer '+CONFIG.SUPABASE_KEY};
-    var r2 = UrlFetchApp.fetch(CONFIG.SUPABASE_URL+'/rest/v1/reservations?status=eq.confirmed&room_type=eq.スーペリアツイン02&check_in=lt.'+checkOut+'&check_out=gt.'+checkIn+'&select=id',{headers:h});
-    if (JSON.parse(r2.getContentText()).length===0) return CONFIG.CAL2;
-    var r1 = UrlFetchApp.fetch(CONFIG.SUPABASE_URL+'/rest/v1/reservations?status=eq.confirmed&room_type=eq.スーペリアツイン01&check_in=lt.'+checkOut+'&check_out=gt.'+checkIn+'&select=id',{headers:h});
-    if (JSON.parse(r1.getContentText()).length===0) return CONFIG.CAL1;
-    Logger.log('警告: スーペリア両方埋まっています！');
+    // 期間が重なる全予約を取得し、部屋名を正規化して S02/S01 の空きを判定（完全一致だと「02」等の短い表記を見逃す）
+    var res = UrlFetchApp.fetch(CONFIG.SUPABASE_URL+'/rest/v1/reservations?status=neq.cancelled&check_in=lt.'+checkOut+'&check_out=gt.'+checkIn+'&select=room_type',{headers:h});
+    var rows = JSON.parse(res.getContentText());
+    var occ = {};
+    rows.forEach(function(r){ _roomSlots_(r.room_type).forEach(function(sl){ occ[sl] = true; }); });
+    if (!occ['S02']) return CONFIG.CAL2;
+    if (!occ['S01']) return CONFIG.CAL1;
+    Logger.log('警告: スーペリア両方埋まっています！ ' + checkIn + '〜' + checkOut);
     return CONFIG.CAL2;
   } catch(e) { return CONFIG.CAL2; }
 }
@@ -1501,6 +1563,136 @@ function updateRoomType(reservationNo, roomLabel) {
       payload: JSON.stringify({room_type:roomLabel})
     });
   } catch(e) {}
+}
+
+// ============================================================
+// 公式HP「複数室（貸切）」予約を室ごとに分割保存
+// ============================================================
+// liberty-service.com の予約明細は1泊ブロック内に「N部屋目」で室ごとの内訳が並ぶ。
+// 従来は先頭室しか拾えず4名を1室に詰めていた（倉井様2026/08で発覚）。
+// 部屋数>=2なら室ごとに別予約を作り、同じ group_id + is_full_buyout=true で紐付ける。
+
+var _SLOT_LABEL = {S01:'スーペリアツイン01', S02:'スーペリアツイン02', DX:'デラックスツイン'};
+
+// 1室ブロックから宿泊明細(items)を抽出（liberty単室パーサーと同じ項目パターン）
+function _parseLibertyItems(blk) {
+  var items = [];
+  var am = blk.match(/大人[^：\n]*[：:]\s*([\d,]+)円\s*[×xｘＸ×]\s*(\d+)名/);
+  if (am) items.push({item:'大人宿泊料金', qty:parseInt(am[2]), price:toInt(am[1])});
+  var cm = blk.match(/小学生[^：\n]*[：:]\s*([\d,]+)円\s*[×xｘＸ×]\s*(\d+)名/);
+  if (cm) items.push({item:'小学生宿泊料金', qty:parseInt(cm[2]), price:toInt(cm[1])});
+  [
+    {p:/幼児[（(][^）)]*食事有[^）)]*布団有[^）)]*[）)][^：\n]*[：:]\s*([\d,]+)円\s*[×xｘＸ×]\s*(\d+)名/, it:'幼児（食事有・布団有）'},
+    {p:/幼児[（(][^）)]*食事有[^）)]*布団無[^）)]*[）)][^：\n]*[：:]\s*([\d,]+)円\s*[×xｘＸ×]\s*(\d+)名/, it:'幼児（食事有・布団無）'},
+    {p:/幼児[（(][^）)]*食事無[^）)]*布団有[^）)]*[）)][^：\n]*[：:]\s*([\d,]+)円\s*[×xｘＸ×]\s*(\d+)名/, it:'幼児（食事無・布団有）'},
+    {p:/幼児[（(][^）)]*食事無[^）)]*布団無[^）)]*[）)][^：\n]*[：:]\s*([\d,]+)円\s*[×xｘＸ×]\s*(\d+)名/, it:'幼児（食事無・布団無）'}
+  ].forEach(function(d){ var m=blk.match(d.p); if(m) items.push({item:d.it, qty:parseInt(m[2]), price:toInt(m[1])}); });
+  return items;
+}
+
+// liberty予約本文を室ごとの {days:[{date,items}], adults, children, infants, total} 配列にする
+function parseLibertyRooms(body) {
+  var roomsMap = {}; // 部屋番号(1始まり) → {days, ...}
+  var nightRe = /[・･]\s*(\d+)泊目\s*[：:]\s*(\d{4}\/\d{1,2}\/\d{1,2})/g, nm;
+  var nights = [];
+  while ((nm = nightRe.exec(body)) !== null) nights.push({date: toYMD(nm[2]), start: nightRe.lastIndex});
+  for (var ni = 0; ni < nights.length; ni++) {
+    var date = nights[ni].date; if (!date) continue;
+    var rawEnd = (ni+1 < nights.length) ? nights[ni+1].start : body.length;
+    var seg = body.slice(nights[ni].start, rawEnd);
+    var secPos = seg.search(/\n\s*■/); // 明細セクションの終端（次の■）で切る
+    var nightBlk = secPos >= 0 ? seg.slice(0, secPos) : seg;
+    // 「N部屋目」で室に分割
+    var roomRe = /(\d+)\s*部屋目/g, rm, marks = [];
+    while ((rm = roomRe.exec(nightBlk)) !== null) marks.push({no: parseInt(rm[1]), at: rm.index, start: roomRe.lastIndex});
+    if (marks.length === 0) continue;
+    for (var ri = 0; ri < marks.length; ri++) {
+      var rEnd = (ri+1 < marks.length) ? marks[ri+1].at : nightBlk.length;
+      var items = _parseLibertyItems(nightBlk.slice(marks[ri].start, rEnd));
+      if (items.length === 0) continue;
+      var no = marks[ri].no;
+      if (!roomsMap[no]) roomsMap[no] = {days:[], adults:0, children:0, infants:0, total:0};
+      roomsMap[no].days.push({date: date, items: items});
+    }
+  }
+  var rooms = Object.keys(roomsMap).sort(function(a,b){return parseInt(a)-parseInt(b);}).map(function(k){return roomsMap[k];});
+  rooms.forEach(function(r){
+    var maxAd=0, maxCh=0, maxInf=0, total=0;
+    r.days.forEach(function(day){
+      var ad=0, ch=0, inf=0;
+      day.items.forEach(function(it){
+        total += (it.price||0)*(it.qty||0);
+        if (it.item==='大人宿泊料金') ad+=it.qty;
+        else if (it.item==='小学生宿泊料金') ch+=it.qty;
+        else if (it.item.indexOf('幼児')===0) inf+=it.qty;
+      });
+      if(ad>maxAd)maxAd=ad; if(ch>maxCh)maxCh=ch; if(inf>maxInf)maxInf=inf;
+    });
+    r.adults=maxAd; r.children=maxCh; r.infants=maxInf; r.total=total;
+  });
+  return rooms;
+}
+
+// 期間が重なる予約から占有スロット(S01/S02/DX)を集める
+function _occupiedSlots(checkIn, checkOut) {
+  var occ = {};
+  try {
+    var h = {'apikey':CONFIG.SUPABASE_KEY,'Authorization':'Bearer '+CONFIG.SUPABASE_KEY};
+    var res = UrlFetchApp.fetch(CONFIG.SUPABASE_URL+'/rest/v1/reservations?status=neq.cancelled&check_in=lt.'+checkOut+'&check_out=gt.'+checkIn+'&select=room_type',{headers:h});
+    JSON.parse(res.getContentText()).forEach(function(r){ _roomSlots_(r.room_type).forEach(function(s){ occ[s]=true; }); });
+  } catch(e) {}
+  return occ;
+}
+
+// 公式HPで部屋数>=2なら室ごとに分割保存。処理したらtrue（呼び出し側は通常保存をスキップ）。
+function importBuyoutRooms(data) {
+  if (data.source !== '公式HP') return false;
+  var body = data._body || '';
+  if (body.indexOf('公式HP予約システム】より予約情報の通知です') === -1) return false;
+  var rcM = body.match(/部屋数[\s\u3000]*[：:][\s\u3000]*(\d+)/);
+  var roomCount = rcM ? parseInt(rcM[1]) : 1;
+  if (roomCount < 2) return false;
+  var rooms = parseLibertyRooms(body);
+  if (rooms.length < 2) return false;
+
+  var gid = 'buyout-' + (new Date().getTime()) + '-' + Math.random().toString(36).slice(2,6);
+  var occ = _occupiedSlots(data.check_in, data.check_out);
+  var order = ['S02','S01','DX'];
+  var labels = [];
+  for (var i = 0; i < rooms.length; i++) {
+    var slot = null;
+    for (var s = 0; s < order.length; s++) { if (!occ[order[s]]) { slot = order[s]; break; } }
+    if (!slot) { slot = 'S02'; Logger.log('警告: 貸切'+roomCount+'室に空きが足りません '+data.check_in+'〜'+data.check_out); }
+    occ[slot] = true;
+    var label = _SLOT_LABEL[slot];
+    labels.push(label);
+
+    var rd = {}; for (var k in data) { if (data.hasOwnProperty(k)) rd[k] = data[k]; }
+    rd._roomDays      = rooms[i].days;
+    rd.adults         = rooms[i].adults;
+    rd.children       = rooms[i].children;
+    rd.infants        = rooms[i].infants;
+    rd.total_amount   = String(rooms[i].total);
+    rd.room_type      = label;
+    rd.group_id       = gid;
+    rd.is_full_buyout = true;
+    rd.reservation_no = (i === 0) ? data.reservation_no : null; // 代表室のみ予約番号を保持（再取込・変更・取消の照合用）
+    saveToSupabase(rd);
+  }
+  // LINE通知（貸切1件としてまとめて1回）
+  try {
+    var _nights = (data.check_in && data.check_out) ? Math.round((new Date(data.check_out)-new Date(data.check_in))/86400000) : '';
+    var _msg = '🏨【新規予約・貸切】' + (data.source||'') + '\n' +
+      'ゲスト: ' + data.guest_name + '\n' +
+      'チェックイン: ' + data.check_in + '\n' +
+      'チェックアウト: ' + data.check_out + '（' + _nights + '泊）\n' +
+      'お部屋: ' + labels.join(' / ') + '（' + roomCount + '室貸切）\n' +
+      '合計人数: 大人' + (data.adults||'') + '名\n' +
+      (data.total_amount ? '合計: ¥' + Number(String(data.total_amount).replace(/[^0-9]/g,'')).toLocaleString() : '');
+    sendLineGroupMessage_(_msg);
+  } catch(lineErr) { Logger.log('LINE通知エラー(貸切): ' + lineErr); }
+  Logger.log('貸切分割保存: ' + data.guest_name + ' → ' + labels.join('/') + ' (' + rooms.length + '室)');
+  return true;
 }
 
 // ============================================================
