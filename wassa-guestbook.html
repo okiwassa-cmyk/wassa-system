@@ -2259,7 +2259,7 @@ async function ensureAllReservations(){
 async function loadRateData(){
   try{
     const[cm,pm,sr]=await Promise.all([
-      supa('price_common?id=eq.1'),supa('price_master?select=*'),supa('season_ranges?select=*&order=from_date.asc')
+      supa('price_common?id=eq.1&select=id,bf_adult,bf_child,bf_infant,din_adult,din_child_rate,din_child_price,din_infant,closed_weekdays,open_exceptions,closed_exceptions,din_courses,special_periods,reply_templates,meal_auto_rules,price_valid_until,official_pricing,official_daytypes,cancel_policy,updated_at'),supa('price_master?select=*'),supa('season_ranges?select=*&order=from_date.asc')
     ]);
     if(cm.length){
       const c=cm[0];

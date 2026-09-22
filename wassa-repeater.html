@@ -606,18 +606,8 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbzr846aUMNHRidDGzactMHw
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10c2RoaGVxZGRyY2trc2lxbGltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1OTc5NDgsImV4cCI6MjA4ODE3Mzk0OH0.c18ExSxNHBOani7CN4QAqaerhvpr5ZCYA0GGkUg0mlc';
 const SB_H   = { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' };
 
-let correctPass = 'WASSA2025'; // Supabaseから上書き
-
-// ── パスワード取得 ──
-async function loadPass() {
-  try {
-    const r = await fetch(`${SB_URL}/rest/v1/price_common?id=eq.1&select=repeater_pass`,
-      { headers: SB_H });
-    const d = await r.json();
-    if (d && d[0] && d[0].repeater_pass) correctPass = d[0].repeater_pass;
-  } catch(e) {}
-}
-loadPass();
+// 合言葉はブラウザに取得しない（公開キー経由で読まれるため）。
+// 入力された文字列をDB側の窓口(verify_repeater_pass)に渡して照合する。
 
 // ── 目のアイコン ──
 function toggleEye() {
@@ -629,15 +619,27 @@ function toggleEye() {
 }
 
 // ── ログイン ──
-function doLogin() {
+async function doLogin() {
   const val = document.getElementById('pw-input').value.trim();
-  if (val === correctPass) {
+  const err = document.getElementById('pw-error');
+  err.textContent = '確認中…';
+  let ok = false;
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/rpc/verify_repeater_pass`, {
+      method: 'POST', headers: SB_H, body: JSON.stringify({ p_pass: val })
+    });
+    ok = r.ok ? (await r.json() === true) : false;
+  } catch(e) {
+    err.textContent = '通信エラー。もう一度お試しください。';
+    return;
+  }
+  if (ok) {
+    err.textContent = '';
     document.getElementById('gate').style.display = 'none';
     document.getElementById('main').style.display = 'block';
     sessionStorage.setItem('rp_auth', '1');
     initMain();
   } else {
-    const err = document.getElementById('pw-error');
     err.textContent = 'パスワードが違います。';
     document.getElementById('pw-input').focus();
     setTimeout(() => { err.textContent = ''; }, 3000);
