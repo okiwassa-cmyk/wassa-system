@@ -1889,6 +1889,14 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
 <script>
 // ━━ PIN認証 ━━
 var _pinInput='';
+// 削除・設定保存の窓口に渡すオーナーPIN。タブを開いている間だけ保持し、
+// 公開ファイルには一切書かない（従来はSupabaseのパスワードを平文で持っていた）。
+var _ownerPin='';
+function getOwnerPin(){
+  if(_ownerPin) return _ownerPin;
+  try{ _ownerPin = sessionStorage.getItem('wassa_pin') || ''; }catch(e){}
+  return _ownerPin;
+}
 function pinKey(k){
   if(k==='del'){_pinInput=_pinInput.slice(0,-1);}
   else if(_pinInput.length<4){_pinInput+=k;}
@@ -1899,31 +1907,41 @@ function pinKey(k){
   if(_pinInput.length===4) setTimeout(checkPin,80);
 }
 function checkPin(){
-  if(!_pinsReady){ setTimeout(checkPin,200); return; } // PIN読み込み待ち
-  var ownerPin=_pins.owner||'1234';
-  var staffPin=_pins.staff||'5678';
-  var role=null;
-  if(_pinInput===ownerPin) role='owner';
-  else if(_pinInput===staffPin) role='staff';
-  if(role){
-    sessionStorage.setItem('wassa_role',role);
-    var ov=document.getElementById('pin-overlay');
-    if(ov) ov.style.display='none';
-    // ローディング画面を表示してからデータ読み込み
-    var ld=document.getElementById('loading');
-    if(ld) ld.classList.add('show');
-    applyRole(role);
-    signInToSupabase().then(function(ok){
-      _warnIfNotSignedIn(ok);
-      startApp();
+  // PINの照合はDB側の窓口(verify_pin)で行う。PINをブラウザに持ってこないため、
+  // 公開ファイル経由でPINが読まれる状態を解消できる。
+  var entered=_pinInput;
+  var err=document.getElementById('pin-error');
+  if(err) err.textContent='確認中…';
+  fetch(SB_URL+'/rest/v1/rpc/verify_pin',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY},
+    body:JSON.stringify({p_pin:entered})
+  }).then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(role){
+      if(role==='owner'||role==='staff'){
+        sessionStorage.setItem('wassa_role',role);
+        // 削除・設定保存の窓口にPINが必要なため、このタブが開いている間だけ保持する
+        _ownerPin = (role==='owner') ? entered : '';
+        try{ sessionStorage.setItem('wassa_pin', entered); }catch(e){}
+        if(err) err.textContent='';
+        var ov=document.getElementById('pin-overlay');
+        if(ov) ov.style.display='none';
+        var ld=document.getElementById('loading');
+        if(ld) ld.classList.add('show');
+        applyRole(role);
+        startApp();
+      } else {
+        if(err) err.textContent='PINコードが違います';
+        _pinInput='';
+        for(var i=0;i<4;i++){var d=document.getElementById('pd-'+i);if(d)d.classList.remove('filled');}
+        setTimeout(function(){var e=document.getElementById('pin-error');if(e)e.textContent='';},2000);
+      }
+    }).catch(function(e){
+      console.error('PIN照合エラー:',e);
+      if(err) err.textContent='通信エラー。もう一度お試しください';
+      _pinInput='';
+      for(var i=0;i<4;i++){var d=document.getElementById('pd-'+i);if(d)d.classList.remove('filled');}
     });
-} else {
-    var err=document.getElementById('pin-error');
-    if(err) err.textContent='PINコードが違います';
-    _pinInput='';
-    for(var i=0;i<4;i++){var d=document.getElementById('pd-'+i);if(d)d.classList.remove('filled');}
-    setTimeout(function(){var e=document.getElementById('pin-error');if(e)e.textContent='';},2000);
-  }
 }
 function applyRole(role){
   // スタッフモードのタブ制御
@@ -1945,6 +1963,8 @@ function applyRole(role){
 }
 function doLogout(){
   sessionStorage.removeItem('wassa_role');
+  sessionStorage.removeItem('wassa_pin');   // 保持していたPINも破棄
+  _ownerPin='';
   location.reload();
 }
 // ━━ セッション確認（同タブ内はPINスキップ） ━━
@@ -1957,80 +1977,25 @@ function doLogout(){
       var ld=document.getElementById('loading');
       if(ld) ld.classList.add('show');
       applyRole(role);
-      signInToSupabase().then(function(ok){
-        _warnIfNotSignedIn(ok);
-        startApp();
-      });
-    });
-  } else {
-    // PIN画面表示中にバックグラウンドでauth→PINをSupabaseから取得
-    // 5秒以内に完了しない場合はデフォルトPINで動作継続（フェイルセーフ）
-    setTimeout(function(){_pinsReady=true;},5000);
-    document.addEventListener('DOMContentLoaded',function(){
-      // PINはanonキーで直接読める（RLS: anon_select_price_common）→ 認証(signInToSupabase)の完了を待たない。
-      // 認証が遅い端末で5秒フォールバックに引っかかり初期値1234/5678に化けるのを防ぐ。
-      fetch(SB_URL+'/rest/v1/price_common?id=eq.1&select=pin_owner,pin_staff',{
-        headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}
-      }).then(function(r){return r.json();}).then(function(d){
-        if(d&&d[0]){if(d[0].pin_owner)_pins.owner=d[0].pin_owner;if(d[0].pin_staff)_pins.staff=d[0].pin_staff;}
-        _pinsReady=true;
-      }).catch(function(e){console.warn('PIN load error:',e);_pinsReady=true;});
-      // 認証はバックグラウンドで先行実行（ログイン後のstartAppを速くするウォームアップ）
-      signInToSupabase();
+      getOwnerPin();   // 同タブ内の再読込時はsessionStorageからPINを復帰
+      startApp();
     });
   }
+  // PIN未入力時は何も先読みしない。
+  // 以前はここで price_common からPINを取得していたが、PINをブラウザに
+  // 持ってくること自体が公開キー経由で読まれる原因だったため廃止した。
 })();
 
 // ━━ CONFIG ━━
 const SB_URL = 'https://mtsdhheqddrckksiqlim.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10c2RoaGVxZGRyY2trc2lxbGltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1OTc5NDgsImV4cCI6MjA4ODE3Mzk0OH0.c18ExSxNHBOani7CN4QAqaerhvpr5ZCYA0GGkUg0mlc';
 const SB_HEADERS = {'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=representation'};
-// ━━ システムアカウント（Supabase Auth）━━
-const WASSA_AUTH_EMAIL = 'oki.wassa@gmail.com';
-const WASSA_AUTH_PASS  = 'wassa-5bi6AaSUcMJsSTtt6zm7'; // 2026-09-22 更新（旧PWが9/13に何者かに変更され削除不可になったため）
-// サインイン済み判定：Authorizationがanonキーのままなら未サインイン（削除・保存の権限なし）
-function _isSupabaseSignedIn(){ return SB_HEADERS['Authorization']!=='Bearer '+SB_KEY; }
-// サインイン失敗を画面で気づけるようにする（以前はconsole.warnだけで無言だった）
-function _warnIfNotSignedIn(ok){
-  if(ok) return;
-  console.warn('Supabase sign-in failed');
-  setTimeout(function(){
-    if(typeof toast==='function') toast('⚠️ 認証に失敗しました。削除・保存が効かない可能性があります。APPを閉じて開き直してください');
-  },1500);
-}
-async function signInToSupabase(){
-  try{
-    const r=await fetch(SB_URL+'/auth/v1/token?grant_type=password',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','apikey':SB_KEY},
-      body:JSON.stringify({email:WASSA_AUTH_EMAIL,password:WASSA_AUTH_PASS})
-    });
-    const d=await r.json();
-    if(d.access_token){
-      SB_HEADERS['Authorization']='Bearer '+d.access_token;
-      // 50分ごとに自動リフレッシュ（トークン有効期限1時間）
-      if(!window._supaRefreshTimer){
-        window._supaRefreshTimer=setInterval(async function(){
-          try{
-            const rr=await fetch(SB_URL+'/auth/v1/token?grant_type=password',{
-              method:'POST',
-              headers:{'Content-Type':'application/json','apikey':SB_KEY},
-              body:JSON.stringify({email:WASSA_AUTH_EMAIL,password:WASSA_AUTH_PASS})
-            });
-            const dd=await rr.json();
-            if(dd.access_token){ SB_HEADERS['Authorization']='Bearer '+dd.access_token; }
-          }catch(e2){ console.warn('token refresh error:',e2); }
-        }, 50*60*1000);
-      }
-      return true;
-    }
-    console.warn('Supabase sign-in failed:',d);
-    return false;
-  }catch(e){
-    console.error('Supabase sign-in error:',e);
-    return false;
-  }
-}
+// ━━ 認証について ━━
+// 以前はSupabaseのメール/パスワードでサインインし、その権限で削除していた。
+// パスワードが公開ファイルに平文で書かれており、2026-09-13に第三者と思われる
+// 変更を受けたため廃止した（2026-09-22）。
+// 現在は削除・設定保存をDB側の窓口(owner_delete_* / owner_update_price_common)に
+// オーナーPINを渡して実行する。PINもパスワードもこのファイルには書かない。
 // ★ GASのウェブアプリURLをここに設定（デプロイ後に更新）
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzr846aUMNHRidDGzactMHwIgpVjYeDkjmq0DrUM5S4DFLKzL5Z-s2h1MM8YLs6By1Lfg/exec';
 
@@ -2201,17 +2166,9 @@ async function sbGet(table, query=''){
   }catch(e){console.error(e);throw e;} // エラーを呼び出し元に伝播（空配列で握りつぶさない）
 }
 async function _sbWithRefresh(fn){
-  // JWT期限切れ時に自動再サインインして1回リトライ
-  try{
-    return await fn();
-  }catch(e){
-    if(e.message&&(e.message.indexOf('JWT expired')!==-1||e.message.indexOf('PGRST303')!==-1||e.message.indexOf('PGRST301')!==-1)){
-      console.warn('JWT expired, re-signing in...');
-      await signInToSupabase();
-      return await fn();
-    }
-    throw e;
-  }
+  // 以前はJWT期限切れ時に再サインインしていたが、パスワード認証を廃止したため
+  // そのまま実行するだけにした（匿名キーは期限切れしない）。
+  return await fn();
 }
 async function sbPost(table,data){
   return _sbWithRefresh(async function(){
@@ -2231,17 +2188,26 @@ async function sbDelete(table,id){
   return _sbWithRefresh(async function(){
     const r=await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`,{method:'DELETE',headers:SB_HEADERS});
     if(!r.ok)throw new Error(await r.text());
-    // 権限(RLS)で弾かれるとエラーにならず「0件削除」で返る → 画面だけ消えて再読込で戻る不具合になる。
-    // サインイン未完了(anonキーのまま)で0件だった時は、成功扱いにせずエラーにする。
-    const txt=await r.text();
-    let deleted=null;
-    try{deleted=txt?JSON.parse(txt):[];}catch(e){deleted=null;}
-    if(Array.isArray(deleted)&&deleted.length===0&&!_isSupabaseSignedIn()){
-      throw new Error('削除できませんでした（サインインが切れています）。APPを一度閉じて開き直し、PINを入れ直してください。');
-    }
+    // 予約・顧客の削除は窓口(owner_delete_*)に移したため、ここを通るのは
+    // 匿名でも削除が許可されているテーブル（メニュー・対応履歴など）のみ。
   });
 }
 async function supa(path,method='GET',body=null){
+  // price_common の書き込みは窓口(owner_update_price_common)へ回す。
+  // 匿名キーで料金やPINを誰でも書き換えられる状態を避けるため。
+  if(method==='PATCH' && path.indexOf('price_common')===0){
+    var pin=getOwnerPin();
+    if(!pin) throw new Error('オーナーPINが必要です。ログアウトして入り直してください');
+    const rr=await fetch(SUPA_URL+'/rest/v1/rpc/owner_update_price_common',{
+      method:'POST',
+      headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({p_pin:pin,p_patch:body||{}})
+    });
+    if(!rr.ok) throw new Error(await rr.text());
+    const dd=await rr.json();
+    if(!dd||!dd.ok) throw new Error((dd&&dd.error)||'保存できませんでした');
+    return dd;
+  }
   const opts={method,headers:{'apikey':SUPA_KEY,'Authorization':SB_HEADERS['Authorization'],'Content-Type':'application/json','Prefer':'return=representation'}};
   if(body)opts.body=JSON.stringify(body);
   const r=await fetch(SUPA_URL+'/rest/v1/'+path,opts);
@@ -2300,9 +2266,8 @@ async function loadRateData(){
       common={bf_adult:c.bf_adult,bf_child:c.bf_child,bf_infant:c.bf_infant,din_adult:c.din_adult,din_child_rate:parseFloat(c.din_child_rate),din_child_price:c.din_child_price||null,din_infant:c.din_infant,price_valid_until:c.price_valid_until||null};
       _officialPricing=c.official_pricing||null;
       _officialDayMap=c.official_daytypes||{};
-      // PINをSupabaseから読み込み
-      if(c.pin_owner) _pins.owner=c.pin_owner;
-      if(c.pin_staff) _pins.staff=c.pin_staff;
+      // PINは price_common から直接読まない（匿名キーで読まれる状態を避けるため）。
+      // 管理設定画面を開いたときに窓口(owner_get_settings)経由でスタッフPINだけ取得する。
       // 定休日設定をSupabaseから読み込み
       _closedWeekdays = Array.isArray(c.closed_weekdays) ? c.closed_weekdays : [3];
       _openExceptions  = Array.isArray(c.open_exceptions)  ? c.open_exceptions.map(String)  : [];
@@ -2317,7 +2282,8 @@ async function loadRateData(){
       if(Array.isArray(c.special_periods)) specialPeriods=c.special_periods; else specialPeriods=[];
       // キャンセルポリシー
       if(c.cancel_policy) _cancelPolicy=c.cancel_policy;
-      if(c.repeater_pass) _repeaterPass=c.repeater_pass;
+      // リピーター合言葉も匿名からは読めないようにしたため、
+      // 管理設定を開いた時に窓口(owner_get_settings)から取得する。
       if(c.reply_templates && typeof c.reply_templates==='object') _replyTemplates=Object.assign(_replyTemplates,c.reply_templates);
     }
     prices={};for(const s of SEASONS)prices[s]={sup:{},dlx:{}};
@@ -3793,8 +3759,21 @@ function openGmailSearch(){
 }
 async function deleteReservation(){
   if(!confirm('この予約を削除しますか？'))return;
-  try{await sbDelete('reservations',currentEditId);allReservations=allReservations.filter(r=>r.id!==currentEditId);renderDashboard();renderReservations();renderCalendar();closeModal('res-modal');toast('削除しました');}
-  catch(e){toast('エラー: '+e.message);}
+  var pin=getOwnerPin();
+  if(!pin){ toast('⚠️ 削除にはオーナーPINが必要です。一度ログアウトして入り直してください'); return; }
+  try{
+    // 窓口(owner_delete_reservation)経由。食事記録・同室者もまとめて削除される。
+    var res=await fetch(SB_URL+'/rest/v1/rpc/owner_delete_reservation',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY},
+      body:JSON.stringify({p_pin:pin,p_id:currentEditId})
+    });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    var d=await res.json();
+    if(!d||!d.ok) throw new Error((d&&d.error)||'削除できませんでした');
+    allReservations=allReservations.filter(r=>r.id!==currentEditId);
+    renderDashboard();renderReservations();renderCalendar();closeModal('res-modal');toast('削除しました');
+  }catch(e){toast('エラー: '+e.message);}
 }
 
 // ━━ BILLING ━━
@@ -6605,7 +6584,27 @@ function autoSplitPref(input){
   var m=v.match(/^(北海道|(?:東京|京都|大阪)都?府?|.{2,3}県)/);
   document.getElementById('cust-pref').value=m?m[1]:'';
 }
-async function deleteCustomer(){if(!confirm('この顧客を削除しますか？'))return;try{await sbDelete('wassa_customers',currentEditId);allCustomers=allCustomers.filter(c=>c.id!==currentEditId);renderCustomers();closeModal('cust-modal');toast('削除しました');}catch(e){toast('エラー: '+e.message);}}
+async function deleteCustomer(){
+  if(!confirm('この顧客を削除しますか？'))return;
+  var pin=getOwnerPin();
+  if(!pin){ toast('⚠️ 削除にはオーナーPINが必要です。一度ログアウトして入り直してください'); return; }
+  try{
+    var r=await _rpcDeleteCustomer(pin,currentEditId);
+    if(!r.ok) throw new Error(r.error||'削除できませんでした');
+    allCustomers=allCustomers.filter(c=>c.id!==currentEditId);
+    renderCustomers();closeModal('cust-modal');toast('削除しました');
+  }catch(e){toast('エラー: '+e.message);}
+}
+// 顧客削除の窓口呼び出し（予約が紐づく顧客はDB側で拒否される）
+async function _rpcDeleteCustomer(pin,id){
+  var res=await fetch(SB_URL+'/rest/v1/rpc/owner_delete_customer',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY},
+    body:JSON.stringify({p_pin:pin,p_id:id})
+  });
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  return await res.json();
+}
 
 // ━━ 重複チェック ━━
 function openDupCheck() {
@@ -6706,8 +6705,11 @@ async function mergeCustomer(deleteId, keepId) {
       await sbPatch('communications', commTargets[j].id, { customer_id: keepId });
       commTargets[j].customer_id = keepId;
     }
-    // 3. 顧客を削除
-    await sbDelete('wassa_customers', deleteId);
+    // 3. 顧客を削除（窓口経由。予約の付け替えが済んでいるので削除できる）
+    var _pinM = getOwnerPin();
+    if(!_pinM){ toast('⚠️ 削除にはオーナーPINが必要です。ログアウトして入り直してください'); return; }
+    var _rM = await _rpcDeleteCustomer(_pinM, deleteId);
+    if(!_rM.ok) throw new Error(_rM.error||'顧客を削除できませんでした');
     allCustomers = allCustomers.filter(function(c){ return c.id !== deleteId; });
     toast('統合完了：予約'+resvTargets.length+'件・対応履歴'+commTargets.length+'件を付け替えました');
     renderCustomers();
@@ -10930,7 +10932,30 @@ async function saveRatePaint(){
 }
 
 // ━━ 料金設定 ━━
+// 管理設定を開いた時にスタッフPIN・リピーター合言葉を窓口から取得する。
+// （price_common から直接は読めないようにしたため）
+var _settingsFetched=false;
+async function _loadOwnerSettings(){
+  if(_settingsFetched) return;
+  var pin=getOwnerPin(); if(!pin) return;
+  try{
+    var r=await fetch(SB_URL+'/rest/v1/rpc/owner_get_settings',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY},
+      body:JSON.stringify({p_pin:pin})
+    });
+    if(!r.ok) return;
+    var d=await r.json();
+    if(d&&d.ok){
+      if(d.pin_staff) _pins.staff=d.pin_staff;
+      if(d.repeater_pass!==undefined&&d.repeater_pass!==null) _repeaterPass=d.repeater_pass;
+      _settingsFetched=true;
+      renderMgr();   // 取得できた値で描画し直す
+    }
+  }catch(e){ console.warn('設定取得エラー:',e); }
+}
 function renderMgr(){
+  _loadOwnerSettings();   // 初回は非同期で取得→取得後に再描画される
   const el=document.getElementById('mgr-content');
   const dc=common.din_child_price||Math.round(common.din_adult*common.din_child_rate);
   let html='<div class="section-card"><div class="section-title">夕食コース設定</div>';
@@ -11165,8 +11190,10 @@ function renderMgr(){
   // ━━ PINコード設定 ━━
   html+='<div class="section-card"><div class="section-title">🔐 PINコード設定</div>';
   html+='<div style="font-size:12px;color:var(--text3);margin-bottom:14px">オーナーとスタッフで異なる4桁のPINを設定してください</div>';
-  html+='<div class="opt-row"><label>オーナーPIN</label><input type="tel" inputmode="numeric" pattern="[0-9]{4}" id="pin-owner-inp" value="'+(_pins.owner||'1234')+'" maxlength="4" style="width:90px;letter-spacing:.18em;font-size:15px;text-align:center" oninput="this.value=this.value.replace(/\\D/g,\'\').slice(0,4)"></div>';
-  html+='<div class="opt-row" style="margin-bottom:0"><label>スタッフPIN</label><input type="tel" inputmode="numeric" pattern="[0-9]{4}" id="pin-staff-inp" value="'+(_pins.staff||'5678')+'" maxlength="4" style="width:90px;letter-spacing:.18em;font-size:15px;text-align:center" oninput="this.value=this.value.replace(/\\D/g,\'\').slice(0,4)"></div>';
+  // オーナーPINは表示しない（公開キー経由で読まれないよう非保持にしたため）。
+  // 変更したい時だけ新しい4桁を入力する。空欄なら変更しない。
+  html+='<div class="opt-row"><label>オーナーPIN</label><input type="tel" inputmode="numeric" pattern="[0-9]{4}" id="pin-owner-inp" value="" placeholder="変更する時だけ入力" maxlength="4" style="width:150px;letter-spacing:.18em;font-size:15px;text-align:center" oninput="this.value=this.value.replace(/\\D/g,\'\').slice(0,4)"></div>';
+  html+='<div class="opt-row" style="margin-bottom:0"><label>スタッフPIN</label><input type="tel" inputmode="numeric" pattern="[0-9]{4}" id="pin-staff-inp" value="'+(_pins.staff||'')+'" maxlength="4" style="width:90px;letter-spacing:.18em;font-size:15px;text-align:center" oninput="this.value=this.value.replace(/\\D/g,\'\').slice(0,4)"></div>';
   html+='<div style="font-size:11px;color:var(--text3);margin:8px 0 14px 0">スタッフPINでログインすると：見積もり・顧客DB・CSVタブが非表示になり、予約・請求・食事・対応履歴・清掃を<strong>閲覧のみ</strong>（編集不可）で表示します</div>';
   html+='<button class="save-btn" onclick="savePins()">保存</button><span class="saved-msg" id="msg-pins">保存しました ✓</span></div>';
   // ━━ リピーターページ設定 ━━
@@ -11464,11 +11491,26 @@ async function saveCancelPolicy(){
 async function savePins(){
   var op=String(document.getElementById('pin-owner-inp').value).replace(/\D/g,'');
   var sp=String(document.getElementById('pin-staff-inp').value).replace(/\D/g,'');
-  if(op.length!==4||sp.length!==4){alert('4桁の数字で入力してください');return;}
-  if(op===sp){alert('オーナーPINとスタッフPINは同じにできません');return;}
-  _pins.owner=op; _pins.staff=sp;
-  try{await supa('price_common?id=eq.1','PATCH',{pin_owner:op,pin_staff:sp});showMsg('msg-pins');}
-  catch(e){alert('保存に失敗しました: '+e.message);}
+  // オーナーPINは画面に表示していないため、空欄＝「変更しない」とみなす
+  var patch={};
+  if(op){
+    if(op.length!==4){alert('オーナーPINは4桁の数字で入力してください');return;}
+    patch.pin_owner=op;
+  }
+  if(sp.length!==4){alert('スタッフPINは4桁の数字で入力してください');return;}
+  patch.pin_staff=sp;
+  if(op && op===sp){alert('オーナーPINとスタッフPINは同じにできません');return;}
+  try{
+    await supa('price_common?id=eq.1','PATCH',patch);
+    _pins.staff=sp;
+    if(op){
+      // オーナーPINを変えたら、このタブが保持しているPINも更新する
+      _ownerPin=op;
+      try{ sessionStorage.setItem('wassa_pin',op); }catch(e){}
+      document.getElementById('pin-owner-inp').value='';
+    }
+    showMsg('msg-pins');
+  }catch(e){alert('保存に失敗しました: '+e.message);}
 }
 async function saveRepeaterPass(){
   var pw=(document.getElementById('repeater-pass-inp').value||'').trim();
