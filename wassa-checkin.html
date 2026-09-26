@@ -1523,6 +1523,7 @@ function notifyAndClose(){
   window.close();
   setTimeout(function(){
     // ここに到達した＝タブを閉じられなかった。お客様に管理画面を見せないよう空白ページにする。
+    var _gbUrl = location.href.replace(/\/[^\/]*$/, '/wassa-guestbook.html');
     document.body.innerHTML =
       '<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;'
       + 'justify-content:center;font-family:sans-serif;background:#f7f5f0;color:#8a8478;gap:14px;padding:24px;text-align:center">'
@@ -1531,9 +1532,12 @@ function notifyAndClose(){
       + 'このままスタッフにお渡しください。</div>'
       + '<div style="font-size:12px;color:#b3aca0;margin-top:10px">Thank you. Check-in complete.<br>'
       + 'Please hand the tablet back to our staff.</div>'
+      // スタッフが管理画面に戻るための導線。押してもPIN入力が必要なのでお客様には開けない。
+      + '<a href="' + _gbUrl + '" style="margin-top:32px;font-size:11px;color:#c8c2b6;'
+      + 'text-decoration:none;border:1px solid #e0dbd0;border-radius:16px;padding:7px 18px">スタッフ用</a>'
       + '</div>';
     document.title = 'ありがとうございました';
-    // 戻るボタンで前の画面に戻れないようにする
+    // 戻るボタンで前の画面（お客様情報が入ったフォーム）に戻れないようにする
     try{
       history.pushState(null, '', location.href);
       window.addEventListener('popstate', function(){ history.pushState(null, '', location.href); });
