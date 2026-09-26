@@ -170,6 +170,13 @@
 const SB_URL = 'https://mtsdhheqddrckksiqlim.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10c2RoaGVxZGRyY2trc2lxbGltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1OTc5NDgsImV4cCI6MjA4ODE3Mzk0OH0.c18ExSxNHBOani7CN4QAqaerhvpr5ZCYA0GGkUg0mlc';
 const SB_H  = { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' };
+// 予約テーブルは匿名で直接読めないため、必要なものだけDBの窓口から取る
+async function rpc(fn, args){
+  const r = await fetch(`${SB_URL}/rest/v1/rpc/${fn}`, {method:'POST', headers:SB_H, body:JSON.stringify(args||{})});
+  if(!r.ok){ console.warn(fn+' failed:', r.status, await r.text()); return null; }
+  const t = await r.text();
+  return t ? JSON.parse(t) : null;
+}
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzr846aUMNHRidDGzactMHwIgpVjYeDkjmq0DrUM5S4DFLKzL5Z-s2h1MM8YLs6By1Lfg/exec';
 
 /* ══════════ Official (Liberty) pricing model ══════════
@@ -388,8 +395,7 @@ async function _checkAvail(){
   const errEl=document.getElementById('err'), btn=document.getElementById('submit-btn');
   if(!cin||!cout||cin>=cout) return;
   try{
-    const r=await fetch(`${SB_URL}/rest/v1/reservations?status=neq.cancelled&check_in=lt.${cout}&check_out=gt.${cin}&select=room_type`,{headers:SB_H});
-    const rsvs=await r.json();
+    const rsvs=(await rpc('public_availability',{p_check_in:cin,p_check_out:cout}))||[];
     const isS01=rt=>rt&&rt.indexOf('01')!==-1&&rt.indexOf('デラックス')===-1&&rt!=='DX';
     const isS02=rt=>rt&&rt.indexOf('02')!==-1&&rt.indexOf('デラックス')===-1&&rt!=='DX';
     const isDlx=rt=>rt&&(rt.indexOf('デラックス')!==-1||rt==='DX');
@@ -456,8 +462,7 @@ async function submitBooking(){
 
   let supRoom='スーペリアツイン02';
   try{
-    const chk=await fetch(`${SB_URL}/rest/v1/reservations?status=neq.cancelled&check_in=lt.${cout}&check_out=gt.${cin}&select=room_type`,{headers:SB_H});
-    const booked=await chk.json();
+    const booked=(await rpc('public_availability',{p_check_in:cin,p_check_out:cout}))||[];
     const isS01=rt=>rt&&rt.indexOf('01')!==-1&&rt.indexOf('デラックス')===-1&&rt!=='DX';
     const isS02=rt=>rt&&rt.indexOf('02')!==-1&&rt.indexOf('デラックス')===-1&&rt!=='DX';
     const isDlx=rt=>rt&&(rt.indexOf('デラックス')!==-1||rt==='DX');
@@ -480,9 +485,9 @@ async function submitBooking(){
       room_type: roomKey==='dlx'?'デラックス':supRoom,
       payment:'現地清算', plan_name:planName
     };
-    const r=await fetch(`${SB_URL}/rest/v1/reservations`,{method:'POST',headers:{...SB_H,Prefer:'return=representation'},body:JSON.stringify(body)});
+    const r=await fetch(`${SB_URL}/rest/v1/rpc/public_create_reservation_request`,{method:'POST',headers:SB_H,body:JSON.stringify({p_data:body})});
     if(!r.ok){ throw new Error('HTTP '+r.status+' '+await r.text().catch(()=> '')); }
-    const nr=await r.json().catch(()=>null); const rid=nr&&nr[0]&&nr[0].id;
+    const rid=await r.json().catch(()=>null);
 
     // billing + 見積もり自動生成（繁忙期のみskip。期限より先=provisionalも現行料金で作成＝改定時に更新）
     let billingRows=[], quoteUrl=null, estTotal='—';

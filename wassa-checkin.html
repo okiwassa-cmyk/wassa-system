@@ -713,8 +713,10 @@ function loadFromParams(){
     var rbGroupItem = document.getElementById('rb-group-item');
     if(rbGroupItem) rbGroupItem.style.display='';
     // 同じgroup_idの全予約を取得してグループ同室者UIを構築
-    fetch(SB_URL+'/rest/v1/reservations?group_id=eq.'+encodeURIComponent(groupId)+'&status=neq.cancelled&select=id,room_type,guest_name,adults,children,infants',{
-      headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}
+    fetch(SB_URL+'/rest/v1/rpc/checkin_get_group',{
+      method:'POST',
+      headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({p_reservation_id:parseInt(reservationId), p_check_in:checkInDate})
     }).then(function(r){return r.json();}).then(function(rows){
       if(!rows||!rows.length) return;
       groupReservations = rows;
@@ -913,7 +915,8 @@ async function loadFamilyCandidates(){
   var cid = customerId;
   if(!cid && reservationId){
     try{
-      var rd = await (await fetch(SB_URL+'/rest/v1/reservations?id=eq.'+reservationId+'&select=customer_id',{headers:HDR})).json();
+      var rd = await (await fetch(SB_URL+'/rest/v1/rpc/checkin_get_reservation',{method:'POST',headers:HDR_PATCH,
+        body:JSON.stringify({p_reservation_id:parseInt(reservationId), p_check_in:checkInDate})})).json();
       if(rd&&rd[0]&&rd[0].customer_id) cid = rd[0].customer_id;
     }catch(e){}
   }
@@ -1261,16 +1264,18 @@ async function submit(){
 
   try{
     // wassa_checkins テーブルに保存（最重要：失敗したらリトライを促す）
-    const ciRes = await fetch(`${SB_URL}/rest/v1/wassa_checkins`, {
-      method:'POST', headers:HDR, body:JSON.stringify(payload)
+    // チェックイン内容はDBの窓口経由で保存（予約番号＋チェックイン日が合った時だけ通る）
+    const ciRes = await fetch(`${SB_URL}/rest/v1/rpc/checkin_save`, {
+      method:'POST', headers:HDR_PATCH,
+      body:JSON.stringify({p_reservation_id:parseInt(reservationId), p_check_in:checkInDate, p_payload:payload})
     });
     if(!ciRes.ok){
       var errText = await ciRes.text().catch(function(){return '';});
-      console.error('wassa_checkins POST failed:', ciRes.status, errText);
+      console.error('checkin_save failed:', ciRes.status, errText);
       throw new Error('checkin_save_failed:'+ciRes.status);
     }
     var ciJson = await ciRes.json().catch(function(){return null;});
-    if(ciJson&&ciJson[0]) lastCheckinId = ciJson[0].id;
+    if(ciJson) lastCheckinId = ciJson;
 
     // reservations テーブルの status を checkin に更新（return=minimal で RLS SELECT 不要）
     if(reservationId){
@@ -1288,7 +1293,8 @@ async function submit(){
       var custId = customerId || null;
       if(!custId){
         try{
-          var resData = await (await fetch(SB_URL+'/rest/v1/reservations?id=eq.'+reservationId+'&select=customer_id',{headers:HDR})).json();
+          var resData = await (await fetch(SB_URL+'/rest/v1/rpc/checkin_get_reservation',{method:'POST',headers:HDR_PATCH,
+            body:JSON.stringify({p_reservation_id:parseInt(reservationId), p_check_in:checkInDate})})).json();
           if(resData&&resData[0]&&resData[0].customer_id) custId = resData[0].customer_id;
         }catch(e2){ console.warn('customer_id fetch failed:', e2); }
       }
@@ -1402,11 +1408,11 @@ async function submit(){
         var gRes = groupReservations[gi];
         var gComps = (groupCompanions[gRes.id]||[]).filter(function(c){return c.name;});
         await fetch(SB_URL+'/rest/v1/reservation_companions?reservation_id=eq.'+gRes.id,{
-          method:'DELETE', headers:HDR
+          method:'DELETE', headers:HDR_PATCH
         });
         for(var gc=0; gc<gComps.length; gc++){
           await fetch(SB_URL+'/rest/v1/reservation_companions',{
-            method:'POST', headers:HDR,
+            method:'POST', headers:HDR_PATCH,
             body:JSON.stringify({
               reservation_id: gRes.id,
               customer_id: null,
@@ -1473,12 +1479,12 @@ async function submit(){
       // 通常モード：単室
       var validComps = companions.filter(function(comp){return comp.name;});
       await fetch(SB_URL+'/rest/v1/reservation_companions?reservation_id=eq.'+parseInt(reservationId),{
-        method:'DELETE', headers:HDR
+        method:'DELETE', headers:HDR_PATCH
       });
       for(var ci=0; ci<validComps.length; ci++){
         var comp = validComps[ci];
         await fetch(SB_URL+'/rest/v1/reservation_companions',{
-          method:'POST', headers:HDR,
+          method:'POST', headers:HDR_PATCH,
           body:JSON.stringify({
             reservation_id: parseInt(reservationId),
             customer_id: null,
@@ -1573,7 +1579,7 @@ async function onStaffPassportPhoto(input) {
     if (res.ok && lastCheckinId) {
       var photoUrl = SB_URL + '/storage/v1/object/passport-photos/' + path;
       await fetch(SB_URL + '/rest/v1/wassa_checkins?id=eq.' + lastCheckinId, {
-        method: 'PATCH', headers: HDR,
+        method: 'PATCH', headers: HDR_PATCH,
         body: JSON.stringify({passport_photo_url: photoUrl})
       });
     }

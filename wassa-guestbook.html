@@ -1990,6 +1990,28 @@ function doLogout(){
 const SB_URL = 'https://mtsdhheqddrckksiqlim.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10c2RoaGVxZGRyY2trc2lxbGltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1OTc5NDgsImV4cCI6MjA4ODE3Mzk0OH0.c18ExSxNHBOani7CN4QAqaerhvpr5ZCYA0GGkUg0mlc';
 const SB_HEADERS = {'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=representation'};
+// ━━ スタッフの合図（X-Wassa-Pin）━━
+// DB側のRLSがこのヘッダのPINを見て「スタッフかどうか」を判定する。
+// Supabase宛のリクエスト全部に自動で付けるため、fetchを一枚かぶせる。
+// （個々の呼び出しを書き換えなくて済むので、付け忘れが起きない）
+(function(){
+  var _origFetch = window.fetch;
+  window.fetch = function(input, init){
+    try{
+      var url = (typeof input === 'string') ? input : (input && input.url) || '';
+      if(url.indexOf(SB_URL) === 0){
+        var pin = getOwnerPin();
+        if(pin){
+          init = init || {};
+          var h = new Headers(init.headers || (typeof input !== 'string' && input && input.headers) || {});
+          h.set('X-Wassa-Pin', pin);
+          init.headers = h;
+        }
+      }
+    }catch(e){}
+    return _origFetch.call(window, input, init);
+  };
+})();
 // ━━ 認証について ━━
 // 以前はSupabaseのメール/パスワードでサインインし、その権限で削除していた。
 // パスワードが公開ファイルに平文で書かれており、2026-09-13に第三者と思われる

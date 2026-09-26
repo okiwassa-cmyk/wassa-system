@@ -605,6 +605,17 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbzr846aUMNHRidDGzactMHw
   const SB_URL = 'https://mtsdhheqddrckksiqlim.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10c2RoaGVxZGRyY2trc2lxbGltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1OTc5NDgsImV4cCI6MjA4ODE3Mzk0OH0.c18ExSxNHBOani7CN4QAqaerhvpr5ZCYA0GGkUg0mlc';
 const SB_H   = { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' };
+// 予約テーブルは匿名で直接読めないため、必要なものだけDBの窓口から取る
+async function rpc(fn, args){
+  const r = await fetch(`${SB_URL}/rest/v1/rpc/${fn}`, {
+    method:'POST',
+    headers:{ ...SB_H, 'Content-Type':'application/json' },
+    body: JSON.stringify(args||{})
+  });
+  if(!r.ok){ console.warn(fn+' failed:', r.status, await r.text()); return null; }
+  const t = await r.text();
+  return t ? JSON.parse(t) : null;
+}
 
 // 合言葉はブラウザに取得しない（公開キー経由で読まれるため）。
 // 入力された文字列をDB側の窓口(verify_repeater_pass)に渡して照合する。
@@ -1024,11 +1035,7 @@ async function _checkAvail() {
   const btn     = document.getElementById('submit-btn');
   if (!cin || !cout || cin >= cout) return;
   try {
-    const r = await fetch(
-      `${SB_URL}/rest/v1/reservations?status=neq.cancelled&check_in=lt.${cout}&check_out=gt.${cin}&select=room_type,check_in,check_out`,
-      { headers: SB_H }
-    );
-    const rsvs = await r.json();
+    const rsvs = (await rpc('public_availability', {p_check_in: cin, p_check_out: cout})) || [];
     const isS01 = rt => rt && rt.indexOf('01')!==-1 && rt.indexOf('デラックス')===-1 && rt!=='DX';
     const isS02 = rt => rt && rt.indexOf('02')!==-1 && rt.indexOf('デラックス')===-1 && rt!=='DX';
     const isDlx = rt => rt && (rt.indexOf('デラックス')!==-1||rt==='DX');
@@ -1194,11 +1201,7 @@ async function submitBooking() {
   let _supRoom = 'スーペリアツイン02';
   try {
     // 送信直前に空室を再確認
-    const chkRes = await fetch(
-      `${SB_URL}/rest/v1/reservations?status=neq.cancelled&check_in=lt.${cout}&check_out=gt.${cin}&select=room_type`,
-      { headers: SB_H }
-    );
-    const booked = await chkRes.json();
+    const booked = (await rpc('public_availability', {p_check_in: cin, p_check_out: cout})) || [];
     const roomKey = document.getElementById('f-room').value;
     const _isS01 = rt => rt && rt.indexOf('01')!==-1 && rt.indexOf('デラックス')===-1 && rt!=='DX';
     const _isS02 = rt => rt && rt.indexOf('02')!==-1 && rt.indexOf('デラックス')===-1 && rt!=='DX';
@@ -1245,10 +1248,10 @@ async function submitBooking() {
       plan_name:     { none:'素泊まりプラン', bf:'朝食付きプラン', din:'夕食付きプラン', both:'2食付きプラン' }[meal] || '',
     };
 
-    const r = await fetch(`${SB_URL}/rest/v1/reservations`, {
+    const r = await fetch(`${SB_URL}/rest/v1/rpc/public_create_reservation_request`, {
       method: 'POST',
-      headers: { ...SB_H, Prefer: 'return=representation' },
-      body: JSON.stringify(body)
+      headers: { ...SB_H, 'Content-Type':'application/json' },
+      body: JSON.stringify({ p_data: body })
     });
 
     if (!r.ok) {
@@ -1256,8 +1259,7 @@ async function submitBooking() {
       console.error('POST failed:', r.status, errBody);
       throw new Error('送信に失敗しました (HTTP ' + r.status + '): ' + errBody.slice(0,200));
     }
-    const newRsv = await r.json().catch(()=>null);
-    const newRsvId = newRsv && newRsv[0] && newRsv[0].id;
+    const newRsvId = await r.json().catch(()=>null);
 
     // billing を別途 PATCH（失敗しても予約自体はキャンセルしない）
     let billingRows = [];
@@ -1327,12 +1329,7 @@ async function submitBooking() {
       const cust = (Array.isArray(fData) && fData[0]) || null;
       if (cust) {
         // 過去の確定済み予約数を取得
-        const histRes = await fetch(
-          `${SB_URL}/rest/v1/reservations?customer_id=eq.${cust.id}&status=not.in.(cancelled,tentative)&select=id`,
-          { headers: SB_H }
-        );
-        const hist = await histRes.json();
-        const count = Array.isArray(hist) ? hist.length : 0;
+        const count = (await rpc('repeater_stay_count', {p_customer_id: cust.id})) || 0;
         customerInfo = `✅ 既存顧客: ${cust.sei||''} ${cust.mei||''}様（過去 ${count} 回のご宿泊）`;
         // 予約にcustomer_idを紐付け
         if (newRsvId) {

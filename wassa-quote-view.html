@@ -293,8 +293,11 @@ async function loadQuote() {
   if (!token) { showError('URLが正しくありません。'); return; }
 
   var [res, cpRes] = await Promise.all([
-    fetch(SB_URL + '/rest/v1/quotes?token=eq.' + encodeURIComponent(token) + '&select=*', {
-      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+    // 見積書はDBの窓口経由。トークンが完全一致した時だけ1件返る
+    fetch(SB_URL + '/rest/v1/rpc/public_get_quote', {
+      method: 'POST',
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_token: token })
     }),
     fetch(SB_URL + '/rest/v1/price_common?id=eq.1&select=cancel_policy', {
       headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
