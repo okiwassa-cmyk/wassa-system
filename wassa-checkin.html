@@ -1514,11 +1514,31 @@ async function submit(){
 }
 
 function notifyAndClose(){
-  // guestbook側に更新を通知してから閉じる
+  // guestbook側に更新を通知（受け取った側はPIN画面に戻ってロックされる）
   if(window.opener && reservationId){
     window.opener.postMessage({type:'checkin_complete', reservation_id: parseInt(reservationId)}, '*');
   }
+  // window.close() はJavaScriptで開いたタブしか閉じられず、iPadのSafariでは効かない。
+  // 閉じられなかった場合に管理画面が見えてしまうため、自分自身を白紙にしてから閉じる。
   window.close();
+  setTimeout(function(){
+    // ここに到達した＝タブを閉じられなかった。お客様に管理画面を見せないよう空白ページにする。
+    document.body.innerHTML =
+      '<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;'
+      + 'justify-content:center;font-family:sans-serif;background:#f7f5f0;color:#8a8478;gap:14px;padding:24px;text-align:center">'
+      + '<div style="font-size:19px;font-weight:600;color:#2d6a6a">ありがとうございました</div>'
+      + '<div style="font-size:14px;line-height:1.9">チェックインが完了しました。<br>'
+      + 'このままスタッフにお渡しください。</div>'
+      + '<div style="font-size:12px;color:#b3aca0;margin-top:10px">Thank you. Check-in complete.<br>'
+      + 'Please hand the tablet back to our staff.</div>'
+      + '</div>';
+    document.title = 'ありがとうございました';
+    // 戻るボタンで前の画面に戻れないようにする
+    try{
+      history.pushState(null, '', location.href);
+      window.addEventListener('popstate', function(){ history.pushState(null, '', location.href); });
+    }catch(e){}
+  }, 300);
 }
 
 function showSuccess(){

@@ -2084,8 +2084,27 @@ window.addEventListener('message', async function(event){
         }
       }
     }catch(e){ console.warn('checkin_complete更新エラー:', e); }
+    // お客様にタブレットを渡す運用のため、チェックイン完了後は必ずPIN画面に戻す。
+    // （checkin側の window.close() はiPadのSafariでは効かず、管理画面が見えてしまうため）
+    lockToPinScreen('チェックインが完了しました。PINを入力してください');
   }
 });
+
+// 管理画面をPIN入力画面に戻す（データは読み込んだままなので、PINを入れればすぐ続きから使える）
+function lockToPinScreen(msg){
+  try{
+    // 開いているモーダルを全部閉じる（予約詳細などにお客様情報が残らないように）
+    document.querySelectorAll('.modal-overlay').forEach(function(m){ m.style.display='none'; });
+    var ov=document.getElementById('pin-overlay');
+    if(ov){
+      ov.style.display='';
+      _pinInput='';
+      for(var i=0;i<4;i++){var d=document.getElementById('pd-'+i);if(d)d.classList.remove('filled');}
+      var err=document.getElementById('pin-error');
+      if(err && msg){ err.textContent=msg; setTimeout(function(){ if(err) err.textContent=''; },4000); }
+    }
+  }catch(e){ console.warn('lockToPinScreen error:', e); }
+}
 
 async function startApp(){
   setTodayDisplay();
