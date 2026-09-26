@@ -1313,22 +1313,22 @@ async function submit(){
           if(!newCust.gender) delete newCust.gender;
           if(!newCust.zip) delete newCust.zip;
           if(!newCust.address) delete newCust.address;
-          const newCustRes = await fetch(SB_URL+'/rest/v1/wassa_customers',{
+          // 新規顧客の作成はDBの窓口経由。予約番号＋チェックイン日が合った時だけ通る。
+          // 窓口の中で reservations への紐付けまで済ませ、新しいidを返す。
+          const newCustRes = await fetch(SB_URL+'/rest/v1/rpc/checkin_create_customer',{
             method:'POST',
-            headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=representation'},
-            body:JSON.stringify(newCust)
+            headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY},
+            body:JSON.stringify({
+              p_reservation_id: parseInt(reservationId),
+              p_check_in: checkInDate,
+              p_data: newCust
+            })
           });
           if(newCustRes.ok){
-            var newCustData = await newCustRes.json();
-            if(newCustData&&newCustData[0]&&newCustData[0].id){
-              custId = newCustData[0].id;
-              // reservations に customer_id を紐付け
-              await fetch(SB_URL+'/rest/v1/reservations?id=eq.'+reservationId,{
-                method:'PATCH', headers:HDR_PATCH, body:JSON.stringify({customer_id: custId})
-              });
-            }
+            var newCustId = await newCustRes.json();
+            if(newCustId) custId = newCustId;
           } else {
-            console.warn('wassa_customers INSERT failed:', newCustRes.status, await newCustRes.text());
+            console.warn('checkin_create_customer failed:', newCustRes.status, await newCustRes.text());
           }
         }catch(e4){ console.warn('customer create failed:', e4); }
       }

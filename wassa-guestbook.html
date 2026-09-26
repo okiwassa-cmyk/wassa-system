@@ -2168,6 +2168,21 @@ function setTodayDisplay(){
 // ━━ 食事履歴 ━━
 
 // ━━ SUPABASE HELPERS ━━
+// 顧客の追加・更新はPIN照合の窓口(staff_insert_customer / staff_update_customer)経由。
+// 匿名キーだけで顧客情報を書き換えられない状態にするため。
+async function _custRpc(fn, args){
+  var pin = getOwnerPin();
+  if(!pin) throw new Error('PINが必要です。ログアウトして入り直してください');
+  args.p_pin = pin;
+  const r = await fetch(SB_URL+'/rest/v1/rpc/'+fn,{
+    method:'POST',
+    headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY},
+    body:JSON.stringify(args)
+  });
+  const txt = await r.text();
+  if(!r.ok) throw new Error(txt);
+  return txt ? JSON.parse(txt) : [];
+}
 async function sbGet(table, query=''){
   try{
     const sep=query?'&':'';
@@ -2190,12 +2205,14 @@ async function _sbWithRefresh(fn){
   return await fn();
 }
 async function sbPost(table,data){
+  if(table==='wassa_customers') return await _custRpc('staff_insert_customer',{p_data:data});
   return _sbWithRefresh(async function(){
     const r=await fetch(`${SB_URL}/rest/v1/${table}`,{method:'POST',headers:SB_HEADERS,body:JSON.stringify(data)});
     if(!r.ok)throw new Error(await r.text());return await r.json();
   });
 }
 async function sbPatch(table,id,data){
+  if(table==='wassa_customers') return await _custRpc('staff_update_customer',{p_id:id,p_patch:data});
   return _sbWithRefresh(async function(){
     const r=await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`,{method:'PATCH',headers:{...SB_HEADERS,'Prefer':'return=representation'},body:JSON.stringify(data)});
     if(!r.ok)throw new Error(await r.text());
@@ -2226,6 +2243,14 @@ async function supa(path,method='GET',body=null){
     const dd=await rr.json();
     if(!dd||!dd.ok) throw new Error((dd&&dd.error)||'保存できませんでした');
     return dd;
+  }
+  // 顧客の追加・更新も窓口へ回す
+  if(path.indexOf('wassa_customers')===0){
+    if(method==='POST') return await _custRpc('staff_insert_customer',{p_data:body||{}});
+    if(method==='PATCH'){
+      var _m=path.match(/id=eq\.(\d+)/);
+      if(_m) return await _custRpc('staff_update_customer',{p_id:parseInt(_m[1],10),p_patch:body||{}});
+    }
   }
   const opts={method,headers:{'apikey':SUPA_KEY,'Authorization':SB_HEADERS['Authorization'],'Content-Type':'application/json','Prefer':'return=representation'}};
   if(body)opts.body=JSON.stringify(body);
@@ -6405,17 +6430,12 @@ function addFamilyMember(){
   var famId = c.family_id || c.id;
   // 現在の顧客にfamily_idをセット
   if(!c.family_id){
-    fetch(SB_URL+'/rest/v1/wassa_customers?id=eq.'+c.id,{
-      method:'PATCH',headers:Object.assign({},SB_HEADERS,{'Prefer':'return=minimal'}),
-      body:JSON.stringify({family_id:famId})
-    });
+    sbPatch('wassa_customers', c.id, {family_id:famId}).catch(function(){});
     c.family_id = famId;
   }
   // 新しい家族メンバーを顧客マスタに追加
-  fetch(SB_URL+'/rest/v1/wassa_customers',{
-    method:'POST',headers:SB_HEADERS,
-    body:JSON.stringify({sei:sei,mei:mei,sei_kana:seiK,mei_kana:meiK,family_id:famId,rel:rel||null})
-  }).then(function(r){return r.json();}).then(function(data){
+  sbPost('wassa_customers',{sei:sei,mei:mei,sei_kana:seiK,mei_kana:meiK,family_id:famId,rel:rel||null})
+  .then(function(data){
     if(data&&data[0]){
       allCustomers.push(data[0]);
       toast('✅ 家族メンバーを追加しました');
