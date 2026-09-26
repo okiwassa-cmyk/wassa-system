@@ -457,6 +457,32 @@ function updateBirth(){
 let selectedGender = '';
 let selectedAllergy = '';
 let reservationId = null;
+let checkInDate   = null;   // URLの checkin パラメータ（顧客情報照会の本人確認に使う）
+// 顧客情報の取得は窓口(RPC)経由に統一。匿名キーでの一覧取得を不可能にするため。
+async function rpcGetCustomer(){
+  if(!reservationId || !checkInDate) return null;   // 日付照合は必須（APP発行リンクには必ず入る）
+  try{
+    const r = await fetch(SB_URL+'/rest/v1/rpc/checkin_get_customer',{
+      method:'POST', headers:HDR,
+      body: JSON.stringify({p_reservation_id: parseInt(reservationId), p_check_in: checkInDate})
+    });
+    if(!r.ok){ console.warn('checkin_get_customer failed:', r.status); return null; }
+    const d = await r.json();
+    return (Array.isArray(d) && d[0]) ? d[0] : null;
+  }catch(e){ console.warn('checkin_get_customer error:', e); return null; }
+}
+async function rpcGetFamily(famId, excludeId){
+  if(!famId) return [];
+  try{
+    const r = await fetch(SB_URL+'/rest/v1/rpc/checkin_get_family',{
+      method:'POST', headers:HDR,
+      body: JSON.stringify({p_family_id: famId, p_exclude_id: excludeId||null})
+    });
+    if(!r.ok){ console.warn('checkin_get_family failed:', r.status); return []; }
+    const d = await r.json();
+    return Array.isArray(d) ? d : [];
+  }catch(e){ console.warn('checkin_get_family error:', e); return []; }
+}
 let customerId = null;   // URLパラメータから取得（guestbookが渡す）
 let emailIsOptional = false; // 予約時取得済みならtrue
 var passportPhotoFile = null;
@@ -505,6 +531,7 @@ function loadFromParams(){
   const p = new URLSearchParams(location.search);
   reservationId = p.get('id');
   customerId    = p.get('customer_id') ? parseInt(p.get('customer_id')) : null;
+  checkInDate   = p.get('checkin') || null;   // 顧客情報の照会に本人確認として使う
 
   // 言語設定（IDがなくても実行）
   var langParam = p.get('lang')||'ja';
@@ -892,7 +919,8 @@ async function loadFamilyCandidates(){
   }
   if(!cid){ renderFamilyCandidatesArea(); return; }
   try{
-    var cd = await (await fetch(SB_URL+'/rest/v1/wassa_customers?id=eq.'+cid+'&select=family_id,family1,family1_kana,family1_rel,family2,family2_kana,family2_rel,family3,family3_kana,family3_rel,family4,family4_kana,family4_rel',{headers:HDR})).json();
+    var _rep = await rpcGetCustomer();   // 窓口①：予約番号＋チェックイン日で本人確認
+    var cd = _rep ? [_rep] : [];
     if(cd&&cd[0]){
       var rep = cd[0];
       var famId = rep.family_id;
@@ -900,7 +928,7 @@ async function loadFamilyCandidates(){
         if(rep['family'+n]) familyCandidates.push({name:rep['family'+n],kana:rep['family'+n+'_kana']||'',rel:rep['family'+n+'_rel']||''});
       });
       if(famId){
-        var linked = await (await fetch(SB_URL+'/rest/v1/wassa_customers?family_id=eq.'+famId+'&id=neq.'+cid+'&select=sei,mei,sei_kana,mei_kana,rel',{headers:HDR})).json();
+        var linked = await rpcGetFamily(famId, cid);   // 窓口②：氏名・続柄のみ
         if(linked&&linked.length){
           linked.forEach(function(c){
             var name=(c.sei||'')+(c.mei?' '+c.mei:'');
@@ -1309,8 +1337,8 @@ async function submit(){
         // 顧客の現在値を取得して差分のみ更新
         var custUpdate = {};
         try{
-          var custData = await (await fetch(SB_URL+'/rest/v1/wassa_customers?id=eq.'+custId+'&select=address,zip,email,mobile,pref,city,birth_date,gender,sei_kana,mei_kana,family1,family1_kana,family1_rel,family2,family2_kana,family2_rel,family3,family3_kana,family3_rel,family4,family4_kana,family4_rel',{headers:HDR})).json();
-          var cd = (custData&&custData[0]) ? custData[0] : {};
+          var _cur = await rpcGetCustomer();   // 窓口①経由で現在値を取得
+          var cd = _cur || {};
           // 入力があれば常に上書き（チェックイン時の情報で最新化）
           if(g('pref'))  custUpdate.pref    = g('pref');
           if(g('city'))  custUpdate.city    = g('city');
@@ -1402,8 +1430,8 @@ async function submit(){
         try{
           var CHILD_RELS_G = ['子','息子','娘','長男','長女','次男','次女','三男','三女','配偶者','親','兄弟・姉妹','祖父','祖母','その他'];
           // 代表者のfamily_idを取得（なければcustId自身をfamily_idに設定）
-          var gRepRow = await (await fetch(SB_URL+'/rest/v1/wassa_customers?id=eq.'+custId+'&select=family_id,family1,family1_kana,family1_rel,family2,family2_kana,family2_rel,family3,family3_kana,family3_rel,family4,family4_kana,family4_rel',{headers:HDR})).json();
-          var gRepData = (gRepRow&&gRepRow[0]) ? gRepRow[0] : {};
+          var _gRep = await rpcGetCustomer();   // 窓口①経由（グループ代表者）
+          var gRepData = _gRep || {};
           var gFamId = gRepData.family_id || custId;
           if(!gRepData.family_id){
             await fetch(SB_URL+'/rest/v1/wassa_customers?id=eq.'+custId,{method:'PATCH',headers:HDR_PATCH,body:JSON.stringify({family_id:gFamId})});
