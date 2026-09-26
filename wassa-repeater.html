@@ -1317,15 +1317,14 @@ async function submitBooking() {
     // 既存顧客マッチング（電話番号で照合）
     let customerInfo = '（顧客照合できませんでした）';
     try {
-      const phoneNorm = phone.replace(/[\-\s]/g, '');
-      // mobile または tel で検索
-      const [mRes, tRes] = await Promise.all([
-        fetch(`${SB_URL}/rest/v1/wassa_customers?mobile=eq.${encodeURIComponent(phone)}&select=id,sei,mei&limit=1`, { headers: SB_H }),
-        fetch(`${SB_URL}/rest/v1/wassa_customers?tel=eq.${encodeURIComponent(phone)}&select=id,sei,mei&limit=1`, { headers: SB_H })
-      ]);
-      const mData = await mRes.json();
-      const tData = await tRes.json();
-      const cust = (mData && mData[0]) || (tData && tData[0]);
+      // 顧客照合はDBの窓口(repeater_find_by_phone)経由。電話が完全一致した時だけ氏名だけ返る
+      const fRes = await fetch(`${SB_URL}/rest/v1/rpc/repeater_find_by_phone`, {
+        method: 'POST',
+        headers: { ...SB_H, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_phone: phone })
+      });
+      const fData = fRes.ok ? await fRes.json() : null;
+      const cust = (Array.isArray(fData) && fData[0]) || null;
       if (cust) {
         // 過去の確定済み予約数を取得
         const histRes = await fetch(

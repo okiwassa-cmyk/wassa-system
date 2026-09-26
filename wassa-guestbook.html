@@ -2246,13 +2246,37 @@ function _fillGuestNames(rows){
   });
 }
 var _allResLoaded=false;
+// 顧客一覧はPIN照合の窓口(staff_list_customers)から取得する。
+// 匿名キーだけでは顧客情報を読めないようにするための経路。
+async function _loadCustomersViaPin(){
+  var pin = getOwnerPin();
+  if(!pin){ console.warn('PINが無いため顧客一覧を取得できません'); return []; }
+  // PostgRESTは1回で最大1000件までなので、sbGetと同じようにページ送りする
+  var all=[], offset=0, pageSize=1000;
+  try{
+    while(true){
+      const r = await fetch(SB_URL+'/rest/v1/rpc/staff_list_customers?limit='+pageSize+'&offset='+offset,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY},
+        body:JSON.stringify({p_pin:pin})
+      });
+      if(!r.ok){ console.warn('staff_list_customers failed:', r.status, await r.text()); return all; }
+      const d = await r.json();
+      if(!Array.isArray(d)) return all;
+      all = all.concat(d);
+      if(d.length < pageSize) break;
+      offset += pageSize;
+    }
+    return all;
+  }catch(e){ console.warn('顧客一覧の取得エラー:', e); return all; }
+}
 async function loadAll(){
   // 起動時は直近90日前以降の予約のみ取得（高速化）。過去データはensureAllReservations()で遅延ロード
   var cutoff=new Date();cutoff.setDate(cutoff.getDate()-90);
   var cutoffStr=cutoff.toISOString().slice(0,10);
   const [resv,custs,menus,quotes,presets]=await Promise.all([
     sbGet('reservations','select=*&order=check_in.desc&check_out=gte.'+cutoffStr),
-    sbGet('wassa_customers','select=*'),
+    _loadCustomersViaPin(),   // 顧客はPIN照合の窓口経由（匿名では読めないようにするため）
     sbGet('wassa_menus','select=*&order=sort_order.asc'),
     sbGet('quotes','select=*&order=created_at.desc&limit=300').catch(()=>[]),
     sbGet('wassa_billing_presets','select=*&order=sort_order.asc').catch(()=>[])
