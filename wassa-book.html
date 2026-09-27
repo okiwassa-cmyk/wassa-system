@@ -496,8 +496,8 @@ async function submitBooking(){
       const totalAmt=billingRows.reduce((s,x)=>s+(x.price||0)*(x.qty||1),0); estTotal='¥'+fmt(totalAmt)+(provisional?'（暫定）':'');
       const quoteNotes=(provisional?'【料金改定前・暫定】確定期限（'+priceValidUntil+'）より先。料金改定後に要更新。\n':'')+(notes||'');
       try{
-        await fetch(`${SB_URL}/rest/v1/reservations?id=eq.${rid}`,{method:'PATCH',headers:{...SB_H,Prefer:'return=minimal'},
-          body:JSON.stringify({billing:{rows:billingRows,plan_name:planName,coupon:0,points:0,provisional:provisional}})});
+        await rpc('public_finalize_request',{p_id:rid,
+          p_billing:{rows:billingRows,plan_name:planName,coupon:0,points:0,provisional:provisional}});
       }catch(e){}
       try{
         const token=crypto.randomUUID();

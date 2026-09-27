@@ -459,6 +459,31 @@ let selectedAllergy = '';
 let reservationId = null;
 let checkInDate   = null;   // URLの checkin パラメータ（顧客情報照会の本人確認に使う）
 // 顧客情報の取得は窓口(RPC)経由に統一。匿名キーでの一覧取得を不可能にするため。
+// 更新・削除も窓口経由。読み取りを塞ぐと WHERE で行を探せなくなり、
+// 直接のPATCH/DELETEは「エラーも出ずに0件」になるため。
+async function rpcPatch(table, id, patch){
+  if(!reservationId || !checkInDate) return false;
+  try{
+    const r = await fetch(SB_URL+'/rest/v1/rpc/checkin_patch',{
+      method:'POST', headers:HDR_PATCH,
+      body: JSON.stringify({p_reservation_id:parseInt(reservationId), p_check_in:checkInDate,
+                            p_table:table, p_id:parseInt(id), p_patch:patch})
+    });
+    if(!r.ok){ console.warn('checkin_patch failed:', table, r.status, await r.text()); return false; }
+    return true;
+  }catch(e){ console.warn('checkin_patch error:', e); return false; }
+}
+async function rpcClearCompanions(targetId){
+  if(!reservationId || !checkInDate) return false;
+  try{
+    const r = await fetch(SB_URL+'/rest/v1/rpc/checkin_clear_companions',{
+      method:'POST', headers:HDR_PATCH,
+      body: JSON.stringify({p_reservation_id:parseInt(reservationId), p_check_in:checkInDate, p_target_id:parseInt(targetId)})
+    });
+    if(!r.ok){ console.warn('checkin_clear_companions failed:', r.status, await r.text()); return false; }
+    return true;
+  }catch(e){ console.warn('checkin_clear_companions error:', e); return false; }
+}
 async function rpcGetCustomer(){
   if(!reservationId || !checkInDate) return null;   // 日付照合は必須（APP発行リンクには必ず入る）
   try{
@@ -1283,10 +1308,7 @@ async function submit(){
       var _mob = g('mobile'); var _em = g('email');
       if(_mob) patchBody.phone = _mob;
       if(_em)  patchBody.email = _em;
-      const resStatusRes = await fetch(`${SB_URL}/rest/v1/reservations?id=eq.${reservationId}`, {
-        method:'PATCH', headers:HDR_PATCH, body: JSON.stringify(patchBody)
-      });
-      if(!resStatusRes.ok) console.warn('reservations PATCH failed:', resStatusRes.status);
+      await rpcPatch('reservations', reservationId, patchBody);
 
       // 顧客マスタを更新
       // customer_id は URLパラメータ優先（guestbookから渡される）、なければ reservations から取得を試みる
@@ -1392,10 +1414,7 @@ async function submit(){
           }
         }catch(e3){ console.warn('customer data fetch failed:', e3); }
         if(Object.keys(custUpdate).length>0){
-          const custRes = await fetch(SB_URL+'/rest/v1/wassa_customers?id=eq.'+custId,{
-            method:'PATCH', headers:HDR_PATCH, body:JSON.stringify(custUpdate)
-          });
-          if(!custRes.ok) console.warn('wassa_customers PATCH failed:', custRes.status);
+          await rpcPatch('wassa_customers', custId, custUpdate);
         }
 
       }
@@ -1407,9 +1426,7 @@ async function submit(){
       for(var gi=0; gi<groupReservations.length; gi++){
         var gRes = groupReservations[gi];
         var gComps = (groupCompanions[gRes.id]||[]).filter(function(c){return c.name;});
-        await fetch(SB_URL+'/rest/v1/reservation_companions?reservation_id=eq.'+gRes.id,{
-          method:'DELETE', headers:HDR_PATCH
-        });
+        await rpcClearCompanions(gRes.id);
         for(var gc=0; gc<gComps.length; gc++){
           await fetch(SB_URL+'/rest/v1/reservation_companions',{
             method:'POST', headers:HDR_PATCH,
@@ -1426,10 +1443,7 @@ async function submit(){
           });
         }
         // 各室のステータスもcheckinに更新
-        await fetch(SB_URL+'/rest/v1/reservations?id=eq.'+gRes.id,{
-          method:'PATCH', headers:HDR_PATCH,
-          body:JSON.stringify({status:'checkin'})
-        });
+        await rpcPatch('reservations', gRes.id, {status:'checkin'});
       }
       // グループモード：家族同室者をwassa_customersにリンク（全室分まとめて処理）
       if(custId){
@@ -1440,7 +1454,7 @@ async function submit(){
           var gRepData = _gRep || {};
           var gFamId = gRepData.family_id || custId;
           if(!gRepData.family_id){
-            await fetch(SB_URL+'/rest/v1/wassa_customers?id=eq.'+custId,{method:'PATCH',headers:HDR_PATCH,body:JSON.stringify({family_id:gFamId})});
+            await rpcPatch('wassa_customers', custId, {family_id:gFamId});
           }
           // 全室の家族同室者をfamily1~4スロットに保存（子供含む全員）
           var gFamSlotsUpdate = {};
@@ -1471,16 +1485,14 @@ async function submit(){
             }
           }
           if(Object.keys(gFamSlotsUpdate).length){
-            await fetch(SB_URL+'/rest/v1/wassa_customers?id=eq.'+custId,{method:'PATCH',headers:HDR_PATCH,body:JSON.stringify(gFamSlotsUpdate)});
+            await rpcPatch('wassa_customers', custId, gFamSlotsUpdate);
           }
         }catch(gfe){ console.warn('group family link error:', gfe); }
       }
     } else if(reservationId){
       // 通常モード：単室
       var validComps = companions.filter(function(comp){return comp.name;});
-      await fetch(SB_URL+'/rest/v1/reservation_companions?reservation_id=eq.'+parseInt(reservationId),{
-        method:'DELETE', headers:HDR_PATCH
-      });
+      await rpcClearCompanions(reservationId);
       for(var ci=0; ci<validComps.length; ci++){
         var comp = validComps[ci];
         await fetch(SB_URL+'/rest/v1/reservation_companions',{
@@ -1578,10 +1590,7 @@ async function onStaffPassportPhoto(input) {
     });
     if (res.ok && lastCheckinId) {
       var photoUrl = SB_URL + '/storage/v1/object/passport-photos/' + path;
-      await fetch(SB_URL + '/rest/v1/wassa_checkins?id=eq.' + lastCheckinId, {
-        method: 'PATCH', headers: HDR_PATCH,
-        body: JSON.stringify({passport_photo_url: photoUrl})
-      });
+      await rpcPatch('wassa_checkins', lastCheckinId, {passport_photo_url: photoUrl});
     }
   } catch(e){ console.warn('photo upload error:', e); }
   // 撮影完了 → 自動で閉じる
