@@ -473,6 +473,18 @@ async function rpcPatch(table, id, patch){
     return true;
   }catch(e){ console.warn('checkin_patch error:', e); return false; }
 }
+async function rpcAddCompanion(targetId, row){
+  if(!reservationId || !checkInDate) return false;
+  try{
+    const r = await fetch(SB_URL+'/rest/v1/rpc/checkin_add_companion',{
+      method:'POST', headers:HDR_PATCH,
+      body: JSON.stringify({p_reservation_id:parseInt(reservationId), p_check_in:checkInDate,
+                            p_target_id:parseInt(targetId), p_row:row})
+    });
+    if(!r.ok){ console.warn('checkin_add_companion failed:', r.status, await r.text()); return false; }
+    return true;
+  }catch(e){ console.warn('checkin_add_companion error:', e); return false; }
+}
 async function rpcClearCompanions(targetId){
   if(!reservationId || !checkInDate) return false;
   try{
@@ -1430,18 +1442,14 @@ async function submit(){
         var gComps = (groupCompanions[gRes.id]||[]).filter(function(c){return c.name;});
         await rpcClearCompanions(gRes.id);
         for(var gc=0; gc<gComps.length; gc++){
-          await fetch(SB_URL+'/rest/v1/reservation_companions',{
-            method:'POST', headers:HDR_PATCH,
-            body:JSON.stringify({
-              reservation_id: gRes.id,
-              customer_id: null,
-              name: gComps[gc].name,
-              kana: gComps[gc].kana||'',
-              is_family: gComps[gc].isFamily||false,
-              rel: gComps[gc].rel||'',
-              address: '',
-              mobile: ''
-            })
+          await rpcAddCompanion(gRes.id, {
+            customer_id: null,
+            name: gComps[gc].name,
+            kana: gComps[gc].kana||'',
+            is_family: gComps[gc].isFamily||false,
+            rel: gComps[gc].rel||'',
+            address: '',
+            mobile: ''
           });
         }
         // 各室のステータスもcheckinに更新
@@ -1497,18 +1505,14 @@ async function submit(){
       await rpcClearCompanions(reservationId);
       for(var ci=0; ci<validComps.length; ci++){
         var comp = validComps[ci];
-        await fetch(SB_URL+'/rest/v1/reservation_companions',{
-          method:'POST', headers:HDR_PATCH,
-          body:JSON.stringify({
-            reservation_id: parseInt(reservationId),
-            customer_id: null,
-            name: comp.name,
-            kana: comp.kana || '',
-            rel: comp.rel || '',
-            is_family: comp.isFamily||false,
-            address: '',
-            mobile: ''
-          })
+        await rpcAddCompanion(reservationId, {
+          customer_id: null,
+          name: comp.name,
+          kana: comp.kana || '',
+          rel: comp.rel || '',
+          is_family: comp.isFamily||false,
+          address: '',
+          mobile: ''
         });
       }
     }

@@ -1280,10 +1280,8 @@ async function submitBooking() {
         const token = crypto.randomUUID();
         const totalAmt = billingRows.reduce((s, row) => s + (row.price||0) * (row.qty||1), 0);
         const validUntil = new Date(); validUntil.setDate(validUntil.getDate() + 14);
-        const qRes = await fetch(`${SB_URL}/rest/v1/quotes`, {
-          method: 'POST',
-          headers: { ...SB_H, Prefer: 'return=minimal' },
-          body: JSON.stringify({
+        const qOk = await rpc('public_create_quote', {
+          p_data: {
             token,
             guest_name: name,
             phone,
@@ -1302,9 +1300,9 @@ async function submitBooking() {
             billing: { rows: billingRows, plan_name: body.plan_name, coupon: 0, points: 0, provisional: _beyondHorizonR(cin,cout) },
             notes: notes,
             doc_type: 'estimate',
-          })
+          }
         });
-        if (!qRes.ok) throw new Error('quotes POST failed: ' + await qRes.text());
+        if (!qOk) throw new Error('見積書を作成できませんでした');
         quoteUrl = `https://okiwassa-cmyk.github.io/wassa-system/wassa-quote-view.html?token=${token}`;
       } catch(e) { console.error('見積書生成エラー:', e); }
     }

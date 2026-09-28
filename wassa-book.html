@@ -502,12 +502,11 @@ async function submitBooking(){
       try{
         const token=crypto.randomUUID();
         const vu=new Date(); vu.setDate(vu.getDate()+14);
-        const q=await fetch(`${SB_URL}/rest/v1/quotes`,{method:'POST',headers:{...SB_H,Prefer:'return=minimal'},
-          body:JSON.stringify({token,guest_name:name,email,phone:phone||null,check_in:cin,check_out:cout,
+        const qOk=await rpc('public_create_quote',{p_data:{token,guest_name:name,email,phone:phone||null,check_in:cin,check_out:cout,
             room_type:body.room_type,room:roomKey,adults:String(adults),children,infants,meal,plan_name:planName,
             total_amount:String(totalAmt),valid_until:vu.toISOString().slice(0,10),status:'sent',
-            billing:{rows:billingRows,plan_name:planName,coupon:0,points:0,provisional:provisional},notes:quoteNotes,doc_type:'estimate'})});
-        if(q.ok) quoteUrl=`https://okiwassa-cmyk.github.io/wassa-system/wassa-quote-view.html?token=${token}`;
+            billing:{rows:billingRows,plan_name:planName,coupon:0,points:0,provisional:provisional},notes:quoteNotes,doc_type:'estimate'}});
+        if(qOk) quoteUrl=`https://okiwassa-cmyk.github.io/wassa-system/wassa-quote-view.html?token=${token}`;
       }catch(e){}
     }
 
