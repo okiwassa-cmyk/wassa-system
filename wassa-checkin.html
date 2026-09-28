@@ -1324,13 +1324,15 @@ async function submit(){
       // custId がない場合（OTA予約など未リンク）→ 新規顧客を作成して予約に紐付ける
       if(!custId){
         try{
-          var nameParts = (g('name')||'').trim().split(/\s+/);
+          // ※ id='name' という入力欄は存在しない（姓と名は sei / mei に分かれている）。
+          //    ここで g('name') を見ていたため、氏名が空のまま顧客が作られていた。
           var newCust = {
-            sei: nameParts[0]||'',
-            mei: nameParts[1]||'',
+            sei: g('sei')||'',
+            mei: g('mei')||'',
             sei_kana: g('sei-kana')||'',
             mei_kana: g('mei-kana')||'',
             email: g('email')||'',
+            mobile: g('mobile')||'',
             address: address||'',
             zip: g('zip')||'',
             birth_date: g('birth')||null,
