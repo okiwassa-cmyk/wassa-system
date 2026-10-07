@@ -3275,10 +3275,19 @@ function checkSameAddressCustomers(r){
     if(cust) addr = cust.address || '';
   }
   if(!addr) return;
+  // 海外OTA(Ctrip/Agoda等)経由は住所欄にじゃらんの定型注意書きが入ることがある。
+  // 住所ではないので比較に使わない（同じ経路の人が全員「同じ住所」になってしまう）
+  function _isNotAddress(a){
+    if(!a) return true;
+    if(/予約形態|ＡＧＴ|AGTコート|AGTコード/.test(a)) return true;
+    if(/^〒?\s*0{3}-?0{4}\s*$/.test(a.trim())) return true;
+    return false;
+  }
+  if(_isNotAddress(addr)) return;
   var addrKey = addr.replace(/〒[\d\-]+/,'').replace(/[\s\u3000]/g,'').trim();
   if(addrKey.length < 6) return;
   var matches = allCustomers.filter(function(c){
-    if(!c.address) return false;
+    if(_isNotAddress(c.address)) return false;
     var cKey = c.address.replace(/〒[\d\-]+/,'').replace(/[\s\u3000]/g,'').trim();
     return cKey === addrKey && c.id !== r.customer_id;
   });
