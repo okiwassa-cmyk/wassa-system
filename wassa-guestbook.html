@@ -3895,7 +3895,9 @@ function itemSortKey(item, _tier){
   return 20;
 }
 function addBillingRowForDate(date, isExtra){
-  billingRows.push({cat:'宿泊料金',date:date,item:'',qty:1,discount:0,price:0,payment:'',is_extra:isExtra?true:false,_isNew:true});
+  // 区分は空で作る。伝票は区分で行を振り分けるため、宿泊料金のまま料理を入れると
+  // 部屋代として印字されてしまう（2026/10 荒木様のゾウリエビの件）
+  billingRows.push({cat:'',date:date,item:'',qty:1,discount:0,price:0,payment:'',is_extra:isExtra?true:false,_isNew:true});
   renderBillingRows();
 }
 function addRowForRef(refIdx, isExtra){
@@ -3990,6 +3992,13 @@ function renderBillingRows(){
         } else {
           html+='<button onclick="openBillingPicker('+i+')" style="background:var(--sand2);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;color:var(--ocean2);cursor:pointer;white-space:nowrap;flex-shrink:0">📋</button>';
           if(row.is_extra) html+='<span title="追加料金（参考行から引かない）" style="font-size:10px;background:#edf7f2;color:var(--green,#3a8060);border:1px solid var(--green,#3a8060);border-radius:4px;padding:1px 5px;white-space:nowrap;flex-shrink:0">追加</span>';
+          var _cats=['宿泊料金','朝食','夕食','アルコール','諸費用','その他'];
+          var _curCat=row.cat||'';
+          var _catNeeded=!_curCat;
+          var _catOpt='<option value=""'+(_catNeeded?' selected':'')+'>区分…</option>';
+          _cats.forEach(function(c){ _catOpt+='<option value="'+c+'"'+(_curCat===c?' selected':'')+'>'+c+'</option>'; });
+          if(_curCat&&_cats.indexOf(_curCat)===-1) _catOpt+='<option value="'+escHtml(_curCat)+'" selected>'+escHtml(_curCat)+'</option>';
+          html+='<select onchange="billUpdate('+i+',\'cat\',this.value)" title="伝票の並びに使われます" style="font-size:11px;padding:4px 2px;border:1px solid '+(_catNeeded?'var(--coral)':'var(--border)')+';border-radius:6px;width:78px;flex-shrink:0;'+(_catNeeded?'background:#fff5f2':'')+'">'+_catOpt+'</select>';
           html+='<input type="text" placeholder="内容" value="'+escHtml(row.item||'')+'" oninput="billUpdate('+i+',\'item\',this.value)" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;flex:1;min-width:80px">';
           html+='<span style="font-size:11px;color:var(--text3)">＠</span>';
           html+='<input id="bill-price-'+i+'" type="number" placeholder="単価" value="'+(row.price||'')+'" oninput="billUpdate('+i+',\'price\',this.value)" style="font-size:12px;padding:5px 6px;border:1px solid var(--border);border-radius:6px;width:80px;text-align:right">';
