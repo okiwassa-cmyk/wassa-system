@@ -7615,6 +7615,78 @@ function renderMgmtStats(year){
         +'</div>'
       );
     })()
+    +(function(){
+      // ── 月別・部屋別（予約データ）S01 / S02 / DX / 3室合計 ──
+      // Airレジの表とは別。こちらは予約の明細から算出するので全月そろう。
+      // ただし明細に金額が入っていない予約は売上に乗らないため、件数を併記する。
+      var RM_=['S01','S02','DX'];
+      var RM_LABEL_={S01:'スーペリア01',S02:'スーペリア02',DX:'デラックス'};
+      var mr_={};RM_.forEach(function(k){mr_[k]=new Array(12).fill(null).map(function(){return{rev:0,n:0,pax:0,cnt:0,withAmt:0};});});
+      rsvs.forEach(function(r){
+        var mo=parseInt((r.check_in||'').slice(5,7))-1; if(mo<0||mo>11)return;
+        var k=normRoom_(r.room_type); if(RM_.indexOf(k)===-1)return;
+        var n=nights(r), rev=_calcRev(r,true);
+        mr_[k][mo].n+=n;
+        mr_[k][mo].rev+=rev;
+        mr_[k][mo].pax+=(parseInt(r.adults)||0)+(parseInt(r.children)||0)+(parseInt(r.infants)||0);
+        mr_[k][mo].cnt+=1;
+        if(rev>0) mr_[k][mo].withAmt+=1;
+      });
+      var thS2_='padding:5px 6px;text-align:right;font-size:11px;white-space:nowrap';
+      var tdS2_='padding:5px 6px;text-align:right;font-size:11px;border-top:1px solid var(--sand2);white-space:nowrap';
+      var tfS2_='padding:6px;text-align:right;font-size:11px;border-top:2px solid var(--ocean);font-weight:700;white-space:nowrap';
+      function cells_(o,avail){
+        var adr=o.n>0?Math.round(o.rev/o.n):0;
+        var occ=avail>0?Math.round(o.n/avail*1000)/10:0;
+        return [fmtY(o.rev), o.n+'泊', occ+'%', adr>0?fmtY(adr):'—'];
+      }
+      var rows2_='', tot_={};RM_.forEach(function(k){tot_[k]={rev:0,n:0,pax:0,cnt:0,withAmt:0};});
+      var anyGap_=false;
+      MONTHS.forEach(function(mn,i){
+        var dpm=DAYSPM_[i];
+        var tr='<tr><td style="'+tdS2_+';text-align:left;font-weight:500">'+mn+'</td>';
+        var all={rev:0,n:0,pax:0,cnt:0,withAmt:0};
+        RM_.forEach(function(k){
+          var o=mr_[k][i];
+          ['rev','n','pax','cnt','withAmt'].forEach(function(f){tot_[k][f]+=o[f];all[f]+=o[f];});
+          tr+=cells_(o,dpm).map(function(v){return'<td style="'+tdS2_+'">'+v+'</td>';}).join('');
+          tr+='<td style="'+tdS2_+';border-left:1px solid var(--sand2);padding:0;width:1px"></td>';
+        });
+        if(all.cnt>all.withAmt) anyGap_=true;
+        var gapNote = all.cnt>all.withAmt ? '<span title="明細に金額が入っていない予約があります" style="color:var(--coral);font-size:10px">（'+all.withAmt+'/'+all.cnt+'件）</span>' : '';
+        tr+=cells_(all,dpm*3).map(function(v,j){return'<td style="'+tdS2_+';background:var(--sand)'+(j===0?';font-weight:600':'')+'">'+v+(j===0?gapNote:'')+'</td>';}).join('');
+        rows2_+=tr+'</tr>';
+      });
+      var allT={rev:0,n:0,pax:0,cnt:0,withAmt:0};
+      RM_.forEach(function(k){['rev','n','pax','cnt','withAmt'].forEach(function(f){allT[f]+=tot_[k][f];});});
+      var foot2_='<tr><td style="'+tfS2_+';text-align:left">年計</td>';
+      RM_.forEach(function(k){
+        foot2_+=cells_(tot_[k],daysInYear).map(function(v){return'<td style="'+tfS2_+'">'+v+'</td>';}).join('');
+        foot2_+='<td style="'+tfS2_+';border-left:1px solid var(--sand2);padding:0;width:1px"></td>';
+      });
+      foot2_+=cells_(allT,daysInYear*3).map(function(v){return'<td style="'+tfS2_+';background:var(--sand);color:var(--ocean)">'+v+'</td>';}).join('')+'</tr>';
+      var M2_=['売上','泊数','稼働率','ADR'];
+      var grp2_=function(label,bg){
+        return'<th colspan="4" style="padding:6px 8px;text-align:center;font-size:12px;font-weight:700;background:'+bg+';color:'+(bg==='var(--ocean)'?'#fff':'var(--ocean)')+';border-bottom:2px solid var(--ocean)">'+label+'</th>'
+          +'<th rowspan="2" style="width:1px;padding:0"></th>';
+      };
+      return card('月別・部屋別（予約データ）',
+        '<div style="overflow-x:auto">'
+        +'<table style="border-collapse:collapse;min-width:640px">'
+        +'<thead><tr><th style="padding:6px 8px;border-bottom:2px solid var(--ocean)" rowspan="2"></th>'
+        +grp2_(RM_LABEL_.S01,'var(--sand)')+grp2_(RM_LABEL_.S02,'var(--sand2)')+grp2_(RM_LABEL_.DX,'var(--sand)')
+        +'<th colspan="4" style="padding:6px 8px;text-align:center;font-size:12px;font-weight:700;background:var(--ocean);color:#fff;border-bottom:2px solid var(--ocean)">3室合計</th>'
+        +'</tr><tr>'
+        +M2_.map(function(h){return'<th style="'+thS2_+';background:var(--sand);color:var(--ocean)">'+h+'</th>';}).join('')
+        +M2_.map(function(h){return'<th style="'+thS2_+';background:var(--sand2);color:var(--ocean)">'+h+'</th>';}).join('')
+        +M2_.map(function(h){return'<th style="'+thS2_+';background:var(--sand);color:var(--ocean)">'+h+'</th>';}).join('')
+        +M2_.map(function(h){return'<th style="'+thS2_+';background:var(--ocean);color:#fff">'+h+'</th>';}).join('')
+        +'</tr></thead><tbody>'+rows2_+'</tbody><tfoot>'+foot2_+'</tfoot></table>'
+        +'<div style="font-size:10px;color:var(--text3);margin-top:6px">※ 予約の請求明細から算出。泊数・稼働率は全予約、売上・ADRは明細に金額のある予約のみ。'
+        +(anyGap_?'<span style="color:var(--coral)">赤字の（◯/◯件）は、金額が入っていない予約がある月です。</span>':'')+'</div>'
+        +'</div>'
+      );
+    })()
     +(taxTotal>0?card('宿泊税年次集計',tbl(['月','徴収額'],taxRows,'<td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700">年計</td><td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700;text-align:right">'+fmtY(taxTotal)+'</td>')):'')
     +((mealBfTotal||mealDinTotal)?card('食事数集計',tbl(['月','朝食','夕食'],mealRows,'<td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700">年計</td><td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700;text-align:right">'+mealBfTotal+'食</td><td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700;text-align:right">'+mealDinTotal+'食</td>')):'')
     +(function(){
