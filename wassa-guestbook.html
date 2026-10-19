@@ -7395,8 +7395,19 @@ function renderMgmtStats(year){
   var revpar=avail>0?Math.round(totalRev/avail):0;
 
   // ── 宿泊人数 ──
-  var paxAdult=0,paxChild=0,paxInfant=0;
-  rsvs.forEach(function(r){paxAdult+=(parseInt(r.adults)||0);paxChild+=(parseInt(r.children)||0);paxInfant+=(parseInt(r.infants)||0);});
+  // 延べ（人泊＝人数×泊数）と 実人数（予約1件につき1回）の両方を持つ。
+  // 泊数と単位を揃えないと「延べ大人÷泊数」が意味を持たない（2026/10/19 Risa指摘）
+  var paxAdult=0,paxChild=0,paxInfant=0;          // 延べ（人泊）
+  var headAdult=0,headChild=0,headInfant=0;       // 実人数
+  rsvs.forEach(function(r){
+    var n=nights(r);
+    var a=parseInt(r.adults)||0,c=parseInt(r.children)||0,inf=parseInt(r.infants)||0;
+    paxAdult+=a*n;paxChild+=c*n;paxInfant+=inf*n;
+    headAdult+=a;headChild+=c;headInfant+=inf;
+  });
+  var paxTotalPN=paxAdult+paxChild+paxInfant;
+  var paxPerRoomNight=totalNights>0?Math.round(paxTotalPN/totalNights*100)/100:0;
+  var adultPerRoomNight=totalNights>0?Math.round(paxAdult/totalNights*100)/100:0;
 
   // ── 経路別 ──
   var srcMap={};
@@ -7408,12 +7419,20 @@ function renderMgmtStats(year){
   }).join('');
 
   // ── 月次売上・宿泊人数 ──
+  // 【重要】人数は「延べ（人泊）＝人数×泊数」で数える。
+  // 泊数(monthNights2)は泊数を掛けているのに人数は掛けていなかったため、
+  // 「延べ大人 ÷ 泊数」が1.35のような意味のない値になっていた（2026/10/19 Risa指摘）。
+  // 実人数（予約1件につき1回）も monthAdultH 等に別途持ち、画面には両方出す。
   var monthRev=new Array(12).fill(0),monthAdult=new Array(12).fill(0),monthChild=new Array(12).fill(0),monthInfant=new Array(12).fill(0),monthNights2=new Array(12).fill(0);
+  var monthAdultH=new Array(12).fill(0),monthChildH=new Array(12).fill(0),monthInfantH=new Array(12).fill(0);
   rsvs.forEach(function(r){
     var mo=parseInt((r.check_in||'').slice(5,7))-1;if(mo<0||mo>11)return;
+    var n=nights(r);
+    var a=parseInt(r.adults)||0,c=parseInt(r.children)||0,inf=parseInt(r.infants)||0;
     monthRev[mo]+=_calcRev(r,true);
-    monthAdult[mo]+=(parseInt(r.adults)||0);monthChild[mo]+=(parseInt(r.children)||0);monthInfant[mo]+=(parseInt(r.infants)||0);
-    monthNights2[mo]+=nights(r);
+    monthAdult[mo]+=a*n;monthChild[mo]+=c*n;monthInfant[mo]+=inf*n;
+    monthAdultH[mo]+=a;monthChildH[mo]+=c;monthInfantH[mo]+=inf;
+    monthNights2[mo]+=n;
   });
 
   // ── 月別部屋別室泊数 ──
@@ -7465,7 +7484,7 @@ function renderMgmtStats(year){
   var monthRows=MONTHS.map(function(mn,i){
     return '<tr><td>'+mn+'</td><td style="text-align:right">'+fmtY(monthRev[i])+'</td>'
       +'<td style="text-align:right">'+monthNights2[i]+'泊</td>'
-      +'<td style="text-align:right">'+monthAdult[i]+'名</td>'
+      +'<td style="text-align:right">'+monthAdult[i]+'</td>'
       +'<td style="text-align:right">'+(monthChild[i]||'-')+'</td>'
       +'<td style="text-align:right">'+(monthInfant[i]||'-')+'</td>'
       +'</tr>';
@@ -7513,17 +7532,23 @@ function renderMgmtStats(year){
       +'</table>';
   }
   var kpiHtml='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">'
-    +[['稼働率（全体）',occ+'%'],['ADR',fmtY(adr)],['RevPAR',fmtY(revpar)],['総宿泊泊数',totalNights+'泊'],['延べ大人',paxAdult+'名'],['延べ子供',paxChild+'名'],['延べ幼児',paxInfant+'名']].map(function(kv){
+    +[['稼働率（全体）',occ+'%'],['ADR',fmtY(adr)],['RevPAR',fmtY(revpar)],['総宿泊泊数',totalNights+'泊'],
+      ['1室1泊あたり人数',paxPerRoomNight+'名'],
+      ['延べ大人',paxAdult+'人泊'],['延べ子供',paxChild+'人泊'],['延べ幼児',paxInfant+'人泊']].map(function(kv){
       return'<div style="background:var(--sand);border-radius:8px;padding:10px 12px"><div style="font-size:10px;color:var(--text3);margin-bottom:4px">'+kv[0]+'</div><div style="font-size:18px;font-weight:700;color:var(--ocean)">'+kv[1]+'</div></div>';
     }).join('')
     +'</div>'
     +'<div style="margin-top:8px;font-size:11px;color:var(--text3)">室別稼働率：'
-    +ROOMS.map(function(rm){return rm+' '+roomOcc[rm]+'%';}).join('　')+'</div>';
+    +ROOMS.map(function(rm){return rm+' '+roomOcc[rm]+'%';}).join('　')+'</div>'
+    +'<div style="margin-top:6px;font-size:11px;color:var(--text3)">'
+    +'※「延べ」は人泊（人数×泊数）。泊数と単位が揃うので「延べ÷泊数」で1室1泊あたりの人数が出ます。<br>'
+    +'実人数（予約1件につき1回の人数）は 大人'+headAdult+'名・子供'+headChild+'名・幼児'+headInfant+'名'
+    +'（予約'+rsvs.length+'件）。1室1泊あたり大人は'+adultPerRoomNight+'名。</div>';
 
   el.innerHTML='<div style="margin-bottom:10px;text-align:right"><button class="btn btn-secondary btn-sm" onclick="printMgmtStats('+year+')">印刷</button></div>'
     +card('稼働・収益 — '+year+'年',kpiHtml)
     +card('経路別売上',tbl(['経路','売上','比率'],srcRows,'<td colspan="2" style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700">合計</td><td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700;text-align:right">'+fmtY(srcTotal)+'</td>'))
-    +card('月次売上・宿泊者数',tbl(['月','売上','泊数','大人','子供','幼児'],monthRows,'<td colspan="2" style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700">年計 '+fmtY(totalRev)+'</td><td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700;text-align:right">'+totalNights+'泊</td><td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700;text-align:right">'+paxAdult+'</td><td style="padding:6px 8px;border-top:2px solid var(--ocean);text-align:right">'+paxChild+'</td><td style="padding:6px 8px;border-top:2px solid var(--ocean);text-align:right">'+paxInfant+'</td>'))
+    +card('月次売上・宿泊者数',tbl(['月','売上','泊数','大人(人泊)','子供(人泊)','幼児(人泊)'],monthRows,'<td colspan="2" style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700">年計 '+fmtY(totalRev)+'</td><td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700;text-align:right">'+totalNights+'泊</td><td style="padding:6px 8px;border-top:2px solid var(--ocean);font-weight:700;text-align:right">'+paxAdult+'</td><td style="padding:6px 8px;border-top:2px solid var(--ocean);text-align:right">'+paxChild+'</td><td style="padding:6px 8px;border-top:2px solid var(--ocean);text-align:right">'+paxInfant+'</td>'))
     +(function(){
       // ── 月別・部屋別 詳細集計（AirレジCSV + 予約データ） ──
       var mrYrStr_=String(year);
