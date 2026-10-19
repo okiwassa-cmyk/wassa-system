@@ -7385,14 +7385,26 @@ function renderMgmtStats(year){
     var rm=normRoom_(r.room_type);
     if(roomNights[rm]!==undefined)roomNights[rm]+=n;else roomNights.other+=n;
   });
+  // 稼働率の分母は暦日（365/366日）×3室。定休日は差し引かない（Risa確定 2026/10/19）。
+  // 定休日でも貸切等で売っている夜があるため、営業日ベースにはしない。
   var avail=daysInYear*ROOM_COUNT;
   var occ=avail>0?Math.round(totalNights/avail*1000)/10:0;
   var roomOcc={};ROOMS.forEach(function(rm){roomOcc[rm]=Math.round((roomNights[rm]||0)/daysInYear*1000)/10;});
 
   // ── 売上・ADR・RevPAR ──
-  var totalRev=rsvs.reduce(function(s,r){return s+_calcRev(r,true);},0);
-  var adr=totalNights>0?Math.round(totalRev/totalNights):0;
+  // 【重要】ADRの分母は「金額が入っている予約の泊数」だけにする。
+  // 全泊数で割ると、金額が無い予約（古い予約・明細未入力）の泊数まで分母に残り、
+  // ADRが薄まる。薄まり方が年ごとに違うため年次比較が壊れていた
+  // （2024〜25は泊数の約半分が金額ゼロでADRが半分に出ていた。2026/10/19 Risa指摘）。
+  var totalRev=0,nightsWithAmt=0,rsvsWithAmt=0;
+  rsvs.forEach(function(r){
+    var v=_calcRev(r,true);
+    totalRev+=v;
+    if(v>0){nightsWithAmt+=nights(r);rsvsWithAmt++;}
+  });
+  var adr=nightsWithAmt>0?Math.round(totalRev/nightsWithAmt):0;
   var revpar=avail>0?Math.round(totalRev/avail):0;
+  var noAmtNights=totalNights-nightsWithAmt;
 
   // ── 宿泊人数 ──
   // 延べ（人泊＝人数×泊数）と 実人数（予約1件につき1回）の両方を持つ。
@@ -7541,6 +7553,10 @@ function renderMgmtStats(year){
     +'<div style="margin-top:8px;font-size:11px;color:var(--text3)">室別稼働率：'
     +ROOMS.map(function(rm){return rm+' '+roomOcc[rm]+'%';}).join('　')+'</div>'
     +'<div style="margin-top:6px;font-size:11px;color:var(--text3)">'
+    +'※ADR＝1部屋1泊あたりの平均単価（売上÷売れた室泊数）。RevPAR＝売上÷全室泊＝1室1泊あたりの実収入。<br>'
+    +'※ADRの分母は<b>金額が入っている予約の泊数'+nightsWithAmt+'泊</b>（'+rsvsWithAmt+'件）。'
+    +(noAmtNights>0?'<span style="color:#c0392b">金額が未入力の'+noAmtNights+'泊（'+(rsvs.length-rsvsWithAmt)+'件）は分母から除いています。</span>':'')+'<br>'
+    +'※稼働率・RevPARの分母は暦日'+daysInYear+'日×3室＝'+avail+'室泊（定休日も含む）。<br>'
     +'※「延べ」は人泊（人数×泊数）。泊数と単位が揃うので「延べ÷泊数」で1室1泊あたりの人数が出ます。<br>'
     +'実人数（予約1件につき1回の人数）は 大人'+headAdult+'名・子供'+headChild+'名・幼児'+headInfant+'名'
     +'（予約'+rsvs.length+'件）。1室1泊あたり大人は'+adultPerRoomNight+'名。</div>';
