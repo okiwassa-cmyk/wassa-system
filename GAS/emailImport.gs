@@ -69,12 +69,11 @@ function processReservationEmails() {
                 msg.markRead(); continue;
               }
               var body = msg.getPlainBody();
-              if (isCancelEmail(subject, body)) {
-                var _xProps = PropertiesService.getScriptProperties();
-                var _xKey = 'cxl_' + msg.getId();
-                if (!_xProps.getProperty(_xKey)) { processCancelEmail(subject, body); _xProps.setProperty(_xKey, '1'); }
-                msg.markRead(); continue;
-              }
+              // キャンセルメールはここでは処理しない。
+              // 新規予約より先にキャンセルを処理してしまうと、まだ取り込まれていない
+              // 予約に対してキャンセルをかけることになり、0件のまま素通りしてしまう
+              // （2026/09/23 木戸様の件）。後段のキャンセルループにまとめて任せる。
+              if (isCancelEmail(subject, body)) { continue; }
               var src = detectSource(subject, body);
               if (src) {
                 // 予約変更メール → 既存予約を上書き（重複スキップより前に処理）
@@ -105,18 +104,7 @@ function processReservationEmails() {
                 if (_dup === null) { Logger.log('重複確認失敗のため今回は保留（次回リトライ）: ' + data.guest_name); continue; } // 既読にせず次回再取込
                 if (_dup) { msg.markRead(); continue; }
                 // 公式HPで部屋数>=2 → 室ごとに分割保存（貸切）。処理できたら通常保存はスキップ
-                var _handledMulti = false;
-                if (data.check_in && data.check_out) {
-                  _handledMulti = importBuyoutRooms(data);
-                  if (!_handledMulti) {
-                    if (data.room_type && data.room_type.indexOf('デラックス') !== -1) {
-                      data.room_type = 'デラックスツイン';
-                    } else {
-                      var _calId = getAvailableCalId(data.check_in, data.check_out);
-                      data.room_type = (_calId === CONFIG.CAL1) ? 'スーペリアツイン01' : 'スーペリアツイン02';
-                    }
-                  }
-                }
+                var _handledMulti = assignRoom_(data);
                 if (_handledMulti) { msg.markRead(); continue; }
                 saveToSupabase(data);
                 // addToCalendar(data); // カレンダー連携を停止
@@ -158,7 +146,14 @@ function processReservationEmails() {
               }
               var _xProps2 = PropertiesService.getScriptProperties();
               var _xKey2 = 'cxl_' + cMsgs[j2].getId();
-              if (!_xProps2.getProperty(_xKey2)) { processCancelEmail(_cSubj, cMsgs[j2].getPlainBody()); _xProps2.setProperty(_xKey2, '1'); }
+              if (!_xProps2.getProperty(_xKey2)) {
+                // 予約が見つからなかった場合は処理済みにしない（次回リトライ）
+                if (processCancelEmail(_cSubj, cMsgs[j2].getPlainBody()) !== false) {
+                  _xProps2.setProperty(_xKey2, '1');
+                  cMsgs[j2].markRead();
+                }
+                continue;
+              }
               cMsgs[j2].markRead();
             } catch(e) { Logger.log('キャンセルメッセージエラー [' + cancelQueries[q2] + ']: ' + e); }
           }
@@ -197,18 +192,7 @@ function importPastEmails() {
         if (_dupP === null) { skipped++; Logger.log('重複確認失敗のためスキップ: ' + data.guest_name); continue; }
         if (_dupP) { skipped++; continue; }
         Logger.log('IMPORT: ' + data.guest_name + ' CI:' + data.check_in);
-        var _handledMulti2 = false;
-        if (data.check_in && data.check_out) {
-          _handledMulti2 = importBuyoutRooms(data);
-          if (!_handledMulti2) {
-            if (data.room_type && data.room_type.indexOf('デラックス') !== -1) {
-              data.room_type = 'デラックスツイン';
-            } else {
-              var _calId2 = getAvailableCalId(data.check_in, data.check_out);
-              data.room_type = (_calId2 === CONFIG.CAL1) ? 'スーペリアツイン01' : 'スーペリアツイン02';
-            }
-          }
-        }
+        var _handledMulti2 = assignRoom_(data);
         if (!_handledMulti2) saveToSupabase(data);
         // addToCalendar(data); // カレンダー連携を停止
         imported++;
@@ -247,6 +231,7 @@ function isCancelEmail(subject, body) {
          body.indexOf('予約キャンセル') !== -1;
 }
 
+// 戻り値：true=キャンセルできた／false=対象の予約が見つからなかった（次回リトライ）
 function processCancelEmail(subject, body) {
   var reservationNo = ex(body, '予約番号[\\s\\u3000]*[：:]+[\\s\\u3000]*([^\\n\\s\\u3000]+)');
   if (!reservationNo) reservationNo = ex(body, '予約番号[\\s\\u3000]*：?[\\s\\u3000]*([A-Za-z0-9][A-Za-z0-9\\-]+)');
@@ -254,18 +239,23 @@ function processCancelEmail(subject, body) {
   if (!reservationNo) reservationNo = ex(body, '予約[Nn][Oo][.．]?[\\s\\u3000]*([A-Za-z0-9][A-Za-z0-9\\-]+)');
   if (!reservationNo) reservationNo = ex(body, 'Booking(?:\\.com)? [Nn]umber[:\\s]+([0-9]+)');
   if (!reservationNo) reservationNo = ex(body, 'Reservation [Ii][Dd][:\\s]+([0-9]+)');
-  if (!reservationNo) { Logger.log('cancel: 予約番号を抽出できませんでした subject=' + subject); return; }
+  if (!reservationNo) { Logger.log('cancel: 予約番号を抽出できませんでした subject=' + subject); return false; }
   Logger.log('キャンセル処理: ' + reservationNo);
   try {
     var _selHdr = {'apikey':CONFIG.SUPABASE_KEY,'Authorization':'Bearer '+CONFIG.SUPABASE_KEY};
     var _patchHdr = {'Content-Type':'application/json','apikey':CONFIG.SUPABASE_KEY,'Authorization':'Bearer '+CONFIG.SUPABASE_KEY,'Prefer':'return=minimal'};
     // 貸切（複数室）予約なら同じgroup_idの兄弟室も一緒にキャンセルするため、先にgroup_idを取得
     var _gid = null;
+    var _found = false;
     try {
       var _gr = UrlFetchApp.fetch(CONFIG.SUPABASE_URL + '/rest/v1/reservations?reservation_no=eq.' + encodeURIComponent(reservationNo) + '&select=group_id', {headers:_selHdr, muteHttpExceptions:true});
       var _grows = JSON.parse(_gr.getContentText());
+      _found = _grows.length > 0;
       if (_grows.length && _grows[0].group_id) _gid = _grows[0].group_id;
     } catch(ge) {}
+    // 対象がまだ取り込まれていない＝キャンセルが先に届いた場合。
+    // 既読・処理済みにせず次回にまわす（次回は新規予約が先に取り込まれている）
+    if (!_found) { Logger.log('cancel: 対象の予約がまだ無いので次回にまわす: ' + reservationNo); return false; }
     UrlFetchApp.fetch(CONFIG.SUPABASE_URL + '/rest/v1/reservations?reservation_no=eq.' + encodeURIComponent(reservationNo), {
       method:'PATCH', headers:_patchHdr, payload: JSON.stringify({status:'cancelled'})
     });
@@ -276,8 +266,9 @@ function processCancelEmail(subject, body) {
       Logger.log('貸切連動キャンセル: group_id=' + _gid);
     }
     Logger.log('キャンセル完了: ' + reservationNo);
-  } catch(e) { Logger.log('cancel error: ' + e + ' / ' + reservationNo); }
+  } catch(e) { Logger.log('cancel error: ' + e + ' / ' + reservationNo); return false; }
   try { deleteCalendarEvent(reservationNo); } catch(e) { Logger.log('calendar delete error: ' + e); }
+  return true;
 }
 
 function deleteCalendarEvent(reservationNo) {
@@ -350,7 +341,17 @@ function toInt(v) { return v ? parseInt(v.toString().replace(/[,\.円\\¥]/g,'')
 // 顧客検索・新規作成
 // ============================================================
 // custExtra: {seiKana, meiKana, zip, pref, city, address, email}
+// JALじゃらんパック等は電話・郵便番号を 0000000000 / 000-0000 で伏せて送ってくる。
+// これを本物として扱うと、次のお客様が「同じ電話番号」で同一人物と判定され、
+// 別人の予約がどんどん1人の顧客に吸い込まれる。
+function _isDummyValue_(v) {
+  var d = String(v || '').replace(/[^0-9]/g, '');
+  return d === '' || /^0+$/.test(d);
+}
+
 function findOrCreateCustomerGAS(guestName, phone, email, custExtra) {
+  if (_isDummyValue_(phone)) phone = '';   // ダミー電話は無いものとして扱う
+
   var h = {
     'apikey': CONFIG.SUPABASE_KEY,
     'Authorization': 'Bearer ' + CONFIG.SUPABASE_KEY
@@ -362,6 +363,7 @@ function findOrCreateCustomerGAS(guestName, phone, email, custExtra) {
   var mei = parts.slice(1).join(' ') || '';
 
   var ce = custExtra || {};
+  if (_isDummyValue_(ce.zip)) ce.zip = '';   // 〒000-0000 のようなダミーは入れない
   var patchH = {'Content-Type':'application/json','apikey':CONFIG.SUPABASE_KEY,'Authorization':'Bearer '+CONFIG.SUPABASE_KEY,'Prefer':'return=minimal'};
 
   // 既存顧客に不足フィールドをパッチする内部ヘルパー
@@ -924,12 +926,18 @@ function parseEmail(src, body) {
       else if (/朝あり/.test(_jlMeal)) d.meal = 'bf';
       else d.meal = 'none';
       var _jlAd = 0;
-      var _jlRoomPat = /[0-9]+部屋目[\s\u3000]*[：:][\s\u3000]*大人[：:]([0-9]+)名/g, _jlRm;
+      // 「１部屋目」は全角数字で来る。半角だけ見ていて2室目の人数が落ちていた（2026/10 西表様）
+      var _jlRoomPat = /[0-9０-９]+部屋目[\s\u3000]*[：:][\s\u3000]*大人[：:]([0-9]+)名/g, _jlRm;
       while ((_jlRm = _jlRoomPat.exec(body)) !== null) _jlAd += parseInt(_jlRm[1]);
       d.adults = _jlAd || parseInt(ex(body,'大人[：:]([0-9]+)名'))||0;
       d.children = parseInt(ex(body,'子供[：:]([0-9]+)名'))||0;
       d.infants  = parseInt(ex(body,'幼児[：:]([0-9]+)名'))||0;
-      var _jlAddr = ex(body, '住所[\\s\\u3000]*[：:][\\s\\u3000]*([^\\n]+)');
+      var _jlAddr = ex(body, '住所[ \\t\\u3000]*[：:][ \\t\\u3000]*([^\\n]+)');
+      // 海外OTA(Ctrip/Agoda等)経由は住所欄にじゃらんの定型注意書きが丸ごと入る。
+      // 住所ではないので捨てる。残すと管理画面で「同じ住所の顧客」が全員一致してしまう
+      // （2026/10 Criscuolo様・角田様・YAN様が互いに一致していた）
+      if (/予約形態|ＡＧＴ|AGTコート|AGTコード/.test(_jlAddr)) _jlAddr = '';
+      if (/^〒?\s*0{3}-?0{4}\s*$/.test(_jlAddr)) _jlAddr = '';
       if (_jlAddr) {
         var _jlZip = _jlAddr.match(/〒([0-9]{3}-?[0-9]{4})/);
         d.zip = _jlZip ? _jlZip[1].replace(/-/,'') : '';
@@ -946,17 +954,30 @@ function parseEmail(src, body) {
       d.total_amount = toInt(ex(body, '合計[：:]([0-9,]+)円'));
       var _jlQSec = body.match(/■予約者に対する質問[：:]([\s\S]*?)(?=■|$)/);
       var _jlASec = body.match(/■予約者からの回答[：:]([\s\S]*?)(?=■|$)/);
+      var _jlNotes = [];
       if (_jlQSec && _jlASec) {
         var _jlQLines = _jlQSec[1].replace(/\r/g,'').split('\n').map(function(s){return s.trim();}).filter(function(s){return /^[・･]/.test(s);});
         var _jlALines = _jlASec[1].replace(/\r/g,'').trim().split('\n').map(function(s){return s.trim();}).filter(Boolean);
-        var _jlNotes = [];
-        for (var _jlI=0; _jlI<_jlQLines.length; _jlI++) {
-          var _jlQ = _jlQLines[_jlI].replace(/^[・･]/,'').trim();
-          var _jlA = _jlALines[_jlI]||'';
-          if (_jlQ && _jlA) _jlNotes.push(_jlQ+'：'+_jlA);
+        if (_jlQLines.length === _jlALines.length) {
+          // 行数が一致 → 位置でペアリング
+          for (var _jlI=0; _jlI<_jlQLines.length; _jlI++) {
+            var _jlQ = _jlQLines[_jlI].replace(/^[・･]/,'').trim();
+            var _jlA = _jlALines[_jlI]||'';
+            if (_jlQ && _jlA) _jlNotes.push(_jlQ+'：'+_jlA);
+          }
+        } else if (_jlALines.length) {
+          // 行数が合わない＝回答の順番が質問とずれている。位置でペアにすると
+          // 「アレルギー…：車」のような間違った組み合わせになる（2026/10 西表様）。回答をそのまま残す
+          _jlNotes.push('予約者からの回答：\n' + _jlALines.join('\n'));
         }
-        if (_jlNotes.length>0) d.notes = _jlNotes.join('\n');
       }
+      // 宿への要望（全文転記）
+      var _jlReqM2 = body.match(/■予約者から宿への要望([\s\S]*?)(?=\n■|\n━━|$)/);
+      if (_jlReqM2) {
+        var _jlReq2 = _jlReqM2[1].replace(/（必要があれば[^\n]*）[：:]?/g,'').replace(/\r/g,'').split('\n').map(function(l){return l.trim();}).filter(function(l){return l;}).join('\n');
+        if (_jlReq2) _jlNotes.push('要望：'+_jlReq2);
+      }
+      if (_jlNotes.length>0) d.notes = _jlNotes.join('\n');
       d.source = 'じゃらん'; // じゃらんnetは公式HPではなくじゃらん扱い
       return d;
     }
@@ -1108,6 +1129,8 @@ function parseEmail(src, body) {
     d.infants  = 0;
     d.total_amount = ex(body, '合計金額.税込.[^\\n]*([0-9,]+)円');
     d.payment      = ex(body, '決済方法[\\s\\u3000]*[： :][\\s\\u3000]*([^\\n]+)');
+    // 公式HPは「オンライン決済：58,000円 / 現地支払金額：0円」の形で金額を書いてくる
+    d.paid_amount  = toInt(ex(body, 'オンライン決済[\\s\\u3000]*[：:][\\s\\u3000]*([0-9,]+)')) || 0;
     // 質問・回答 → 特記事項（notes）に転記（質問N/回答Nを個別抽出してペアリング）
     var _qMap = {}, _aMap = {};
     var _qPat2 = /質問(\d+)[\s　]*[：:][ \t]*([^\r\n]+)/g, _qM2;
@@ -1225,7 +1248,8 @@ function normalizePayment(raw) {
   if (!raw) return '';
   var s = String(raw).replace(/[\s　]/g, '');
   if (/現地|現金払い|現金/.test(s)) return '現地清算';
-  if (/事前払い|事前決済|クレジット|カード|OTA/.test(s)) return '事前決済';
+  // 「オンライン決済」は公式HP(リバティー)の書き方。これを漏らすと前払い額が0のままになる
+  if (/事前払い|事前決済|オンライン|クレジット|カード|OTA/.test(s)) return '事前決済';
   if (/振込/.test(s)) return '振込済み';
   return '';
 }
@@ -1336,8 +1360,22 @@ function saveToSupabase(data) {
 // 変更メール検知：新規でもキャンセルでもない「変更」通知のみ true
 function isUpdateEmail(subject, body) {
   var s = (subject || '') + '\n' + (body || '');
+  // 【重要】判定はメール冒頭の「通知の種類」部分だけで行う。
+  // じゃらんの定型フッター（サポートデスク宛の依頼書フォーム）には
+  //   「部屋数追加の場合には『追加分の新規予約』を…」
+  //   「キャンセル、予約内容変更をサポートデスクにて承る場合」
+  // の両方が必ず入っていて、新規通知と変更通知の本文末尾がまったく同じになる。
+  // 本文全体で見ると "新規予約" に引っかかって変更通知が常に false になり、
+  // じゃらんの変更が一切反映されていなかった（2026/10/15 木戸様・ポイント1000→5000）。
+  var _cut = s.search(/キャンセル、予約内容変更をサポートデスク|変更内容入力フォーム|サポートデスク\(年中無休/);
+  if (_cut > 0) s = s.slice(0, _cut);
+  // 新規通知の末尾にも「NoShow、キャンセル、予約内容変更が発生した場合は…」のような
+  // 案内文が入っている。これを変更メールと誤判定すると、新規予約が変更処理に流れ
+  // 「既存予約なし→新規取込」の道に入り、部屋の割り当てやLINE通知を飛ばしてしまう
+  // （2026/10/04 Criscuolo様の件）。"〜が発生した場合" を含む行は判定から除く。
+  s = s.split('\n').filter(function(line){ return line.indexOf('発生した場合') === -1; }).join('\n');
   if (/新規予約/.test(s)) return false;
-  return /ご予約変更|予約変更の通知|予約者の手続きにより変更され|予約内容(?:が)?変更|変更されました/.test(s);
+  return /ご予約変更|予約変更の通知|変更通知|予約が変更になって|予約者の手続きにより変更され|予約内容(?:が)?変更|変更されました/.test(s);
 }
 
 // 明細から人数内訳を集計（日付ごとに集計し最大の泊を実人数とする＝泊数倍を防ぐ）
@@ -1376,15 +1414,23 @@ function processUpdateEmail(src, body) {
 
     var getUrl = CONFIG.SUPABASE_URL + '/rest/v1/reservations?reservation_no=eq.' +
       encodeURIComponent(data.reservation_no) +
-      '&select=id,room_type,adults,children,infants,total_amount,notes';
+      '&select=id,room_type,adults,children,infants,total_amount,notes,group_id';
     var gr = UrlFetchApp.fetch(getUrl, {headers:{'apikey':CONFIG.SUPABASE_KEY,'Authorization':'Bearer '+CONFIG.SUPABASE_KEY}});
     var existing = JSON.parse(gr.getContentText());
     if (!existing || existing.length === 0) {
+      // 元の予約が無い＝新規として取り込む。ここでも部屋の割り当てが要る
+      // （2026/10/04 Criscuolo様：じゃらんの部屋名のまま未割当で入っていた）
       Logger.log('変更: 既存予約なし → 新規取込 ' + data.reservation_no);
-      saveToSupabase(data);
+      if (!assignRoom_(data)) saveToSupabase(data);
       return;
     }
     var cur = existing[0];
+    var _mRooms = cur.group_id ? parseMultiRooms_(data) : null;
+    if (_mRooms) {
+      data._roomDays    = _mRooms[0].days;
+      data.adults       = _mRooms[0].adults;
+      data.total_amount = String(_mRooms[0].total);
+    }
 
     // 部屋タイプ：WASSA現在とメールが食い違う＝手動アップグレード等の特例 → 部屋・メモ維持
     var mailIsDx = /デラックス|DX/i.test(data.room_type || '');
@@ -1415,8 +1461,9 @@ function processUpdateEmail(src, body) {
       plan_name:     data.plan_name,
       billing:       _billingPayload
     };
-    if (!keepRoom) {            // 部屋が同じ → 部屋・メモも更新
-      patch.room_type = data.room_type;
+    if (!keepRoom) {            // 部屋が同じ → メモも更新
+      // room_type は上書きしない。メールの部屋名はOTAの名前（例「オーシャンフロント／スーペリアツイン」）で、
+      // 割り当て済みの 01/02 が消えてしまう（2026/10/15 木戸様の変更通知で発生）
       patch.notes     = data.notes || cur.notes || '';
     }                          // 特例 → room_type / notes はpatchに含めず維持
 
@@ -1442,6 +1489,54 @@ function processUpdateEmail(src, body) {
         (keepRoom ? '\n※部屋は手動設定を維持（' + cur.room_type + '）。人数・料金のみ更新しました' : '');
       sendLineGroupMessage_(msg);
     } catch(le) { Logger.log('変更LINE通知エラー: ' + le); }
+
+    // ── 貸切（複数室）で部屋数が減った場合、余った部屋をキャンセルする ──
+    // 予約番号は代表室しか持たないため、ここを見ないと2室目が取り残される
+    // （2026/09/26 倉井様：2部屋→1部屋に変更されたのに01室が残った）
+    try {
+      if (cur.group_id) {
+        var _rcM = body.match(/部屋数[\s\u3000]*[：:][\s\u3000]*(\d+)/);
+        var _newRoomCount = _rcM ? parseInt(_rcM[1], 10) : null;
+        if (_newRoomCount) {
+          var _gUrl = CONFIG.SUPABASE_URL + '/rest/v1/reservations?group_id=eq.' +
+            encodeURIComponent(cur.group_id) + '&status=neq.cancelled&select=id&order=id.asc';
+          var _gRes = UrlFetchApp.fetch(_gUrl, {headers:{'apikey':CONFIG.SUPABASE_KEY,'Authorization':'Bearer '+CONFIG.SUPABASE_KEY}});
+          var _gRows = JSON.parse(_gRes.getContentText());
+          if (_gRows.length > _newRoomCount) {
+            // 代表室（予約番号を持つ cur）は必ず残し、それ以外の余りを新しい順にキャンセル
+            var _keep = {}; _keep[cur.id] = true;
+            var _kept = 1;
+            for (var _i = 0; _i < _gRows.length && _kept < _newRoomCount; _i++) {
+              if (!_keep[_gRows[_i].id]) { _keep[_gRows[_i].id] = true; _kept++; }
+            }
+            for (var _j = 0; _j < _gRows.length; _j++) {
+              var _rid = _gRows[_j].id;
+              if (_keep[_rid]) continue;
+              UrlFetchApp.fetch(CONFIG.SUPABASE_URL + '/rest/v1/reservations?id=eq.' + _rid, {
+                method:'PATCH',
+                headers:{'Content-Type':'application/json; charset=utf-8','apikey':CONFIG.SUPABASE_KEY,'Authorization':'Bearer '+CONFIG.SUPABASE_KEY,'Prefer':'return=minimal'},
+                payload: JSON.stringify({status:'cancelled'})
+              });
+              Logger.log('貸切の部屋数減：余った部屋をキャンセル id=' + _rid);
+            }
+            try {
+              sendLineGroupMessage_('🔁【予約変更・部屋数減】' + data.guest_name + '\n' +
+                'チェックイン: ' + data.check_in + '\n' +
+                _gRows.length + '室 → ' + _newRoomCount + '室。余った部屋をキャンセルしました');
+            } catch(le2) {}
+          } else if (_gRows.length < _newRoomCount) {
+            Logger.log('警告: 部屋数が増える変更（' + _gRows.length + '→' + _newRoomCount + '）。手動で追加してください');
+            try {
+              GmailApp.sendEmail('wassa@wassa-okinawa.com',
+                '【要確認】貸切の部屋数が増えました: ' + data.guest_name + ' 様',
+                'チェックイン: ' + data.check_in + '\n' +
+                '現在 ' + _gRows.length + '室 → メールは ' + _newRoomCount + '室。\n' +
+                '自動では追加できないため、手動で部屋を足してください。');
+            } catch(me2) {}
+          }
+        }
+      }
+    } catch(be) { Logger.log('貸切部屋数の調整エラー: ' + be); }
 
     Logger.log('変更反映OK: ' + data.guest_name + ' id=' + cur.id + ' keepRoom=' + keepRoom);
   } catch(e) {
@@ -1615,6 +1710,11 @@ function parseLibertyRooms(body) {
       roomsMap[no].days.push({date: date, items: items});
     }
   }
+  return _summarizeRooms_(roomsMap);
+}
+
+// 室ごとの {days} から人数（1泊あたりの最大）と合計金額を出す
+function _summarizeRooms_(roomsMap) {
   var rooms = Object.keys(roomsMap).sort(function(a,b){return parseInt(a)-parseInt(b);}).map(function(k){return roomsMap[k];});
   rooms.forEach(function(r){
     var maxAd=0, maxCh=0, maxInf=0, total=0;
@@ -1633,6 +1733,65 @@ function parseLibertyRooms(body) {
   return rooms;
 }
 
+function _toHalfNum_(s) {
+  return String(s || '').replace(/[０-９]/g, function(c){ return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); });
+}
+
+// じゃらん：1室ブロックから宿泊明細(items)を抽出（parseDailyDetail のじゃらんと同じ項目パターン）
+function _parseJalanItems(blk) {
+  var items = [];
+  var am = blk.match(/([\d,]+)円（大人[^）]*）\s*[×x×Ｘ]\s*(\d+)名/);
+  if (am) items.push({item:'大人宿泊料金', qty:parseInt(am[2]), price:toInt(am[1])});
+  var cm = blk.match(/([\d,]+)円（小学生）\s*[×x×Ｘ]\s*(\d+)名/);
+  if (cm) items.push({item:'小学生宿泊料金', qty:parseInt(cm[2]), price:toInt(cm[1])});
+  [
+    {p:/([\d,]+)円（幼児・食事布団付）\s*[×x×Ｘ]\s*(\d+)名/,   it:'幼児（食事有・布団有）'},
+    {p:/([\d,]+)円（幼児・食事のみ）\s*[×x×Ｘ]\s*(\d+)名/,     it:'幼児（食事有・布団無）'},
+    {p:/([\d,]+)円（幼児・布団のみ）\s*[×x×Ｘ]\s*(\d+)名/,     it:'幼児（食事無・布団有）'},
+    {p:/([\d,]+)円（幼児・食事布団なし）\s*[×x×Ｘ]\s*(\d+)名/, it:'幼児（食事無・布団無）'}
+  ].forEach(function(d){ var m=blk.match(d.p); if(m) items.push({item:d.it, qty:parseInt(m[2]), price:toInt(m[1])}); });
+  return items;
+}
+
+// じゃらんの料金詳細は「N泊目［日付］」の中に「N部屋目」で室ごとの内訳が並ぶ。
+// 従来は先頭室しか拾えず、2室予約が1室分だけ入っていた（2027/03/06 西表様）
+function parseJalanRooms(body) {
+  var roomsMap = {};
+  var nightRe = /\d+泊目［[^］]*?(\d{4}年\d{1,2}月\d{1,2}日)[^］]*］/g, nm, nights = [];
+  while ((nm = nightRe.exec(body)) !== null) nights.push({date: toYMD(nm[1]), at: nm.index, start: nightRe.lastIndex});
+  for (var ni = 0; ni < nights.length; ni++) {
+    var date = nights[ni].date; if (!date) continue;
+    var seg = body.slice(nights[ni].start, (ni+1 < nights.length) ? nights[ni+1].at : body.length);
+    var endPos = seg.search(/小計[：:]|\n-{10,}|\n■/); // 料金詳細の終端で切る
+    var nightBlk = endPos >= 0 ? seg.slice(0, endPos) : seg;
+    var roomRe = /([0-9０-９]+)\s*部屋目/g, rm, marks = [];
+    while ((rm = roomRe.exec(nightBlk)) !== null) marks.push({no: parseInt(_toHalfNum_(rm[1])), at: rm.index, start: roomRe.lastIndex});
+    if (marks.length === 0) marks.push({no: 1, at: 0, start: 0}); // 1室だけの時は「部屋目」が無いことがある
+    for (var ri = 0; ri < marks.length; ri++) {
+      var rEnd = (ri+1 < marks.length) ? marks[ri+1].at : nightBlk.length;
+      var items = _parseJalanItems(nightBlk.slice(marks[ri].start, rEnd));
+      if (items.length === 0) continue;
+      var no = marks[ri].no;
+      if (!roomsMap[no]) roomsMap[no] = {days:[], adults:0, children:0, infants:0, total:0};
+      roomsMap[no].days.push({date: date, items: items});
+    }
+  }
+  return _summarizeRooms_(roomsMap);
+}
+
+// 複数室の予約なら室ごとの内訳を返す（対応: 公式HP liberty・じゃらん）。1室なら null
+function parseMultiRooms_(data) {
+  var body = data._body || '';
+  var rooms = null;
+  if (data.source === '公式HP' && body.indexOf('公式HP予約システム】より予約情報の通知です') !== -1) rooms = parseLibertyRooms(body);
+  else if (data.source === 'じゃらん') rooms = parseJalanRooms(body);
+  if (!rooms) return null;
+  var rcM = _toHalfNum_(body).match(/部屋数[\s\u3000]*[：:][\s\u3000]*(\d+)/);
+  var roomCount = rcM ? parseInt(rcM[1]) : 1;
+  if (roomCount < 2 || rooms.length < 2) return null;
+  return rooms;
+}
+
 // 期間が重なる予約から占有スロット(S01/S02/DX)を集める
 function _occupiedSlots(checkIn, checkOut) {
   var occ = {};
@@ -1645,24 +1804,38 @@ function _occupiedSlots(checkIn, checkOut) {
 }
 
 // 公式HPで部屋数>=2なら室ごとに分割保存。処理したらtrue（呼び出し側は通常保存をスキップ）。
-function importBuyoutRooms(data) {
-  if (data.source !== '公式HP') return false;
-  var body = data._body || '';
-  if (body.indexOf('公式HP予約システム】より予約情報の通知です') === -1) return false;
-  var rcM = body.match(/部屋数[\s\u3000]*[：:][\s\u3000]*(\d+)/);
-  var roomCount = rcM ? parseInt(rcM[1]) : 1;
-  if (roomCount < 2) return false;
-  var rooms = parseLibertyRooms(body);
-  if (rooms.length < 2) return false;
+// OTAの部屋名（例「オーシャンフロント／スーペリアツイン」）を、
+// WASSAの部屋（スーペリアツイン01/02・デラックスツイン）に割り当てる。
+// 3か所で同じことをしていて1か所だけ漏れていたため共通化した（2026/10/04 Criscuolo様の件）。
+// 戻り値 true = 貸切として複数室に分割保存済み（呼び出し元は保存しないこと）
+function assignRoom_(data) {
+  if (!data.check_in || !data.check_out) return false;
+  if (importBuyoutRooms(data)) return true;
+  if (data.room_type && data.room_type.indexOf('デラックス') !== -1) {
+    data.room_type = 'デラックスツイン';
+  } else {
+    var _cal = getAvailableCalId(data.check_in, data.check_out);
+    data.room_type = (_cal === CONFIG.CAL1) ? 'スーペリアツイン01' : 'スーペリアツイン02';
+  }
+  return false;
+}
 
-  var gid = 'buyout-' + (new Date().getTime()) + '-' + Math.random().toString(36).slice(2,6);
+function importBuyoutRooms(data) {
+  var rooms = parseMultiRooms_(data);
+  if (!rooms) return false;
+  var roomCount = rooms.length;
+  // 公式HPの複数室＝貸切。じゃらんはスーペリア複数室（貸切ではない）なのでDXには入れない
+  var isBuyout = (data.source === '公式HP');
+  var isDxType = /デラックス/.test(data.room_type || '');
+
+  var gid = (isBuyout ? 'buyout-' : 'multi-') + (new Date().getTime()) + '-' + Math.random().toString(36).slice(2,6);
   var occ = _occupiedSlots(data.check_in, data.check_out);
-  var order = ['S02','S01','DX'];
-  var labels = [];
+  var order = (isBuyout || isDxType) ? ['S02','S01','DX'] : ['S02','S01'];
+  var labels = [], short = false;
   for (var i = 0; i < rooms.length; i++) {
     var slot = null;
     for (var s = 0; s < order.length; s++) { if (!occ[order[s]]) { slot = order[s]; break; } }
-    if (!slot) { slot = 'S02'; Logger.log('警告: 貸切'+roomCount+'室に空きが足りません '+data.check_in+'〜'+data.check_out); }
+    if (!slot) { slot = 'S02'; short = true; Logger.log('警告: '+roomCount+'室に空きが足りません '+data.check_in+'〜'+data.check_out); }
     occ[slot] = true;
     var label = _SLOT_LABEL[slot];
     labels.push(label);
@@ -1675,18 +1848,19 @@ function importBuyoutRooms(data) {
     rd.total_amount   = String(rooms[i].total);
     rd.room_type      = label;
     rd.group_id       = gid;
-    rd.is_full_buyout = true;
+    rd.is_full_buyout = isBuyout;
     rd.reservation_no = (i === 0) ? data.reservation_no : null; // 代表室のみ予約番号を保持（再取込・変更・取消の照合用）
     saveToSupabase(rd);
   }
   // LINE通知（貸切1件としてまとめて1回）
   try {
     var _nights = (data.check_in && data.check_out) ? Math.round((new Date(data.check_out)-new Date(data.check_in))/86400000) : '';
-    var _msg = '🏨【新規予約・貸切】' + (data.source||'') + '\n' +
+    var _msg = '🏨【新規予約・' + (isBuyout ? '貸切' : roomCount + '室') + '】' + (data.source||'') + '\n' +
       'ゲスト: ' + data.guest_name + '\n' +
       'チェックイン: ' + data.check_in + '\n' +
       'チェックアウト: ' + data.check_out + '（' + _nights + '泊）\n' +
-      'お部屋: ' + labels.join(' / ') + '（' + roomCount + '室貸切）\n' +
+      'お部屋: ' + labels.join(' / ') + '（' + roomCount + '室' + (isBuyout ? '貸切' : '') + '）\n' +
+      (short ? '⚠️空き部屋が足りません。部屋割りを確認してください\n' : '') +
       '合計人数: 大人' + (data.adults||'') + '名\n' +
       (data.total_amount ? '合計: ¥' + Number(String(data.total_amount).replace(/[^0-9]/g,'')).toLocaleString() : '');
     sendLineGroupMessage_(_msg);
