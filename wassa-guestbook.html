@@ -7154,10 +7154,15 @@ function renderBreakfastStats(month){
 }
 
 // ── 宿泊税集計（沖縄県）── 2%計算・予約別明細
+// 沖縄県宿泊税の施行日。これより前のチェックインは課税対象外。
+// ガードが無いと2026年以前にも2%が計算され、存在しない税額が集計に出る（2026/10/22 修正）。
+// 施行日が変わったらここだけ直す。
+var LODGING_TAX_START='2027-02-01';
 function _collectLodgingTaxEntries(month){
   var entries=[];
   allReservations.forEach(function(r){
     if(r.status==='cancelled') return;
+    if((r.check_in||'')<LODGING_TAX_START) return; // 施行前は対象外
     var rows=getBillingRows(r.billing);
     var ci=r.check_in||'';
     var co=r.check_out||'';
@@ -7437,11 +7442,14 @@ function renderMgmtStats(year){
   // 実人数（予約1件につき1回）も monthAdultH 等に別途持ち、画面には両方出す。
   var monthRev=new Array(12).fill(0),monthAdult=new Array(12).fill(0),monthChild=new Array(12).fill(0),monthInfant=new Array(12).fill(0),monthNights2=new Array(12).fill(0);
   var monthAdultH=new Array(12).fill(0),monthChildH=new Array(12).fill(0),monthInfantH=new Array(12).fill(0);
+  var monthNightsAmt=new Array(12).fill(0); // 金額が入っている予約の泊数（ADRの分母）
   rsvs.forEach(function(r){
     var mo=parseInt((r.check_in||'').slice(5,7))-1;if(mo<0||mo>11)return;
     var n=nights(r);
     var a=parseInt(r.adults)||0,c=parseInt(r.children)||0,inf=parseInt(r.infants)||0;
-    monthRev[mo]+=_calcRev(r,true);
+    var rv=_calcRev(r,true);
+    monthRev[mo]+=rv;
+    if(rv>0)monthNightsAmt[mo]+=n;
     monthAdult[mo]+=a*n;monthChild[mo]+=c*n;monthInfant[mo]+=inf*n;
     monthAdultH[mo]+=a;monthChildH[mo]+=c;monthInfantH[mo]+=inf;
     monthNights2[mo]+=n;
@@ -7457,7 +7465,8 @@ function renderMgmtStats(year){
   });
 
   // ── 月別ADR ──
-  var monthADR=monthNights2.map(function(n,i){return n>0?Math.round(monthRev[i]/n):0;});
+  // ADRの分母は金額が入っている予約の泊数（全泊数で割ると薄まる。上の【重要】参照）
+  var monthADR=monthNightsAmt.map(function(n,i){return n>0?Math.round(monthRev[i]/n):0;});
 
   // ── 月別経路別件数 ──
   var SOURCES_ORDER_=['直予約','公式HP','楽天','じゃらん','一休','Booking.com','Agoda'];
@@ -7482,15 +7491,27 @@ function renderMgmtStats(year){
     var cyHasMR_=allMonthlyRevenue.some(function(mr){return mr.year_month.startsWith(cyStr_);});
     if(!cyRsvs_.length&&!cyHasMR_)continue;
     var cyNights_=cyRsvs_.reduce(function(s,r){return s+nights(r);},0);
-    var cyRev_=cyRsvs_.reduce(function(s,r){return s+_calcRev(r,true);},0);
-    // AirレジCSVデータがあれば売上を上書き（より正確な実売上）
-    var cyRevMR_=allMonthlyRevenue.filter(function(mr){return mr.year_month.startsWith(cyStr_);}).reduce(function(s,mr){return s+mr.revenue;},0);
-    if(cyRevMR_>0)cyRev_=cyRevMR_;
+    var cyRev_=0,cyNightsAmt_=0;
+    cyRsvs_.forEach(function(r){var v=_calcRev(r,true);cyRev_+=v;if(v>0)cyNightsAmt_+=nights(r);});
+    var cySrc_='予約';
+    // AirレジCSVがあれば売上を上書き（実売上のほうが正確）。
+    // ただし【重要】12か月そろっている年だけ。途中までの年で上書きすると
+    // その年だけ売上が尻切れになり「急に落ち込んだ」ように見える
+    // （2026年はAirレジが5月までしか無く、年次比較の売上が¥7.1Mに化けていた。2026/10/19）。
+    var cyMR_=allMonthlyRevenue.filter(function(mr){return mr.year_month.startsWith(cyStr_);});
+    var cyMonths_={};cyMR_.forEach(function(mr){cyMonths_[mr.year_month]=1;});
+    var cyMonthCount_=Object.keys(cyMonths_).length;
+    if(cyMonthCount_>=12){
+      cyRev_=cyMR_.reduce(function(s,mr){return s+mr.revenue;},0);
+      cyNightsAmt_=cyNights_; // Airレジは全売上なので分母も全泊数で揃える
+      cySrc_='Airレジ';
+    }
     var cyLeap_=cy_%4===0&&(cy_%100!==0||cy_%400===0);
     var cyAvail_=(cyLeap_?366:365)*3;
-    var cyADR_=cyNights_>0?Math.round(cyRev_/cyNights_):0;
+    var cyADR_=cyNightsAmt_>0?Math.round(cyRev_/cyNightsAmt_):0;
     var cyOcc_=cyAvail_>0?Math.round(cyNights_/cyAvail_*1000)/10:0;
-    compareData_.push({year:cy_,occ:cyOcc_,adr:cyADR_,rev:cyRev_,nights:cyNights_,count:cyRsvs_.length});
+    compareData_.push({year:cy_,occ:cyOcc_,adr:cyADR_,rev:cyRev_,nights:cyNights_,count:cyRsvs_.length,
+      src:cySrc_,mrMonths:cyMonthCount_});
   }
 
   var monthRows=MONTHS.map(function(mn,i){
@@ -7662,7 +7683,7 @@ function renderMgmtStats(year){
       // ただし明細に金額が入っていない予約は売上に乗らないため、件数を併記する。
       var RM_=['S01','S02','DX'];
       var RM_LABEL_={S01:'スーペリア01',S02:'スーペリア02',DX:'デラックス'};
-      var mr_={};RM_.forEach(function(k){mr_[k]=new Array(12).fill(null).map(function(){return{rev:0,n:0,pax:0,cnt:0,withAmt:0};});});
+      var mr_={};RM_.forEach(function(k){mr_[k]=new Array(12).fill(null).map(function(){return{rev:0,n:0,nAmt:0,pax:0,cnt:0,withAmt:0};});});
       rsvs.forEach(function(r){
         var mo=parseInt((r.check_in||'').slice(5,7))-1; if(mo<0||mo>11)return;
         var k=normRoom_(r.room_type); if(RM_.indexOf(k)===-1)return;
@@ -7671,25 +7692,26 @@ function renderMgmtStats(year){
         mr_[k][mo].rev+=rev;
         mr_[k][mo].pax+=(parseInt(r.adults)||0)+(parseInt(r.children)||0)+(parseInt(r.infants)||0);
         mr_[k][mo].cnt+=1;
-        if(rev>0) mr_[k][mo].withAmt+=1;
+        if(rev>0){mr_[k][mo].withAmt+=1;mr_[k][mo].nAmt+=n;}
       });
       var thS2_='padding:5px 6px;text-align:right;font-size:11px;white-space:nowrap';
       var tdS2_='padding:5px 6px;text-align:right;font-size:11px;border-top:1px solid var(--sand2);white-space:nowrap';
       var tfS2_='padding:6px;text-align:right;font-size:11px;border-top:2px solid var(--ocean);font-weight:700;white-space:nowrap';
       function cells_(o,avail){
-        var adr=o.n>0?Math.round(o.rev/o.n):0;
+        // ADRの分母は金額が入っている予約の泊数(nAmt)。全泊数で割ると薄まる
+        var adr=o.nAmt>0?Math.round(o.rev/o.nAmt):0;
         var occ=avail>0?Math.round(o.n/avail*1000)/10:0;
         return [fmtY(o.rev), o.n+'泊', occ+'%', adr>0?fmtY(adr):'—'];
       }
-      var rows2_='', tot_={};RM_.forEach(function(k){tot_[k]={rev:0,n:0,pax:0,cnt:0,withAmt:0};});
+      var rows2_='', tot_={};RM_.forEach(function(k){tot_[k]={rev:0,n:0,nAmt:0,pax:0,cnt:0,withAmt:0};});
       var anyGap_=false;
       MONTHS.forEach(function(mn,i){
         var dpm=DAYSPM_[i];
         var tr='<tr><td style="'+tdS2_+';text-align:left;font-weight:500">'+mn+'</td>';
-        var all={rev:0,n:0,pax:0,cnt:0,withAmt:0};
+        var all={rev:0,n:0,nAmt:0,pax:0,cnt:0,withAmt:0};
         RM_.forEach(function(k){
           var o=mr_[k][i];
-          ['rev','n','pax','cnt','withAmt'].forEach(function(f){tot_[k][f]+=o[f];all[f]+=o[f];});
+          ['rev','n','nAmt','pax','cnt','withAmt'].forEach(function(f){tot_[k][f]+=o[f];all[f]+=o[f];});
           tr+=cells_(o,dpm).map(function(v){return'<td style="'+tdS2_+'">'+v+'</td>';}).join('');
           tr+='<td style="'+tdS2_+';border-left:1px solid var(--sand2);padding:0;width:1px"></td>';
         });
@@ -7698,8 +7720,8 @@ function renderMgmtStats(year){
         tr+=cells_(all,dpm*3).map(function(v,j){return'<td style="'+tdS2_+';background:var(--sand)'+(j===0?';font-weight:600':'')+'">'+v+(j===0?gapNote:'')+'</td>';}).join('');
         rows2_+=tr+'</tr>';
       });
-      var allT={rev:0,n:0,pax:0,cnt:0,withAmt:0};
-      RM_.forEach(function(k){['rev','n','pax','cnt','withAmt'].forEach(function(f){allT[f]+=tot_[k][f];});});
+      var allT={rev:0,n:0,nAmt:0,pax:0,cnt:0,withAmt:0};
+      RM_.forEach(function(k){['rev','n','nAmt','pax','cnt','withAmt'].forEach(function(f){allT[f]+=tot_[k][f];});});
       var foot2_='<tr><td style="'+tfS2_+';text-align:left">年計</td>';
       RM_.forEach(function(k){
         foot2_+=cells_(tot_[k],daysInYear).map(function(v){return'<td style="'+tfS2_+'">'+v+'</td>';}).join('');
@@ -7790,19 +7812,26 @@ function renderMgmtStats(year){
       ) : '')
     // ── 過去年比較 ──
     + (compareData_.length>1 ? card('過去年比較',
-        tbl(['年','稼働率','ADR','売上','件数'],
+        tbl(['年','稼働率','ADR','売上','件数','売上の出典'],
           compareData_.map(function(d){
             var isThis=d.year===year;
             var rowStyle=isThis?'background:var(--sand);font-weight:700':'';
+            var srcLabel=d.src==='Airレジ'
+              ?'<span style="font-size:10px;background:#d4f0dd;color:#2a7a4a;padding:1px 5px;border-radius:4px">Airレジ</span>'
+              :'<span style="font-size:10px;background:#e8eef2;color:#456;padding:1px 5px;border-radius:4px">予約データ</span>'
+               +(d.mrMonths>0?'<span style="font-size:10px;color:#c0392b"> Airレジは'+d.mrMonths+'か月分のみ</span>':'');
             return '<tr style="'+rowStyle+'"><td style="padding:5px 8px;border-bottom:1px solid var(--sand2)">'+d.year+'年'+(isThis?' ◀':'')+'</td>'
               +'<td style="padding:5px 8px;border-bottom:1px solid var(--sand2);text-align:right">'+d.occ+'%</td>'
               +'<td style="padding:5px 8px;border-bottom:1px solid var(--sand2);text-align:right">'+fmtY(d.adr)+'</td>'
               +'<td style="padding:5px 8px;border-bottom:1px solid var(--sand2);text-align:right">'+fmtY(d.rev)+'</td>'
-              +'<td style="padding:5px 8px;border-bottom:1px solid var(--sand2);text-align:right">'+d.count+'件</td></tr>';
+              +'<td style="padding:5px 8px;border-bottom:1px solid var(--sand2);text-align:right">'+d.count+'件</td>'
+              +'<td style="padding:5px 8px;border-bottom:1px solid var(--sand2)">'+srcLabel+'</td></tr>';
           }).join(''),
           null
         )
-        +'<div style="font-size:11px;color:var(--text3);margin-top:6px">※ キャンセル除く　売上はAirレジ実績（インポート済み分）</div>'
+        +'<div style="font-size:11px;color:var(--text3);margin-top:6px">※ キャンセル除く。'
+        +'売上は<b>12か月そろっている年だけAirレジ実績</b>、足りない年は予約データから算出します。<br>'
+        +'※ 年をまたぐ宿泊はチェックイン年に全泊を計上（按分しません）。</div>'
       ) : '');
 }
 
