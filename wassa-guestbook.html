@@ -538,6 +538,9 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
   <button class="nav-btn owner-only" onclick="showSec('comms',this)">
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>対応履歴
   </button>
+  <button class="nav-btn owner-only" onclick="showSec('inbox',this)">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>受信箱<span id="inbox-nav-count" style="display:none;margin-left:4px;background:var(--coral);color:#fff;border-radius:10px;padding:0 6px;font-size:10px"></span>
+  </button>
   <button class="nav-btn owner-only" onclick="showSec('admin',this)">
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>管理
   </button>
@@ -944,6 +947,72 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
         <tbody id="comms-tbody"><tr class="empty-row"><td colspan="6">データなし</td></tr></tbody>
       </table>
     </div>
+  </div>
+</section>
+
+<!-- ═══ INBOX（受信箱・段階1: 読むだけ） ═══ -->
+<section class="sec owner-only" id="sec-inbox">
+  <style>
+    .ibx-grid{display:grid;grid-template-columns:minmax(240px,300px) minmax(0,1fr) minmax(240px,300px);gap:14px;align-items:start}
+    @media(max-width:1000px){.ibx-grid{grid-template-columns:1fr}}
+    .ibx-grid>.card{margin-bottom:0;padding:14px}
+    .ibx-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+    .ibx-chip{border:1px solid var(--border);background:#fff;border-radius:16px;padding:3px 11px;font-size:12px;cursor:pointer;color:var(--text2)}
+    .ibx-chip.on{background:var(--ocean2);border-color:var(--ocean2);color:#fff}
+    .ibx-list{max-height:70vh;overflow:auto;margin:0 -14px -14px}
+    .ibx-item{padding:10px 14px;border-top:1px solid var(--border);cursor:pointer}
+    .ibx-item:hover{background:var(--sand2)}
+    .ibx-item.sel{background:var(--amber-lt)}
+    .ibx-item .l1{display:flex;gap:6px;align-items:baseline;font-size:13px}
+    .ibx-item .l1 b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .ibx-item .l1 time{font-size:11px;color:var(--text2);white-space:nowrap}
+    .ibx-item .l2{font-size:12px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px}
+    .ibx-item.is-new .l1 b{font-weight:700}
+    .ibx-item:not(.is-new) .l1 b{font-weight:400;color:var(--text2)}
+    .ibx-body{white-space:pre-wrap;word-break:break-word;font-size:14px;line-height:1.75;background:var(--sand2);border-radius:8px;padding:14px;margin:10px 0;max-height:52vh;overflow:auto}
+    .ibx-meta{font-size:12px;color:var(--text2);line-height:1.7}
+    .ibx-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .ibx-h{font-size:12px;font-weight:600;color:var(--text2);letter-spacing:.06em;margin:14px 0 6px}
+    .ibx-h:first-child{margin-top:0}
+    .ibx-av{width:100%;border-collapse:collapse;font-size:12px}
+    .ibx-av th,.ibx-av td{border:1px solid var(--border);padding:4px 5px;text-align:center}
+    .ibx-av td.ok{color:var(--green)} .ibx-av td.ng{color:var(--coral);background:var(--coral-lt)}
+    .ibx-older{border-left:3px solid var(--border);padding:4px 0 4px 10px;margin-top:8px;font-size:12px;color:var(--text2);white-space:pre-wrap;word-break:break-word}
+  </style>
+  <div class="page-title">受信箱</div>
+
+  <!-- 合言葉の入力（未入力のとき） -->
+  <div class="card" id="ibx-gate" style="max-width:460px">
+    <div id="ibx-gate-unlock">
+      <p style="font-size:13px;line-height:1.8;margin-bottom:10px">メールや LINE の内容が表示されます。受信箱の合言葉を入力してください。</p>
+      <input type="password" id="ibx-pass" placeholder="合言葉" autocomplete="off" onkeydown="if(event.key==='Enter')inboxUnlock()">
+      <div class="ibx-actions"><button class="btn btn-primary btn-sm" onclick="inboxUnlock()">開く</button></div>
+    </div>
+    <div id="ibx-gate-setup" style="display:none">
+      <p style="font-size:13px;line-height:1.8;margin-bottom:10px">受信箱の合言葉がまだ決まっていません。<b>12文字以上</b>で決めてください。PIN とは別のもので、オーナーだけが知るものにします。</p>
+      <input type="password" id="ibx-new1" placeholder="新しい合言葉（12文字以上）" autocomplete="new-password" style="margin-bottom:8px">
+      <input type="password" id="ibx-new2" placeholder="もう一度" autocomplete="new-password">
+      <div class="ibx-actions"><button class="btn btn-primary btn-sm" onclick="inboxSetPass()">この合言葉に決める</button></div>
+    </div>
+    <div id="ibx-gate-msg" style="font-size:12px;color:var(--coral);margin-top:8px;min-height:1.2em"></div>
+  </div>
+
+  <div class="ibx-grid" id="ibx-main" style="display:none">
+    <div class="card">
+      <div class="ibx-chips" id="ibx-chips"></div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+        <select id="ibx-channel" onchange="inboxRender()" style="width:auto;flex:1">
+          <option value="">すべての経路</option>
+          <option value="email">メール</option>
+          <option value="line">LINE</option>
+          <option value="google_review">Google 口コミ</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="inboxLoad()">更新</button>
+      </div>
+      <div class="ibx-list" id="ibx-list"></div>
+    </div>
+    <div class="card" id="ibx-detail"><div class="ibx-meta">左の一覧から選んでください。</div></div>
+    <div class="card" id="ibx-side"><div class="ibx-meta">問い合わせを選ぶと、空室とご宿泊歴が出ます。</div></div>
   </div>
 </section>
 
@@ -2418,6 +2487,7 @@ function showSec(id,btn){
   if(id==='estimate'){updateMealInfo();switchEstTab('calc');}
   if(id==='billing'){switchBillingTab('list');}
   if(id==='comms')renderComms();
+  if(id==='inbox')inboxOpen();
   if(id==='cleaning'){cleanGoToday();}
   if(id==='admin'){renderMgr();renderBillingPresetList();}
   if(id==='stats'){
@@ -12064,6 +12134,394 @@ async function downloadCSV(type){
 }
 
 // ━━ COMMUNICATIONS ━━
+// ━━ 受信箱（段階1: 読むだけ・状態を付けるだけ。送信機能はまだ無い） ━━
+// メール・LINE・口コミは GAS が inbox_messages に保存する。このテーブルは公開キーでは
+// 直接読めず、合言葉を渡す窓口(inbox_list / inbox_update)経由でだけ読み書きできる。
+// 合言葉はこのファイルに書かない。タブを開いている間だけ sessionStorage に持つ。
+var _ibxRows=[], _ibxSel=null, _ibxFilter='new';
+function ibxEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function ibxPass(){try{return sessionStorage.getItem('wassa_inbox_pass')||'';}catch(e){return '';}}
+function ibxSetPassLocal(p){try{if(p)sessionStorage.setItem('wassa_inbox_pass',p);else sessionStorage.removeItem('wassa_inbox_pass');}catch(e){}}
+async function ibxRpc(name,args){
+  const r=await fetch(SB_URL+'/rest/v1/rpc/'+name,{method:'POST',
+    headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY},
+    body:JSON.stringify(args)});
+  if(!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+function ibxGate(mode,msg){
+  document.getElementById('ibx-gate').style.display=mode?'':'none';
+  document.getElementById('ibx-main').style.display=mode?'none':'';
+  document.getElementById('ibx-gate-unlock').style.display=(mode==='setup')?'none':'';
+  document.getElementById('ibx-gate-setup').style.display=(mode==='setup')?'':'none';
+  document.getElementById('ibx-gate-msg').textContent=msg||'';
+}
+function ibxReasonText(reason){
+  if(reason==='locked') return '間違いが続いたため、15分間ロックされています。';
+  if(reason==='bad') return '合言葉が違います。';
+  if(reason==='not_owner') return 'オーナーの PIN でログインし直してください。';
+  if(reason==='too_short') return '12文字以上にしてください。';
+  return '開けませんでした（'+reason+'）';
+}
+async function inboxOpen(){
+  try{
+    const res=await ibxRpc('inbox_list',{p_pass:ibxPass(),p_limit:300});
+    if(res.ok){ ibxGate(null); ibxApplyRows(res.rows); ensureAllReservations().then(function(){ if(_ibxSel) inboxRenderSide(); }).catch(function(){}); return; }
+    ibxSetPassLocal('');
+    if(res.reason==='not_set') ibxGate('setup');
+    else ibxGate('unlock', res.reason==='locked'?ibxReasonText('locked'):'');
+  }catch(e){ ibxGate('unlock','受信箱を読み込めませんでした。'); console.error(e); }
+}
+async function inboxUnlock(){
+  const el=document.getElementById('ibx-pass'), p=el.value;
+  if(!p) return;
+  try{
+    const res=await ibxRpc('inbox_list',{p_pass:p,p_limit:300});
+    if(!res.ok){ ibxGate(res.reason==='not_set'?'setup':'unlock', res.reason==='not_set'?'':ibxReasonText(res.reason)); return; }
+    el.value=''; ibxSetPassLocal(p); ibxGate(null); ibxApplyRows(res.rows);
+    ensureAllReservations().then(function(){ if(_ibxSel) inboxRenderSide(); }).catch(function(){});
+  }catch(e){ ibxGate('unlock','受信箱を読み込めませんでした。'); console.error(e); }
+}
+async function inboxSetPass(){
+  const a=document.getElementById('ibx-new1').value, b=document.getElementById('ibx-new2').value;
+  if(a.length<12){ ibxGate('setup',ibxReasonText('too_short')); return; }
+  if(a!==b){ ibxGate('setup','2つの入力が一致しません。'); return; }
+  try{
+    const res=await ibxRpc('inbox_set_pass',{p_pin:getOwnerPin(),p_old:null,p_new:a});
+    if(!res.ok){ ibxGate('setup',ibxReasonText(res.reason)); return; }
+    document.getElementById('ibx-new1').value=''; document.getElementById('ibx-new2').value='';
+    ibxSetPassLocal(a); toast('合言葉を設定しました'); inboxOpen();
+  }catch(e){ ibxGate('setup','設定できませんでした。'); console.error(e); }
+}
+async function inboxLoad(){
+  try{
+    const res=await ibxRpc('inbox_list',{p_pass:ibxPass(),p_limit:300});
+    if(!res.ok){ inboxOpen(); return; }
+    ibxApplyRows(res.rows); toast('受信箱を更新しました');
+  }catch(e){ toast('受信箱を更新できませんでした'); console.error(e); }
+}
+function ibxApplyRows(rows){
+  _ibxRows=rows||[];
+  if(_ibxSel && !_ibxRows.some(function(m){return m.id===_ibxSel;})) _ibxSel=null;
+  inboxRender();
+  if(_ibxSel) inboxSelect(_ibxSel);
+}
+// 絞り込みの区分: 未対応 / 対応済み / 対応不要 / 対象外(AIが問い合わせではないと判定したもの)
+function ibxBucket(m){
+  if(m.status==='waiting') return 'waiting';
+  if(m.status==='done') return 'done';
+  if(m.status==='skipped') return 'skipped';
+  return m.kind==='other' ? 'other' : 'new';
+}
+function ibxWhen(iso){
+  var d=new Date(iso); if(isNaN(d)) return '';
+  return (d.getMonth()+1)+'/'+d.getDate()+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
+}
+function ibxIcon(m){ return m.channel==='line'?'💬':m.channel==='google_review'?'⭐':'✉️'; }
+function ibxChannelName(m){
+  return m.channel==='line'?'LINE':m.channel==='google_review'?'Google 口コミ':m.channel==='email_yoyaku'?'メール（yoyaku@）':'メール（wassa@）';
+}
+function inboxSetFilter(f){ _ibxFilter=f; inboxRender(); }
+function inboxRender(){
+  var counts={new:0,waiting:0,done:0,skipped:0,other:0}, attn=0;
+  _ibxRows.forEach(function(m){ var b=ibxBucket(m); counts[b]++; if(b==='waiting' && ibxWaitFlags(m).any) attn++; });
+  var nav=document.getElementById('inbox-nav-count');
+  if(nav){ nav.textContent=counts.new+attn; nav.style.display=(counts.new+attn)?'':'none'; }
+  var defs=[['new','未対応'],['waiting','返事待ち'],['done','対応済み'],['skipped','対応不要'],['other','対象外']];
+  document.getElementById('ibx-chips').innerHTML=defs.map(function(d){
+    var extra=(d[0]==='waiting' && attn)?'（要確認 '+attn+'）':'';
+    return '<button class="ibx-chip'+(_ibxFilter===d[0]?' on':'')+'" onclick="inboxSetFilter(\''+d[0]+'\')">'+d[1]+' '+counts[d[0]]+extra+'</button>';
+  }).join('');
+  var ch=document.getElementById('ibx-channel').value;
+  var rows=_ibxRows.filter(function(m){
+    if(ibxBucket(m)!==_ibxFilter) return false;
+    if(ch==='email') return m.channel.indexOf('email')===0;
+    return !ch || m.channel===ch;
+  });
+  // 返事待ちは「要確認のもの → 返信が古い順」に並べる（放っておくと埋もれるものを上へ）
+  if(_ibxFilter==='waiting'){
+    rows.sort(function(a,b){
+      var fa=ibxWaitFlags(a).any?0:1, fb=ibxWaitFlags(b).any?0:1;
+      if(fa!==fb) return fa-fb;
+      return String(a.replied_at||'')<String(b.replied_at||'')?-1:1;
+    });
+  }
+  var el=document.getElementById('ibx-list');
+  if(!rows.length){ el.innerHTML='<div class="ibx-item ibx-meta" style="cursor:default">ありません</div>'; return; }
+  el.innerHTML=rows.map(function(m){
+    var who=m.sender_name||m.sender_addr||'（差出人不明）';
+    var line2=(m.subject?m.subject+' — ':'')+String(m.body||'').replace(/\s+/g,' ').slice(0,80);
+    var tags='';
+    if(m.status==='waiting'){
+      var f=ibxWaitFlags(m);
+      tags='<div class="l2" style="color:'+(f.any?'var(--coral)':'var(--text2)')+'">返信から'+f.days+'日'
+        +(f.reply?'・お返事あり':'')+(f.conflict.length?'・⚠別の予約あり':'')+(f.holdExpired?'・仮押さえ期限切れ':'')
+        +(f.stayPassed?'・日程経過':(f.follow?'・フォローの時期':''))+'</div>';
+    }
+    return '<div class="ibx-item'+(m.status==='new'?' is-new':'')+(m.id===_ibxSel?' sel':'')+'" onclick="inboxSelect('+m.id+')">'
+      +'<div class="l1"><span>'+ibxIcon(m)+'</span><b>'+ibxEsc(who)+'</b><time>'+ibxWhen(m.received_at)+'</time></div>'
+      +'<div class="l2">'+ibxEsc(line2)+'</div>'+tags+'</div>';
+  }).join('');
+}
+// ── 返事待ち（検討中）──
+var IBX_FOLLOW_DAYS=5;   // 返信からこの日数たったら「フォローの時期」として上に出す
+function ibxToday(){ var d=new Date(); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
+function ibxMD(ds){ return ds ? (+ds.slice(5,7))+'/'+(+ds.slice(8,10)) : ''; }
+// 返事待ちの問い合わせについて、Risa が気づくべきことを調べる（画面を開くたびに計算する）
+function ibxWaitFlags(m){
+  var today=ibxToday();
+  var days=m.replied_at ? Math.max(0,Math.floor((Date.now()-new Date(m.replied_at).getTime())/86400000)) : 0;
+  var f={days:days, reply:false, conflict:[], holdExpired:false, follow:false, stayPassed:false, any:false};
+  // 返信のあとに同じ相手から新しい受信があるか
+  if(m.thread_key && m.replied_at){
+    f.reply=_ibxRows.some(function(x){ return x.id!==m.id && x.thread_key===m.thread_key && x.received_at>m.replied_at; });
+  }
+  // 案内した日程・部屋に、別の予約（この問い合わせの仮予約は除く）が入っていないか
+  if(m.offered_from && m.offered_to && m.offered_rooms){
+    var rooms=String(m.offered_rooms).split(',').filter(Boolean);
+    allReservations.forEach(function(r){
+      if(r.status==='cancelled'||r.status==='waitlist') return;
+      if(m.reservation_id && r.id===m.reservation_id) return;
+      if(!(r.check_in<m.offered_to && r.check_out>m.offered_from)) return;
+      var s=_roomSlots(r.room_type);
+      rooms.forEach(function(rm){
+        var hit=s.indexOf(rm)!==-1, maybe=!hit && rm!=='DX' && s.indexOf('SUP')!==-1;
+        if(hit||maybe){
+          var from=r.check_in>m.offered_from?r.check_in:m.offered_from;
+          f.conflict.push((rm==='DX'?'デラックス':rm==='S02'?'スーペリア02':'スーペリア01')+' '+ibxMD(from)+'〜 '
+            +(r.guest_name||'')+(r.status==='tentative'?'（仮予約）':'')+(maybe?'（部屋未確定のスーペリア予約）':''));
+        }
+      });
+    });
+  }
+  f.holdExpired=!!(m.hold_until && m.hold_until<today);
+  f.stayPassed=!!(m.offered_from && m.offered_from<today);
+  f.follow=days>=IBX_FOLLOW_DAYS;
+  f.any=f.reply||f.conflict.length>0||f.holdExpired||f.follow||f.stayPassed;
+  return f;
+}
+// 「返事待ちにする」の入力欄を出す（案内した日程・部屋・見積・仮押さえ）
+function inboxWaitForm(id){
+  var m=_ibxRows.find(function(x){return x.id===id;}); if(!m) return;
+  var from=m.offered_from||m.stay_from||'', to=m.offered_to||m.stay_to||'';
+  var rooms=String(m.offered_rooms||'').split(',');
+  var nm=(m.sender_name||'').replace(/\s+/g,''), ad=(m.sender_addr||'').toLowerCase();
+  var qs=(allQuotes||[]).filter(function(q){
+    var qn=String(q.guest_name||'').replace(/\s+/g,'');
+    return q.id===m.quote_id || (ad && String(q.email||'').toLowerCase()===ad) || (nm && qn && (qn.indexOf(nm)!==-1||nm.indexOf(qn)!==-1));
+  }).slice(0,10);
+  var holds=allReservations.filter(function(r){
+    return r.id===m.reservation_id || (r.status==='tentative' && from && to && r.check_in<to && r.check_out>from);
+  }).slice(0,10);
+  var chk=function(v,label){ return '<label style="display:inline-flex;gap:4px;align-items:center;margin-right:12px;font-size:13px"><input type="checkbox" class="ibx-w-room" value="'+v+'"'+(rooms.indexOf(v)!==-1?' checked':'')+' style="width:auto">'+label+'</label>'; };
+  var h='<div class="ibx-h">返事待ちにする（ご案内した内容）</div>'
+    +'<div style="display:flex;gap:6px;align-items:center;margin-bottom:8px"><input type="date" id="ibx-w-from" value="'+ibxEsc(from)+'" style="flex:1;min-width:0"><span>〜</span><input type="date" id="ibx-w-to" value="'+ibxEsc(to)+'" style="flex:1;min-width:0"></div>'
+    +'<div style="margin-bottom:8px">'+chk('DX','デラックス')+chk('S02','スーペリア02')+chk('S01','スーペリア01')+'</div>'
+    +'<div class="ibx-meta">送った見積</div><select id="ibx-w-quote" style="margin-bottom:8px"><option value="">なし</option>'
+    +qs.map(function(q){ return '<option value="'+q.id+'"'+(q.id===m.quote_id?' selected':'')+'>'+ibxEsc((q.guest_name||'')+' '+(q.check_in||'')+'〜 '+(q.total_amount?'¥'+q.total_amount:''))+'</option>'; }).join('')+'</select>'
+    +'<div class="ibx-meta">仮押さえ（先に予約画面で「仮予約」を登録してから選びます）</div>'
+    +'<select id="ibx-w-res" style="margin-bottom:6px"><option value="">仮押さえしない</option>'
+    +holds.map(function(r){ return '<option value="'+r.id+'"'+(r.id===m.reservation_id?' selected':'')+'>'+ibxEsc((r.guest_name||'')+' '+r.check_in+'〜 '+String(r.room_type||'').split('\n')[0])+'</option>'; }).join('')+'</select>'
+    +'<div style="display:flex;gap:6px;align-items:center;margin-bottom:8px"><span class="ibx-meta" style="white-space:nowrap">仮押さえの期限</span><input type="date" id="ibx-w-hold" value="'+ibxEsc(m.hold_until||'')+'" style="flex:1;min-width:0"></div>'
+    +'<div class="ibx-meta" style="margin-bottom:8px">仮押さえをしても、楽天・じゃらんなど OTA の在庫は止まりません。必要ならあすなろ側で在庫を閉じてください。</div>'
+    +'<div class="ibx-actions"><button class="btn btn-primary btn-sm" onclick="inboxSaveWait('+id+')">返事待ちにする</button>'
+    +'<button class="btn btn-ghost btn-sm" onclick="openNewReservationWithDate(document.getElementById(\'ibx-w-from\').value)">仮予約を登録しに行く</button>'
+    +'<button class="btn btn-ghost btn-sm" onclick="inboxSelect('+id+')">やめる</button></div>';
+  document.getElementById('ibx-waitbox').innerHTML=h;
+}
+async function inboxSaveWait(id){
+  var m=_ibxRows.find(function(x){return x.id===id;}); if(!m) return;
+  var rooms=[]; document.querySelectorAll('.ibx-w-room:checked').forEach(function(c){rooms.push(c.value);});
+  var from=document.getElementById('ibx-w-from').value||null, to=document.getElementById('ibx-w-to').value||null;
+  if(from && to && to<=from){ toast('日程を確認してください'); return; }
+  var resId=document.getElementById('ibx-w-res').value, hold=document.getElementById('ibx-w-hold').value||null;
+  if(resId && !hold){ toast('仮押さえの期限を入れてください'); return; }
+  var patch={status:'waiting', offered_from:from, offered_to:to, offered_rooms:rooms.join(',')||null,
+    quote_id:document.getElementById('ibx-w-quote').value?+document.getElementById('ibx-w-quote').value:null,
+    reservation_id:resId?+resId:null, hold_until:resId?hold:null};
+  if(m.status==='waiting' && m.replied_at) patch.replied_at=m.replied_at;   // 内容を直すだけのときは返信日を動かさない
+  try{
+    const res=await ibxRpc('inbox_update',{p_pass:ibxPass(),p_id:id,p_patch:patch});
+    if(!res.ok){ toast('保存できませんでした'); return; }
+    Object.keys(patch).forEach(function(k){ m[k]=patch[k]; });
+    if(!m.replied_at) m.replied_at=new Date().toISOString();
+    toast('返事待ちにしました'); inboxRender(); inboxSelect(id);
+  }catch(e){ toast('保存できませんでした'); console.error(e); }
+}
+// 返信日を今日にする（フォローの連絡をしたとき）
+async function inboxTouchReplied(id){
+  var m=_ibxRows.find(function(x){return x.id===id;}); if(!m) return;
+  var now=new Date().toISOString();
+  try{
+    const res=await ibxRpc('inbox_update',{p_pass:ibxPass(),p_id:id,p_patch:{replied_at:now}});
+    if(!res.ok){ toast('保存できませんでした'); return; }
+    m.replied_at=now; toast('返信日を今日にしました'); inboxRender(); inboxSelect(id);
+  }catch(e){ toast('保存できませんでした'); console.error(e); }
+}
+async function inboxClose(id,outcome){
+  var m=_ibxRows.find(function(x){return x.id===id;}); if(!m) return;
+  var holdRes=m.reservation_id ? allReservations.find(function(r){return r.id===m.reservation_id;}) : null;
+  if(outcome!=='booked' && holdRes && holdRes.status==='tentative'){
+    if(!confirm('仮予約（'+(holdRes.guest_name||'')+' '+holdRes.check_in+'〜）が残っています。\nこの画面からは予約を変更しません。あとで予約画面でキャンセルにしてください。\n\nこのまま終了にしますか？')) return;
+  }
+  try{
+    const res=await ibxRpc('inbox_update',{p_pass:ibxPass(),p_id:id,p_patch:{status:'done',outcome:outcome}});
+    if(!res.ok){ toast('変更できませんでした'); return; }
+    m.status='done'; m.outcome=outcome; inboxRender(); inboxSelect(id);
+  }catch(e){ toast('変更できませんでした'); console.error(e); }
+}
+function ibxWaitInfoHtml(m){
+  var f=ibxWaitFlags(m), h='';
+  var roomNames=String(m.offered_rooms||'').split(',').filter(Boolean).map(function(r){return r==='DX'?'デラックス':r==='S02'?'スーペリア02':'スーペリア01';}).join('・');
+  var q=m.quote_id ? (allQuotes||[]).find(function(x){return x.id===m.quote_id;}) : null;
+  var hr=m.reservation_id ? allReservations.find(function(r){return r.id===m.reservation_id;}) : null;
+  var warn=function(t){ return '<div style="background:var(--coral-lt);color:var(--coral);border-radius:6px;padding:6px 10px;font-size:13px;margin-bottom:6px">'+t+'</div>'; };
+  if(f.reply) h+=warn('このお客様から新しいお返事が届いています（「未対応」をご確認ください）。');
+  f.conflict.slice(0,4).forEach(function(c){ h+=warn('⚠ ご案内した日程に別の予約があります: '+ibxEsc(c)); });
+  if(f.holdExpired) h+=warn('仮押さえの期限（'+ibxMD(m.hold_until)+'）が過ぎています。延長するか、予約画面で仮予約をキャンセルにしてください。');
+  if(f.stayPassed) h+=warn('ご案内した日程が過ぎています。「返事なしで終了」にしますか。');
+  else if(f.follow) h+=warn('返信から'+f.days+'日たちました。フォローのご連絡の時期です。');
+  h+='<div class="ibx-meta" style="margin-bottom:6px">返事待ち（返信から'+f.days+'日）'
+    +(m.offered_from?'<br>ご案内: '+ibxEsc(m.offered_from)+' 〜 '+ibxEsc(m.offered_to||'')+(roomNames?'　'+roomNames:''):'')
+    +(q?'<br>見積: '+ibxEsc((q.guest_name||'')+' '+(q.total_amount?'¥'+q.total_amount:'')):'')
+    +(hr?'<br>仮押さえ: '+ibxEsc(hr.check_in+'〜 '+String(hr.room_type||'').split('\n')[0])+'（期限 '+ibxMD(m.hold_until)+'）'+(hr.status!=='tentative'?' ※この予約は現在「仮予約」ではありません':''):'')
+    +'</div>'
+    +'<div class="ibx-actions">'
+    +'<button class="btn btn-primary btn-sm" onclick="inboxClose('+m.id+',\'booked\')">予約成立</button>'
+    +'<button class="btn btn-ghost btn-sm" onclick="inboxClose('+m.id+',\'declined\')">辞退</button>'
+    +'<button class="btn btn-ghost btn-sm" onclick="inboxClose('+m.id+',\'no_reply\')">返事なしで終了</button>'
+    +'<button class="btn btn-ghost btn-sm" onclick="inboxTouchReplied('+m.id+')">フォローした（返信日を今日に）</button>'
+    +'<button class="btn btn-ghost btn-sm" onclick="inboxWaitForm('+m.id+')">内容を直す</button>'
+    +(hr?'<button class="btn btn-ghost btn-sm" onclick="openReservation('+hr.id+')">仮予約を開く</button>':'')
+    +'<button class="btn btn-ghost btn-sm" onclick="inboxSetStatus('+m.id+',\'new\')">未対応に戻す</button>'
+    +'</div>';
+  return h;
+}
+function inboxSelect(id){
+  _ibxSel=id;
+  var m=_ibxRows.find(function(x){return x.id===id;});
+  if(!m) return;
+  inboxRender();
+  var older=_ibxRows.filter(function(x){return m.thread_key && x.thread_key===m.thread_key && x.id!==m.id;});
+  var gmail='';
+  if(m.channel.indexOf('email')===0 && m.thread_key){
+    var acct=(m.channel==='email_yoyaku'?'yoyaku':'wassa')+'@wassa-okinawa.com';
+    gmail='<a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="https://mail.google.com/mail/?authuser='+encodeURIComponent(acct)+'#all/'+encodeURIComponent(m.thread_key)+'">Gmail で開く</a>';
+  }
+  var b=ibxBucket(m);
+  var h='<div style="font-size:16px;font-weight:600">'+ibxEsc(m.sender_name||m.sender_addr||'（差出人不明）')+'</div>'
+    +'<div class="ibx-meta">'+ibxIcon(m)+' '+ibxChannelName(m)+'　'+ibxWhen(m.received_at)
+    +(m.sender_addr && m.channel.indexOf('email')===0 ? '<br>'+ibxEsc(m.sender_addr) : '')
+    +(m.subject ? '<br>件名: '+ibxEsc(m.subject) : '')
+    +(m.kind==='other' ? '<br><span style="color:var(--amber)">AI が「宿泊の問い合わせではない」と判定したメールです</span>' : '')
+    +'</div>'
+    +'<div class="ibx-body">'+ibxEsc(m.body)+'</div>'
+    +'<div id="ibx-waitbox">'
+    +(b==='waiting' ? ibxWaitInfoHtml(m)
+      : '<div class="ibx-actions">'
+        +(b==='done'||b==='skipped'
+          ? '<span class="ibx-meta" style="align-self:center">'+(m.outcome==='booked'?'予約成立':m.outcome==='declined'?'辞退':m.outcome==='no_reply'?'返事なしで終了':b==='done'?'対応済み':'対応不要')+'</span>'
+            +'<button class="btn btn-ghost btn-sm" onclick="inboxSetStatus('+m.id+',\'new\')">未対応に戻す</button>'
+          : (m.kind==='review'?'':'<button class="btn btn-primary btn-sm" onclick="inboxWaitForm('+m.id+')">返信した → 返事待ちにする</button>')
+            +'<button class="btn btn-ghost btn-sm" onclick="inboxSetStatus('+m.id+',\'done\')">対応済みにする</button>'
+            +'<button class="btn btn-ghost btn-sm" onclick="inboxSetStatus('+m.id+',\'skipped\')">対応不要</button>')
+        +'</div>')
+    +'</div>'
+    +(gmail?'<div class="ibx-actions">'+gmail+'</div>':'');
+  if(older.length){
+    h+='<div class="ibx-h">同じ相手とのやり取り（'+older.length+'件）</div>'
+      +older.slice(0,10).map(function(o){
+        return '<div class="ibx-older"><b>'+ibxWhen(o.received_at)+'</b>\n'+ibxEsc(String(o.body||'').slice(0,600))+'</div>';
+      }).join('');
+  }
+  document.getElementById('ibx-detail').innerHTML=h;
+  inboxRenderSide();
+}
+async function inboxSetStatus(id,status){
+  try{
+    const res=await ibxRpc('inbox_update',{p_pass:ibxPass(),p_id:id,p_patch:{status:status}});
+    if(!res.ok){ toast('変更できませんでした'); if(res.reason) inboxOpen(); return; }
+    var m=_ibxRows.find(function(x){return x.id===id;});
+    if(m) m.status=status;
+    inboxRender(); inboxSelect(id);
+  }catch(e){ toast('変更できませんでした'); console.error(e); }
+}
+// 希望日程を画面で直す（DBにも保存する）
+async function inboxSaveDates(id){
+  var f=document.getElementById('ibx-from').value||null, t=document.getElementById('ibx-to').value||null;
+  var m=_ibxRows.find(function(x){return x.id===id;});
+  if(!m) return;
+  m.stay_from=f; m.stay_to=t; inboxRenderSide();
+  try{ await ibxRpc('inbox_update',{p_pass:ibxPass(),p_id:id,p_patch:{stay_from:f,stay_to:t}}); }catch(e){ console.error(e); }
+}
+function ibxAddDays(ds,n){ var d=new Date(ds+'T00:00:00'); d.setDate(d.getDate()+n); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
+// 空室表: ○=空き ×=予約あり △=部屋番号が決まっていないスーペリアの予約あり（要確認）
+function ibxAvailabilityHtml(from,to){
+  if(!from||!to||to<=from) return '<div class="ibx-meta">日程を入れると空室が出ます。</div>';
+  var nights=[]; for(var d=from; d<to && nights.length<14; d=ibxAddDays(d,1)) nights.push(d);
+  var rooms=[['DX','デラックス'],['S02','スーペリア02'],['S01','スーペリア01']];
+  var live=allReservations.filter(function(r){ return r.status!=='cancelled' && r.status!=='waitlist' && r.check_in<to && r.check_out>from; });
+  var h='<table class="ibx-av"><tr><th></th>'+nights.map(function(n){return '<th>'+(+n.slice(5,7))+'/'+(+n.slice(8,10))+'</th>';}).join('')+'</tr>';
+  rooms.forEach(function(rm){
+    h+='<tr><th>'+rm[1]+'</th>'+nights.map(function(n){
+      var mark='○', cls='ok';
+      live.forEach(function(r){
+        if(!(r.check_in<=n && n<r.check_out)) return;
+        var s=_roomSlots(r.room_type);
+        if(s.indexOf(rm[0])!==-1){ mark='×'; cls='ng'; }
+        else if(mark==='○' && rm[0]!=='DX' && s.indexOf('SUP')!==-1){ mark='△'; cls=''; }
+      });
+      return '<td class="'+cls+'">'+mark+'</td>';
+    }).join('')+'</tr>';
+  });
+  h+='</table><div class="ibx-meta" style="margin-top:4px">○空き　×予約あり　△部屋未確定のスーペリア予約あり。スーペリアが両方空きなら 02 を先にご案内。</div>';
+  if(to>'2027-02-01') h+='<div class="ibx-meta" style="margin-top:6px;color:var(--amber)">2027年2月以降のご宿泊です。宿泊税のご案内を入れてください（金額は書かない）。</div>';
+  return h;
+}
+function ibxFindCustomer(m){
+  if(m.customer_id) return allCustomers.find(function(c){return c.id===m.customer_id;})||null;
+  if(m.channel.indexOf('email')!==0 || !m.sender_addr) return null;
+  var a=m.sender_addr.toLowerCase();
+  var c=allCustomers.find(function(c){ return (c.email||'').toLowerCase()===a || (c.email2||'').toLowerCase()===a; });
+  if(c) return c;
+  var r=allReservations.find(function(r){ return r.customer_id && ((r.email||'').toLowerCase()===a || (r.booker_email||'').toLowerCase()===a); });
+  return r ? (allCustomers.find(function(c){return c.id===r.customer_id;})||null) : null;
+}
+function inboxRenderSide(){
+  var m=_ibxRows.find(function(x){return x.id===_ibxSel;});
+  var el=document.getElementById('ibx-side');
+  if(!m){ el.innerHTML=''; return; }
+  var h='';
+  if(m.kind!=='review'){
+    h+='<div class="ibx-h">ご希望の日程と空室</div>'
+      +'<div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">'
+      +'<input type="date" id="ibx-from" value="'+ibxEsc(m.stay_from||'')+'" onchange="inboxSaveDates('+m.id+')" style="flex:1;min-width:0">'
+      +'<span>〜</span>'
+      +'<input type="date" id="ibx-to" value="'+ibxEsc(m.stay_to||'')+'" onchange="inboxSaveDates('+m.id+')" style="flex:1;min-width:0"></div>'
+      +ibxAvailabilityHtml(m.stay_from,m.stay_to);
+  }
+  var c=ibxFindCustomer(m);
+  h+='<div class="ibx-h">お客様</div>';
+  if(!c){
+    h+='<div class="ibx-meta">'+(m.channel==='line'?'LINE のお客様は、まだ顧客と自動でひも付きません。':'このアドレスの顧客は見つかりませんでした（初めての方かもしれません）。')+'</div>';
+  }else{
+    var stays=allReservations.filter(function(r){return r.customer_id===c.id && r.status!=='cancelled';})
+      .sort(function(a,b){return a.check_in<b.check_in?1:-1;});
+    h+='<div style="font-size:14px;font-weight:600">'+ibxEsc((c.sei||'')+' '+(c.mei||''))+' 様</div>'
+      +'<div class="ibx-meta">'
+      +(c.allergy?'アレルギー: '+ibxEsc(c.allergy)+'<br>':'')
+      +(c.ng_food?'苦手: '+ibxEsc(c.ng_food)+'<br>':'')
+      +(c.memo?'メモ: '+ibxEsc(String(c.memo).slice(0,200))+'<br>':'')
+      +'</div>'
+      +'<div class="ibx-h">ご宿泊歴（'+stays.length+'回）</div>'
+      +(stays.length ? '<div class="ibx-meta">'+stays.slice(0,8).map(function(r){
+          return ibxEsc(r.check_in)+'〜　'+ibxEsc(String(r.room_type||'').split('\n')[0]);
+        }).join('<br>')+'</div>' : '<div class="ibx-meta">まだありません。</div>')
+      +'<div class="ibx-actions"><button class="btn btn-ghost btn-sm" onclick="openCustomer('+c.id+')">顧客を開く</button></div>';
+  }
+  el.innerHTML=h;
+}
+
 let allComms = [];
 
 async function loadComms(){
