@@ -9292,6 +9292,7 @@ function switchRoomResultTab(roomKey){
 // ━━ 見積もり書 ━━
 function openQuote(){
   if(!lastEstimates||!lastEstimates.length){alert('先に計算してください');return;}
+  if(typeof ibxQuotePrefill==='function') ibxQuotePrefill(); // 受信箱から来たときは、お名前とメールを入れておく
   if(lastEstimates&&lastEstimates.length>1) buildQuoteMulti(lastEstimates);
   else buildQuote();
   document.getElementById('quote-overlay').classList.add('open');
@@ -10226,6 +10227,7 @@ async function saveQuoteToDb(){
       var estBtn=document.querySelector('.nav-btn[onclick*="estimate"]');
       if(estBtn){showSec('estimate',estBtn);switchEstTab('list');}
       toast('✅ '+(isBuyout?'貸切'+ests.length+'室を':'')+'一覧に保存しました');
+      if(typeof ibxQuoteSaved==='function') ibxQuoteSaved(savedIds[0]); // 受信箱から作った見積は、問い合わせにひも付ける
     }
   } catch(err){toast('保存エラー: '+err.message);}
 }
@@ -10699,6 +10701,7 @@ async function tentativeFromQuote(quoteId){
     renderQuotesList();renderReservations();renderCalendar();
     closeModal('quote-detail-modal');
     toast('🔖 仮予約を登録しました（カレンダーに橙色表示）');
+    if(typeof ibxTentativeCreated==='function') ibxTentativeCreated(quoteId, createdIds); // 受信箱の問い合わせにひも付ける
     if(createdIds.length>0) setTimeout(function(){ openReservation(createdIds[0]); }, 300);
   } catch(err){toast('エラー: '+err.message);}
 }
@@ -12416,6 +12419,7 @@ function inboxSelect(id){
     +(m.kind==='other' ? '<br><span style="color:var(--amber)">AI が「宿泊の問い合わせではない」と判定したメールです</span>' : '')
     +'</div>'
     +'<div class="ibx-body">'+ibxEsc(m.body)+'</div>'
+    +ibxReplyBoxHtml(m)
     +'<div id="ibx-waitbox">'
     +(b==='waiting' ? ibxWaitInfoHtml(m)
       : '<div class="ibx-actions">'
@@ -12436,6 +12440,7 @@ function inboxSelect(id){
   }
   document.getElementById('ibx-detail').innerHTML=h;
   inboxRenderSide();
+  if(ibxReplyPending(m)) ibxReplyPoll(m.id); else clearTimeout(_ibxPollTimer);
 }
 async function inboxSetStatus(id,status){
   try{
@@ -12498,7 +12503,8 @@ function inboxRenderSide(){
       +'<input type="date" id="ibx-from" value="'+ibxEsc(m.stay_from||'')+'" onchange="inboxSaveDates('+m.id+')" style="flex:1;min-width:0">'
       +'<span>〜</span>'
       +'<input type="date" id="ibx-to" value="'+ibxEsc(m.stay_to||'')+'" onchange="inboxSaveDates('+m.id+')" style="flex:1;min-width:0"></div>'
-      +ibxAvailabilityHtml(m.stay_from,m.stay_to);
+      +ibxAvailabilityHtml(m.stay_from,m.stay_to)
+      +ibxQuoteBlockHtml(m);
   }
   var c=ibxFindCustomer(m);
   h+='<div class="ibx-h">お客様</div>';
@@ -12520,6 +12526,204 @@ function inboxRenderSide(){
       +'<div class="ibx-actions"><button class="btn btn-ghost btn-sm" onclick="openCustomer('+c.id+')">顧客を開く</button></div>';
   }
   el.innerHTML=h;
+}
+
+// ━━ 受信箱 段階2a: 返信の下書き／見積・仮予約へのひも付け ━━
+// 下書きは GAS(wassa@auto) が1分おきに作る。画面は「読む・直す・作り直しを頼む・コピー」だけ。送信はしない。
+var _ibxPollTimer=null, _ibxQuoteCtx=null, _ibxHoldCtx=null;
+// 自動で下書きが作られる対象か（DB の inbox_worker_next と同じ条件）
+function ibxAutoDraft(m){
+  return m.kind==='inquiry' && m.status==='new'
+    && (Date.now()-new Date(m.received_at).getTime())<7*86400000
+    && !(m.channel==='line' && /^\[[^\]]+\]$/.test(m.body||''));
+}
+function ibxReplyPending(m){
+  if(!m || m.kind==='review') return false;
+  return m.reply ? m.reply.state==='regen' : ibxAutoDraft(m);
+}
+function ibxReplyBoxHtml(m){
+  if(m.kind==='review') return '';
+  var r=m.reply, h='<div class="ibx-h">返信の下書き</div><div id="ibx-reply">';
+  if(!r){
+    h+= ibxAutoDraft(m)
+      ? '<div class="ibx-meta">AI が下書きを作っています（1〜2分）。できあがると自動で表示されます。</div>'
+        +'<div class="ibx-actions"><button class="btn btn-ghost btn-sm" onclick="inboxReplyRefresh('+m.id+')">更新</button></div>'
+      : '<div class="ibx-meta">下書きはまだありません。</div>'
+        +'<div class="ibx-actions"><button class="btn btn-primary btn-sm" onclick="inboxReplyRegen('+m.id+')">下書きを作る</button></div>';
+  }else if(r.state==='regen'){
+    h+='<div class="ibx-meta">AI が下書きを作っています（1〜2分）。できあがると自動で表示されます。</div>'
+      +(r.regen_note?'<div class="ibx-meta">指示: '+ibxEsc(r.regen_note)+'</div>':'')
+      +(r.draft_text?'<div class="ibx-older">'+ibxEsc(r.draft_text)+'</div>':'')
+      +'<div class="ibx-actions"><button class="btn btn-ghost btn-sm" onclick="inboxReplyRefresh('+m.id+')">更新</button></div>';
+  }else{
+    if(r.state==='error') h+='<div class="ibx-meta" style="color:var(--coral)">下書きを作れませんでした: '+ibxEsc(r.error||'')+'</div>';
+    h+='<textarea id="ibx-reply-text" style="width:100%;min-height:260px;font-size:13px;line-height:1.7;padding:10px;border:1px solid var(--border);border-radius:8px;box-sizing:border-box;font-family:inherit">'+ibxEsc(r.draft_text||'')+'</textarea>'
+      +'<div class="ibx-actions">'
+      +'<button class="btn btn-primary btn-sm" onclick="inboxReplyCopy('+m.id+')">コピー</button>'
+      +'<button class="btn btn-ghost btn-sm" onclick="inboxReplySave('+m.id+')">保存</button>'
+      +(r.draft_prev && r.draft_prev!==r.draft_text ? '<button class="btn btn-ghost btn-sm" onclick="inboxReplyRestore('+m.id+',\'prev\')">1つ前に戻す</button>' : '')
+      +(r.draft_ai && r.draft_ai!==r.draft_text ? '<button class="btn btn-ghost btn-sm" onclick="inboxReplyRestore('+m.id+',\'ai\')">AI の最初の案に戻す</button>' : '')
+      +'</div>'
+      +'<div style="display:flex;gap:6px;margin-top:8px">'
+      +'<input type="text" id="ibx-regen-note" placeholder="直しの指示（例: もう少し短く／朝食付きで案内）" style="flex:1;min-width:0">'
+      +'<button class="btn btn-ghost btn-sm" onclick="inboxReplyRegen('+m.id+')">作り直す</button></div>'
+      +'<div class="ibx-meta" style="margin-top:6px">ここからは送信しません。コピーして、'+(m.channel==='line'?'LINE 公式アカウントの管理画面':'Gmail')+'に貼って送ってください。</div>';
+  }
+  return h+'</div>';
+}
+// 作成中のあいだ、10秒おきにできあがりを確かめる（最長5分）
+function ibxReplyPoll(id){
+  clearTimeout(_ibxPollTimer);
+  var tries=0;
+  (function tick(){
+    _ibxPollTimer=setTimeout(async function(){
+      var sec=document.getElementById('sec-inbox');
+      if(_ibxSel!==id || !sec || !sec.classList.contains('active')) return;
+      tries++;
+      try{
+        const res=await ibxRpc('inbox_reply_get',{p_pass:ibxPass(),p_id:id});
+        if(!res || !res.ok) return;
+        var m=_ibxRows.find(function(x){return x.id===id;});
+        if(m && res.reply && res.reply.state!=='regen'){ m.reply=res.reply; inboxSelect(id); return; }
+      }catch(e){ console.error(e); }
+      if(tries<30) tick();
+    },10000);
+  })();
+}
+async function inboxReplyRefresh(id){
+  try{
+    const res=await ibxRpc('inbox_reply_get',{p_pass:ibxPass(),p_id:id});
+    if(!res.ok){ if(res.reason) inboxOpen(); return; }
+    var m=_ibxRows.find(function(x){return x.id===id;});
+    if(m){ m.reply=res.reply||null; inboxSelect(id); }
+  }catch(e){ toast('読み込めませんでした'); console.error(e); }
+}
+// 画面の下書きを保存する。変わっていなければ何もしない。成功なら true。
+async function inboxReplySave(id,silent){
+  var m=_ibxRows.find(function(x){return x.id===id;}), ta=document.getElementById('ibx-reply-text');
+  if(!m || !ta) return false;
+  if(m.reply && (m.reply.draft_text||'')===ta.value){ if(!silent) toast('保存済みです'); return true; }
+  try{
+    const res=await ibxRpc('inbox_reply_save',{p_pass:ibxPass(),p_id:id,p_text:ta.value});
+    if(!res.ok){ toast('保存できませんでした'); if(res.reason) inboxOpen(); return false; }
+    m.reply=Object.assign({state:'ready'},m.reply||{},{draft_text:ta.value});
+    if(!silent) toast('保存しました');
+    return true;
+  }catch(e){ toast('保存できませんでした'); console.error(e); return false; }
+}
+async function inboxReplyCopy(id){
+  var ta=document.getElementById('ibx-reply-text');
+  if(!ta) return;
+  await inboxReplySave(id,true);
+  var ok=false;
+  try{ if(navigator.clipboard){ await navigator.clipboard.writeText(ta.value); ok=true; } }catch(e){}
+  if(!ok){ try{ ta.focus(); ta.select(); ok=document.execCommand('copy'); }catch(e){} }
+  toast(ok?'コピーしました。貼り付けて送ってください':'コピーできませんでした。文面を選んでコピーしてください');
+}
+// 「1つ前」「AI の最初の案」を入力欄に戻す（保存かコピーを押すまで確定しない）
+function inboxReplyRestore(id,which){
+  var m=_ibxRows.find(function(x){return x.id===id;}), ta=document.getElementById('ibx-reply-text');
+  if(!m || !m.reply || !ta) return;
+  ta.value=(which==='ai'?m.reply.draft_ai:m.reply.draft_prev)||'';
+  toast('入力欄に戻しました。よければ「保存」を押してください');
+}
+// 下書きを作る・作り直すよう頼む（GAS が1分以内に拾う）
+async function inboxReplyRegen(id,note){
+  var m=_ibxRows.find(function(x){return x.id===id;});
+  if(!m) return;
+  var el=document.getElementById('ibx-regen-note');
+  if(note==null) note=el?el.value.trim():'';
+  if(document.getElementById('ibx-reply-text')) await inboxReplySave(id,true); // 直した内容を AI に渡すため先に保存
+  try{
+    const res=await ibxRpc('inbox_reply_regen',{p_pass:ibxPass(),p_id:id,p_note:note||null});
+    if(!res.ok){ toast('依頼できませんでした'); if(res.reason) inboxOpen(); return; }
+    m.reply=Object.assign({},m.reply||{},{state:'regen',regen_note:note||null});
+    inboxSelect(id);
+  }catch(e){ toast('依頼できませんでした'); console.error(e); }
+}
+// 右側: 見積と仮予約
+function ibxQuoteBlockHtml(m){
+  var q=m.quote_id ? allQuotes.find(function(x){return x.id===m.quote_id;}) : null;
+  var hr=m.reservation_id ? allReservations.find(function(x){return x.id===m.reservation_id;}) : null;
+  var h='<div class="ibx-h">見積・仮予約</div>';
+  if(q){
+    var amt=Math.max(0,(parseInt(q.total_amount)||0)-(parseInt(q.discount)||0));
+    h+='<div class="ibx-meta">見積: '+ibxMD(q.check_in)+'〜'+ibxMD(q.check_out)+'　'+ibxEsc(String(q.room_type||'').split('\n')[0])
+      +'<br>'+amt.toLocaleString()+'円'+(q.valid_until?'（有効期限 '+ibxMD(q.valid_until)+'）':'')+'</div>';
+  }else{
+    h+='<div class="ibx-meta">'+(m.quote_id?'見積 #'+m.quote_id+'（一覧に見つかりません）':'見積はまだひも付いていません。')+'</div>';
+  }
+  h+='<div class="ibx-actions">'
+    +'<button class="btn btn-ghost btn-sm" onclick="inboxMakeQuote('+m.id+')">'+(q?'見積を作り直す':'見積を作る')+'</button>'
+    +(q?'<button class="btn btn-ghost btn-sm" onclick="openQuoteDetail('+q.id+')">見積を開く</button>'
+       +'<button class="btn btn-primary btn-sm" onclick="inboxReplyRegen('+m.id+',\'見積の金額と見積ページのリンクを入れてください\')">見積を下書きに入れる</button>':'')
+    +'</div>';
+  if(hr){
+    h+='<div class="ibx-meta" style="margin-top:8px">'+(hr.status==='tentative'?'仮予約':'予約')+': '+ibxEsc(hr.check_in)+'〜　'+ibxEsc(String(hr.room_type||'').split('\n')[0])
+      +(m.hold_until?'（期限 '+ibxMD(m.hold_until)+'）':'')+'</div>'
+      +'<div class="ibx-actions"><button class="btn btn-ghost btn-sm" onclick="openReservation('+hr.id+')">予約を開く</button></div>';
+  }else if(q){
+    h+='<div class="ibx-actions"><button class="btn btn-ghost btn-sm" onclick="inboxMakeHold('+m.id+')">🔖 仮予約を登録</button></div>';
+  }else{
+    h+='<div class="ibx-meta" style="margin-top:8px">仮予約は、見積を作ったあとに登録できます。</div>';
+  }
+  return h;
+}
+// 見積画面を、日程が入った状態で開く。お名前とメールは見積書を開くときに入る。保存は Risa が押す。
+function inboxMakeQuote(id){
+  var m=_ibxRows.find(function(x){return x.id===id;});
+  if(!m) return;
+  _ibxQuoteCtx={id:m.id,name:(m.sender_name||'').trim(),email:(m.channel.indexOf('email')===0?(m.sender_addr||''):''),at:Date.now()};
+  openNewReservation();
+  setTimeout(function(){
+    var a=document.getElementById('e-cin'), b=document.getElementById('e-cout');
+    if(a && m.stay_from) a.value=m.stay_from;
+    if(b && m.stay_to) b.value=m.stay_to;
+    if(m.stay_from && m.stay_to && typeof applyMealRestrictions==='function') applyMealRestrictions(m.stay_from,m.stay_to);
+  },80);
+  toast('日程を入れました。部屋・人数・食事を選んで計算し、見積書を保存してください');
+}
+function ibxQuotePrefill(){
+  var c=_ibxQuoteCtx;
+  if(!c || Date.now()-c.at>3600000){ _ibxQuoteCtx=null; return; }
+  var g=document.getElementById('q-guest'), e=document.getElementById('q-email');
+  if(g && !g.value && c.name) g.value=c.name;
+  if(e && !e.value && c.email) e.value=c.email;
+}
+async function ibxQuoteSaved(qid){
+  var c=_ibxQuoteCtx; _ibxQuoteCtx=null;
+  if(!c || Date.now()-c.at>3600000) return;
+  var m=_ibxRows.find(function(x){return x.id===c.id;});
+  if(!m) return;
+  if(!confirm('この見積を、受信箱の「'+(m.sender_name||m.sender_addr||'')+'」様の問い合わせにひも付けますか？')) return;
+  try{
+    const res=await ibxRpc('inbox_update',{p_pass:ibxPass(),p_id:m.id,p_patch:{quote_id:qid}});
+    if(!res.ok){ toast('ひも付けできませんでした'); return; }
+    m.quote_id=qid;
+    toast('受信箱にひも付けました。受信箱で「見積を下書きに入れる」を押すと金額とリンクが入ります');
+  }catch(e){ toast('ひも付けできませんでした'); console.error(e); }
+}
+// ひも付いた見積から仮予約を登録する（既存の「🔖 仮予約」と同じ処理。確認ダイアログが出る）
+function inboxMakeHold(id){
+  var m=_ibxRows.find(function(x){return x.id===id;});
+  if(!m || !m.quote_id){ toast('先に見積を作ってください'); return; }
+  _ibxHoldCtx={id:m.id,quote:m.quote_id,at:Date.now()};
+  tentativeFromQuote(m.quote_id);
+}
+async function ibxTentativeCreated(quoteId,ids){
+  var c=_ibxHoldCtx, m=null;
+  if(c && c.quote===quoteId && Date.now()-c.at<3600000) m=_ibxRows.find(function(x){return x.id===c.id;});
+  if(!m) m=_ibxRows.find(function(x){return x.quote_id===quoteId && !x.reservation_id;}); // 見積一覧から仮予約にした場合も拾う
+  _ibxHoldCtx=null;
+  if(!m || !ids || !ids.length) return;
+  var q=allQuotes.find(function(x){return x.id===quoteId;});
+  var hold=(q && q.valid_until && q.valid_until>=ibxToday()) ? q.valid_until : ibxAddDays(ibxToday(),7);
+  try{
+    const res=await ibxRpc('inbox_update',{p_pass:ibxPass(),p_id:m.id,p_patch:{reservation_id:ids[0],hold_until:hold}});
+    if(!res.ok) return;
+    m.reservation_id=ids[0]; m.hold_until=hold;
+    toast('🔖 仮予約を受信箱にひも付けました（期限 '+ibxMD(hold)+'）');
+  }catch(e){ console.error(e); }
 }
 
 let allComms = [];
