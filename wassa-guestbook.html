@@ -954,8 +954,11 @@ tr:hover td{background:#F8FAFB;cursor:pointer}
 <section class="sec owner-only" id="sec-inbox">
   <style>
     .ibx-grid{display:grid;grid-template-columns:minmax(240px,300px) minmax(0,1fr) minmax(240px,300px);gap:14px;align-items:start}
-    @media(max-width:1000px){.ibx-grid{grid-template-columns:1fr}}
-    .ibx-grid>.card{margin-bottom:0;padding:14px}
+    @media(max-width:1000px){.ibx-grid{grid-template-columns:minmax(0,1fr)} .ibx-grid .ibx-list{max-height:38vh}}
+    .ibx-grid>.card{margin-bottom:0;padding:14px;min-width:0;overflow-wrap:anywhere}
+    .ibx-avwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+    .ibx-dates{display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+    .ibx-dates input{flex:1 1 120px;min-width:0;max-width:100%}
     .ibx-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
     .ibx-chip{border:1px solid var(--border);background:#fff;border-radius:16px;padding:3px 11px;font-size:12px;cursor:pointer;color:var(--text2)}
     .ibx-chip.on{background:var(--ocean2);border-color:var(--ocean2);color:#fff}
@@ -12466,7 +12469,7 @@ function ibxAvailabilityHtml(from,to){
   var nights=[]; for(var d=from; d<to && nights.length<14; d=ibxAddDays(d,1)) nights.push(d);
   var rooms=[['DX','デラックス'],['S02','スーペリア02'],['S01','スーペリア01']];
   var live=allReservations.filter(function(r){ return r.status!=='cancelled' && r.status!=='waitlist' && r.check_in<to && r.check_out>from; });
-  var h='<table class="ibx-av"><tr><th></th>'+nights.map(function(n){return '<th>'+(+n.slice(5,7))+'/'+(+n.slice(8,10))+'</th>';}).join('')+'</tr>';
+  var h='<div class="ibx-avwrap"><table class="ibx-av"><tr><th></th>'+nights.map(function(n){return '<th>'+(+n.slice(5,7))+'/'+(+n.slice(8,10))+'</th>';}).join('')+'</tr>';
   rooms.forEach(function(rm){
     h+='<tr><th>'+rm[1]+'</th>'+nights.map(function(n){
       var mark='○', cls='ok';
@@ -12479,7 +12482,7 @@ function ibxAvailabilityHtml(from,to){
       return '<td class="'+cls+'">'+mark+'</td>';
     }).join('')+'</tr>';
   });
-  h+='</table><div class="ibx-meta" style="margin-top:4px">○空き　×予約あり　△部屋未確定のスーペリア予約あり。スーペリアが両方空きなら 02 を先にご案内。</div>';
+  h+='</table></div><div class="ibx-meta" style="margin-top:4px">○空き　×予約あり　△部屋未確定のスーペリア予約あり。スーペリアが両方空きなら 02 を先にご案内。</div>';
   if(to>'2027-02-01') h+='<div class="ibx-meta" style="margin-top:6px;color:var(--amber)">2027年2月以降のご宿泊です。宿泊税のご案内を入れてください（金額は書かない）。</div>';
   return h;
 }
@@ -12499,7 +12502,7 @@ function inboxRenderSide(){
   var h='';
   if(m.kind!=='review'){
     h+='<div class="ibx-h">ご希望の日程と空室</div>'
-      +'<div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">'
+      +'<div class="ibx-dates">'
       +'<input type="date" id="ibx-from" value="'+ibxEsc(m.stay_from||'')+'" onchange="inboxSaveDates('+m.id+')" style="flex:1;min-width:0">'
       +'<span>〜</span>'
       +'<input type="date" id="ibx-to" value="'+ibxEsc(m.stay_to||'')+'" onchange="inboxSaveDates('+m.id+')" style="flex:1;min-width:0"></div>'
